@@ -9,6 +9,8 @@ import { mainnet, polygon, optimism, arbitrum, base } from "wagmi/chains";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 
+// import { SwapInterface } from "./components/swap-interface";
+
 const queryClient = new QueryClient();
 
 const config = getDefaultConfig({
@@ -58,6 +60,7 @@ function App() {
             <p className="read-the-docs">
               Click on the Vite and React logos to learn more
             </p>
+            {/* <SwapInterface /> */}
           </>
         </RainbowKitProvider>
       </QueryClientProvider>
