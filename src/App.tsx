@@ -8,6 +8,9 @@ import { WagmiProvider } from "wagmi";
 import { mainnet, polygon, optimism, arbitrum, base } from "wagmi/chains";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import Link from "next/link";
+
+// import { SwapInterface } from "./components/swap-interface";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +61,11 @@ function App() {
             <p className="read-the-docs">
               Click on the Vite and React logos to learn more
             </p>
+            {/* <div className="card">
+              <Link href="/swap">
+                <a>Go to Swap Interface</a>
+              </Link>
+            </div> */}
           </>
         </RainbowKitProvider>
       </QueryClientProvider>
