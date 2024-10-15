@@ -4,7 +4,11 @@ import { SwapInterface } from "./components/swap-interface";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
+// Add this to your main layout or App component
+<ToastContainer position="bottom-right" autoClose={5000} />
 function Home() {
   const [count, setCount] = useState(0);
 
