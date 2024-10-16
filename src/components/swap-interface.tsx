@@ -33,6 +33,7 @@ import {
 import { ethers } from "ethers";
 import { toast } from "react-toastify";
 import { useToast } from '../hooks/useToast';
+import { SWAP_ABI } from "../lib/contracts";
 
 const BuildBearChain = {
   id: 21026,
@@ -144,7 +145,7 @@ function SwapInterfaceContent() {
     WETH: "0",
   });
 
-  const swapContractAddress = "0x7c615Fdd7e0b66e57F9AD360e18c0C85BdBD0fC1"; // Replace with your actual swap contract address
+  const swapContractAddress = "0xADD940680b1608b1423B0eB6080c5E0fe3D31EDC"; // Replace with your actual swap contract address
 
   const getProvider = useCallback(() => {
     if (publicClient) {
@@ -389,16 +390,46 @@ function SwapInterfaceContent() {
       const spx6900Amount = (parseFloat(fromAmount) * sliderValues.SPX6900 / 100).toString();
       const mogAmount = (parseFloat(fromAmount) * sliderValues.MOG / 100).toString();
 
-      // Perform the hardcoded swap
-      const swapTx = await performHardcodedSwap(
-        swapContractAddress,
-        WETH_ADDRESS,
-        SPX_ADDRESS,
-        MOG_ADDRESS,
-        spx6900Amount,
-        mogAmount,
-        signer
-      );
+      const path = [WETH_ADDRESS, SPX_ADDRESS, MOG_ADDRESS];
+      const sellAmounts = [
+        ethers.parseEther(fromAmount),
+        ethers.parseEther(spx6900Amount),
+        ethers.parseEther(mogAmount)
+      ];
+      const minAmounts = [
+        ethers.parseUnits("1",0),  // Minimum amount for SPX6900 (adjust as needed)
+        ethers.parseUnits("1",0)   // Minimum amount for MOG (adjust as needed)
+      ];
+      const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
+
+      let swapTx;
+      if (selectedToken === "ETH") {
+        const contract = new ethers.Contract(swapContractAddress, [
+          "function swapEthForMultiTokens(uint256[] memory sellAmounts, uint256[] memory minAmounts, address[] memory path, uint256 deadline) external payable returns (uint256[] memory amounts)"
+        ], signer);
+
+        swapTx = await contract.swapEthForMultiTokens(
+          sellAmounts,
+          minAmounts,
+          path,
+          deadline,
+          { 
+            value: ethers.parseEther(fromAmount),
+            gasLimit: 300000,
+            gasPrice: ethers.parseUnits("100", "gwei")  // Adjust as needed
+          }
+        );
+      } else {
+        swapTx = await performHardcodedSwap(
+          swapContractAddress,
+          WETH_ADDRESS,
+          SPX_ADDRESS,
+          MOG_ADDRESS,
+          spx6900Amount,
+          mogAmount,
+          signer
+        );
+      }
 
       showToast("Swap transaction sent. Waiting for confirmation...", "info");
       await swapTx.wait();
