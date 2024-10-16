@@ -106,6 +106,11 @@ const MOCK_EXPECTED_OUTPUT: Record<Token, string> = {
   MOG: "89213.4",
 };
 
+// Add these constants at the top of the file, after other constants
+const DOGE_MARKET_CAP = 18354750059;
+const SPX6900_MARKET_CAP = 606265150;
+const MOG_MARKET_CAP = 742944760;
+
 function SwapInterfaceContent() {
   const { showToast } = useToast();
   const [simpleSwap, setSimpleSwap] = useState(false);
@@ -444,6 +449,55 @@ function SwapInterfaceContent() {
     }
   };
 
+  // Add this function to calculate the ratio
+  // const calculateRatio = (outputTokenMC: number) => {
+  //   return (DOGE_MARKET_CAP / outputTokenMC).toFixed(2);
+  // };
+
+  const [marketCaps, setMarketCaps] = useState({
+    mog: 742944760,  // Mock data
+    spx6900: 606265150,  // Mock data
+    dogecoin: 18354750059  // Mock data
+  });
+
+  // Fetch market caps
+  const fetchMarketCaps = useCallback(async () => {
+    try {
+      const response = await fetch('http://localhost:8000/market_caps');
+      if (!response.ok) {
+        throw new Error('Failed to fetch market caps');
+      }
+      const data = await response.json();
+      setMarketCaps({
+        mog: data.mog,
+        spx6900: data.spx6900,
+        dogecoin: data.dogecoin
+      });
+    } catch (error) {
+      console.error('Error fetching market caps:', error);
+      toast.error('Failed to fetch market caps. Using default values.');
+      // Use mock data if API fails
+      setMarketCaps({
+        mog: 742944760,
+        spx6900: 606265150,
+        dogecoin: 18354750059
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMarketCaps();
+    // Set up an interval to fetch market caps every 5 minutes
+    const intervalId = setInterval(fetchMarketCaps, 5 * 60 * 1000);
+    return () => clearInterval(intervalId);
+  }, [fetchMarketCaps]);
+
+  // Calculate ratio function
+  const calculateRatio = useCallback((outputTokenMC: number) => {
+    const ratio = marketCaps.dogecoin / outputTokenMC;
+    return isNaN(ratio) ? "N/A" : ratio.toFixed(2);
+  }, [marketCaps.dogecoin]);
+
   return (
     <div className="w-full max-w-md space-y-4">
       {/* <div className="flex items-center space-x-2 bg-gray-800 rounded-lg p-2">
@@ -551,6 +605,10 @@ function SwapInterfaceContent() {
                     readOnly
                     className="bg-transparent border-none text-right w-24"
                   />
+                  <span className="text-xs text-gray-400">
+                    {token === "SPX6900" && `Ratio: ${calculateRatio(marketCaps.spx6900)}x`}
+                    {token === "MOG" && `Ratio: ${calculateRatio(marketCaps.mog)}x`}
+                  </span>
                 </div>
               </div>
               <div className="space-y-1">
