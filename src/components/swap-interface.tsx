@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Switch } from "./ui/switch";
+// import { Switch } from "./ui/switch";
 import { ArrowDownUp, ChevronDown, Lock, Unlock, Plus } from "lucide-react";
 import Image from "next/image";
 
@@ -13,10 +13,21 @@ import { WagmiProvider } from "wagmi";
 import { mainnet, polygon, optimism, arbitrum, base } from "wagmi/chains";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, useBalance, usePublicClient, useWalletClient } from 'wagmi';
-import { getTokenBalance, approveToken, performSwap, getExpectedOutputAmount } from '../lib/tx_utils';
-import { ethers } from 'ethers';
-import { toast } from 'react-toastify';
+import {
+  useAccount,
+  useBalance,
+  usePublicClient,
+  useWalletClient,
+} from "wagmi";
+import {
+  getTokenBalance,
+  approveToken,
+  performSwap,
+  getExpectedOutputAmount,
+  performHardcodedSwap,
+} from "../lib/tx_utils";
+import { ethers } from "ethers";
+import { toast } from "react-toastify";
 
 const queryClient = new QueryClient();
 
@@ -44,9 +55,9 @@ const ethPrice = 2500; // $2500 per ETH
 type Token = "SPX6900" | "MOG" | "WETH" | "ETH" | string;
 
 // Define token addresses
-const SPX_ADDRESS = '0xe0f63a424a4439cbe457d80e4f4b51ad25b2c56c';
-const MOG_ADDRESS = '0xaaee1a9723aadb7afa2810263653a34ba2c21c7a';
-const WETH_ADDRESS = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
+const SPX_ADDRESS = "0xe0f63a424a4439cbe457d80e4f4b51ad25b2c56c";
+const MOG_ADDRESS = "0xaaee1a9723aadb7afa2810263653a34ba2c21c7a";
+const WETH_ADDRESS = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
 
 // Mock data for when wallet is not connected
 const MOCK_BALANCES: Record<Token, string> = {
@@ -99,14 +110,14 @@ function SwapInterfaceContent() {
     WETH: "0",
   });
 
-  const swapContractAddress = '0x...'; // Replace with your actual swap contract address
+  const swapContractAddress = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"; // Replace with your actual swap contract address
 
   const getProvider = useCallback(() => {
     if (publicClient) {
       return new ethers.BrowserProvider(publicClient.transport);
     }
     // Fallback to a default provider if wallet is not connected
-    return new ethers.JsonRpcProvider('https://eth.llamarpc.com');
+    return new ethers.JsonRpcProvider("https://eth.llamarpc.com");
   }, [publicClient]);
 
   const getSigner = useCallback(async () => {
@@ -121,11 +132,23 @@ function SwapInterfaceContent() {
     if (address) {
       try {
         const provider = getProvider();
-        const spxBalance = await getTokenBalance(SPX_ADDRESS, address, provider);
-        const mogBalance = await getTokenBalance(MOG_ADDRESS, address, provider);
-        const wethBalance = await getTokenBalance(WETH_ADDRESS, address, provider);
+        const spxBalance = await getTokenBalance(
+          SPX_ADDRESS,
+          address,
+          provider
+        );
+        const mogBalance = await getTokenBalance(
+          MOG_ADDRESS,
+          address,
+          provider
+        );
+        const wethBalance = await getTokenBalance(
+          WETH_ADDRESS,
+          address,
+          provider
+        );
 
-        setTokenBalances(prev => ({
+        setTokenBalances((prev) => ({
           ...prev,
           SPX6900: spxBalance,
           MOG: mogBalance,
@@ -149,7 +172,7 @@ function SwapInterfaceContent() {
 
   useEffect(() => {
     if (ethBalanceData) {
-      setTokenBalances(prev => ({
+      setTokenBalances((prev) => ({
         ...prev,
         ETH: ethers.formatUnits(ethBalanceData.value, 18),
       }));
@@ -167,10 +190,14 @@ function SwapInterfaceContent() {
           const tokenInAmount = (totalEthValue * (percentage / 100)).toString();
           const expectedOutput = await getExpectedOutputAmount(
             swapContractAddress,
-            selectedToken === "ETH" ? ethers.ZeroAddress : 
-              selectedToken === "SPX6900" ? SPX_ADDRESS :
-              selectedToken === "MOG" ? MOG_ADDRESS : WETH_ADDRESS,
-            token === 'SPX6900' ? SPX_ADDRESS : MOG_ADDRESS,
+            selectedToken === "ETH"
+              ? ethers.ZeroAddress
+              : selectedToken === "SPX6900"
+              ? SPX_ADDRESS
+              : selectedToken === "MOG"
+              ? MOG_ADDRESS
+              : WETH_ADDRESS,
+            token === "SPX6900" ? SPX_ADDRESS : MOG_ADDRESS,
             tokenInAmount,
             provider
           );
@@ -191,45 +218,52 @@ function SwapInterfaceContent() {
     updateExpectedOutput();
   }, [updateExpectedOutput]);
 
-  const handleTokenSelect = useCallback((token: Token) => {
-    setSelectedToken(token);
-    if (isConnected) {
-      if (token === "ETH") {
-        refetchEthBalance();
-      } else {
-        const fetchTokenBalance = async () => {
-          if (address) {
-            try {
-              const provider = getProvider();
-              let tokenAddress;
-              switch (token) {
-                case "SPX6900":
-                  tokenAddress = SPX_ADDRESS;
-                  break;
-                case "MOG":
-                  tokenAddress = MOG_ADDRESS;
-                  break;
-                case "WETH":
-                  tokenAddress = WETH_ADDRESS;
-                  break;
-                default:
-                  return;
+  const handleTokenSelect = useCallback(
+    (token: Token) => {
+      setSelectedToken(token);
+      if (isConnected) {
+        if (token === "ETH") {
+          refetchEthBalance();
+        } else {
+          const fetchTokenBalance = async () => {
+            if (address) {
+              try {
+                const provider = getProvider();
+                let tokenAddress;
+                switch (token) {
+                  case "SPX6900":
+                    tokenAddress = SPX_ADDRESS;
+                    break;
+                  case "MOG":
+                    tokenAddress = MOG_ADDRESS;
+                    break;
+                  case "WETH":
+                    tokenAddress = WETH_ADDRESS;
+                    break;
+                  default:
+                    return;
+                }
+                const balance = await getTokenBalance(
+                  tokenAddress,
+                  address,
+                  provider
+                );
+                setTokenBalances((prev) => ({
+                  ...prev,
+                  [token]: balance,
+                }));
+              } catch (error) {
+                console.error("Error fetching token balance:", error);
+                toast.error("Failed to fetch token balance. Please try again.");
               }
-              const balance = await getTokenBalance(tokenAddress, address, provider);
-              setTokenBalances(prev => ({
-                ...prev,
-                [token]: balance,
-              }));
-            } catch (error) {
-              console.error("Error fetching token balance:", error);
-              toast.error("Failed to fetch token balance. Please try again.");
             }
-          }
-        };
-        fetchTokenBalance();
+          };
+          fetchTokenBalance();
+        }
       }
-    }
-  }, [isConnected, address, getProvider, refetchEthBalance]);
+    },
+    [isConnected, address, getProvider, refetchEthBalance]
+  );
 
   const handleSliderChange = (token: Token, value: number) => {
     if (lockedTokens[token]) return;
@@ -284,21 +318,42 @@ function SwapInterfaceContent() {
       // Approve tokens if necessary (for ERC20 tokens)
       if (!simpleSwap && selectedToken !== "ETH") {
         setIsApproving(true);
-        const tokenAddress = selectedToken === "SPX6900" ? SPX_ADDRESS : 
-                             selectedToken === "MOG" ? MOG_ADDRESS : WETH_ADDRESS;
-        const approveTx = await approveToken(tokenAddress, swapContractAddress, fromAmount, signer);
+        const tokenAddress =
+          selectedToken === "SPX6900"
+            ? SPX_ADDRESS
+            : selectedToken === "MOG"
+            ? MOG_ADDRESS
+            : WETH_ADDRESS;
+        const approveTx = await approveToken(
+          tokenAddress,
+          swapContractAddress,
+          fromAmount,
+          signer
+        );
         await approveTx.wait();
         setIsApproving(false);
       }
 
       // Perform swaps
       for (const [token, amount] of Object.entries(toAmounts)) {
-        const tokenInAddress = selectedToken === "ETH" ? ethers.ZeroAddress : 
-                               selectedToken === "SPX6900" ? SPX_ADDRESS :
-                               selectedToken === "MOG" ? MOG_ADDRESS : WETH_ADDRESS;
-        const tokenOutAddress = token === "SPX6900" ? SPX_ADDRESS : 
-                                token === "MOG" ? MOG_ADDRESS : WETH_ADDRESS;
-        const amountIn = (parseFloat(fromAmount) * (sliderValues[token as Token] / 100)).toString();
+        const tokenInAddress =
+          selectedToken === "ETH"
+            ? ethers.ZeroAddress
+            : selectedToken === "SPX6900"
+            ? SPX_ADDRESS
+            : selectedToken === "MOG"
+            ? MOG_ADDRESS
+            : WETH_ADDRESS;
+        const tokenOutAddress =
+          token === "SPX6900"
+            ? SPX_ADDRESS
+            : token === "MOG"
+            ? MOG_ADDRESS
+            : WETH_ADDRESS;
+        const amountIn = (
+          parseFloat(fromAmount) *
+          (sliderValues[token as Token] / 100)
+        ).toString();
         const minAmountOut = (parseFloat(amount) * 0.99).toString(); // 1% slippage
 
         const swapTx = await performSwap(
@@ -314,13 +369,46 @@ function SwapInterfaceContent() {
       }
 
       // Reset form or show success message
-      setFromAmount('0');
+      setFromAmount("0");
       toast.success("Swap completed successfully!");
       // Fetch updated balances
       handleTokenSelect(selectedToken);
     } catch (error) {
-      console.error('Swap failed:', error);
+      console.error("Swap failed:", error);
       toast.error("Swap failed. Please try again.");
+    } finally {
+      setIsSwapping(false);
+    }
+  };
+
+  const handleHardcodedSwap = async () => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet to perform a swap.");
+      return;
+    }
+
+    setIsSwapping(true);
+    try {
+      const signer = await getSigner();
+      if (!signer) {
+        throw new Error("Signer not available");
+      }
+
+      const swapTx = await performHardcodedSwap(
+        swapContractAddress,
+        WETH_ADDRESS,
+        SPX_ADDRESS,
+        MOG_ADDRESS,
+        signer
+      );
+      await swapTx.wait();
+
+      toast.success("Hardcoded swap completed successfully!");
+      // Fetch updated balances
+      fetchBalances();
+    } catch (error) {
+      console.error("Hardcoded swap failed:", error);
+      toast.error("Hardcoded swap failed. Please try again.");
     } finally {
       setIsSwapping(false);
     }
@@ -328,7 +416,7 @@ function SwapInterfaceContent() {
 
   return (
     <div className="w-full max-w-md space-y-4">
-      <div className="flex items-center space-x-2 bg-gray-800 rounded-lg p-2">
+      {/* <div className="flex items-center space-x-2 bg-gray-800 rounded-lg p-2">
         <Switch
           id="simple-swap"
           checked={simpleSwap}
@@ -340,7 +428,7 @@ function SwapInterfaceContent() {
         <span className="bg-orange-500 text-xs font-bold px-2 py-1 rounded">
           NEW
         </span>
-      </div>
+      </div> */}
 
       <div className="bg-gray-800 rounded-lg p-4 space-y-4">
         <div className="space-y-2">
@@ -355,12 +443,20 @@ function SwapInterfaceContent() {
                 <select
                   value={selectedToken}
                   onChange={(e) => handleTokenSelect(e.target.value as Token)}
-                  className="bg-transparent border-none"
+                  className="bg-transparent border-none text-black"
                 >
-                  <option value="ETH">ETH</option>
-                  <option value="WETH">WETH</option>
-                  <option value="SPX6900">SPX6900</option>
-                  <option value="MOG">MOG</option>
+                  <option value="ETH" className="text-black">
+                    ETH
+                  </option>
+                  <option value="WETH" className="text-black">
+                    WETH
+                  </option>
+                  <option value="SPX6900" className="text-black">
+                    SPX6900
+                  </option>
+                  <option value="MOG" className="text-black">
+                    MOG
+                  </option>
                 </select>
               </div>
               <div className="text-xs text-gray-400">
@@ -447,10 +543,7 @@ function SwapInterfaceContent() {
                     max="100"
                     value={sliderValues[token]}
                     onChange={(e) =>
-                      handleSliderChange(
-                        token,
-                        parseInt(e.target.value)
-                      )
+                      handleSliderChange(token, parseInt(e.target.value))
                     }
                     className="flex-grow"
                   />
@@ -478,7 +571,7 @@ function SwapInterfaceContent() {
           <Button
             variant="outline"
             onClick={addToken}
-            className="w-full mt-2 flex items-center justify-center space-x-2"
+            className="w-full mt-2 flex items-center justify-center space-x-2 text-white bg-gray-700 hover:bg-gray-600"
           >
             <Plus className="h-4 w-4" />
             <span>Select multiple tokens</span>
@@ -497,12 +590,18 @@ function SwapInterfaceContent() {
         </div>
       </div>
 
-      <Button 
-        className="w-full bg-blue-600 hover:bg-blue-700" 
+      <Button
+        className="w-full bg-blue-600 hover:bg-blue-700"
         onClick={handleSwap}
         disabled={!isConnected || isApproving || isSwapping}
       >
-        {!isConnected ? 'Connect Wallet' : isApproving ? 'Approving...' : isSwapping ? 'Swapping...' : 'Swap'}
+        {!isConnected
+          ? "Connect Wallet"
+          : isApproving
+          ? "Approving..."
+          : isSwapping
+          ? "Swapping..."
+          : "Swap"}
       </Button>
     </div>
   );
