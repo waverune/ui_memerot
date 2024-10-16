@@ -8,7 +8,11 @@ import { ArrowDownUp, ChevronDown, Lock, Unlock, Plus } from "lucide-react";
 import Image from "next/image";
 
 import "@rainbow-me/rainbowkit/styles.css";
-import { getDefaultConfig, RainbowKitProvider } from "@rainbow-me/rainbowkit";
+import {
+  getDefaultConfig,
+  RainbowKitProvider,
+  Chain,
+} from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
 import { mainnet, polygon, optimism, arbitrum, base } from "wagmi/chains";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
@@ -29,12 +33,40 @@ import {
 import { ethers } from "ethers";
 import { toast } from "react-toastify";
 
+const BuildBearChain = {
+  id: 21026,
+  name: "BuildBear",
+  nativeCurrency: {
+    name: "BuildBear",
+    symbol: "ETH",
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc.buildbear.io/sorry-caliban-d9f928d6"],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "BuildBear Explorer",
+      url: "https://explorer.buildbear.io/sorry-caliban-d9f928d6/",
+    },
+  },
+  iconUrl: "https://example.com/avax-icon.png",
+  iconBackground: "#fff",
+} as const satisfies Chain;
+
+// const { chains, provider } = configureChains(
+//   [avalancheChain],
+//   [alchemyProvider({ apiKey: "YOUR_ALCHEMY_API_KEY" }), publicProvider()]
+// );
+
 const queryClient = new QueryClient();
 
 const config = getDefaultConfig({
   appName: "My RainbowKit App",
   projectId: "288a12f8c7549e28f9540f38707c3c19",
-  chains: [mainnet, polygon, optimism, arbitrum, base],
+  chains: [mainnet, polygon, optimism, arbitrum, base, BuildBearChain],
   ssr: true, // If your dApp uses server side rendering (SSR)
 });
 
@@ -110,14 +142,16 @@ function SwapInterfaceContent() {
     WETH: "0",
   });
 
-  const swapContractAddress = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"; // Replace with your actual swap contract address
+  const swapContractAddress = "0x7c615Fdd7e0b66e57F9AD360e18c0C85BdBD0fC1"; // Replace with your actual swap contract address
 
   const getProvider = useCallback(() => {
     if (publicClient) {
       return new ethers.BrowserProvider(publicClient.transport);
     }
     // Fallback to a default provider if wallet is not connected
-    return new ethers.JsonRpcProvider("https://eth.llamarpc.com");
+    return new ethers.JsonRpcProvider(
+      "https://rpc.buildbear.io/sorry-caliban-d9f928d6"
+    );
   }, [publicClient]);
 
   const getSigner = useCallback(async () => {
@@ -592,7 +626,7 @@ function SwapInterfaceContent() {
 
       <Button
         className="w-full bg-blue-600 hover:bg-blue-700"
-        onClick={handleSwap}
+        onClick={handleHardcodedSwap}
         disabled={!isConnected || isApproving || isSwapping}
       >
         {!isConnected
