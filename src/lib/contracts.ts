@@ -17,13 +17,9 @@ export const ERC20_ABI = [
   
   // Mock Swap Contract Interface
   export const SWAP_ABI = [
-    // Read-only functions
-    'function getAmountOut(address tokenIn, address tokenOut, uint256 amountIn) view returns (uint256)',
-    
-    // Authenticated functions
-    'function swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, address to) payable returns (uint256)',
-    
-    // Events
-    'event Swap(address indexed sender, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut)'
+    'function swapWithPermit(uint256 sellAmount, uint256 minBuyAmount, uint256 deadline, address[] path, uint8 v, bytes32 r, bytes32 s) returns (uint256)',
+  'function swapTokenForMultiTokens(uint256[] sellAmounts, uint256[] minAmounts, address[] path, uint256 deadline) returns (uint256[])',
+  'function swapEthForMultiTokens(uint256[] sellAmounts, uint256[] minAmounts, address[] path, uint256 deadline) payable returns (uint256[])',
+  'function swapTokensForTokens(uint256[] minAmounts, address[] path, uint256 deadline) returns (uint256)',
   ] as const;
   

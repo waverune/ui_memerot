@@ -60,31 +60,36 @@ export async function performHardcodedSwap(
   wethAddress: string,
   spxAddress: string,
   mogAddress: string,
+  spx6900Amount: string,
+  mogAmount: string,
   signer: ethers.Signer
 ): Promise<ethers.TransactionResponse> {
-  const contract = new ethers.Contract(swapContractAddress, SWAP_ABI, signer);
+  const contract = new ethers.Contract(swapContractAddress, [
+    "function swapTokenForMultiTokens(uint256[] memory sellAmounts, uint256[] memory minAmounts, address[] memory path, uint256 deadline) external returns (uint256[] memory amounts)"
+  ], signer);
 
   const path = [wethAddress, spxAddress, mogAddress];
   const sellAmounts = [
-    ethers.parseUnits('2', 18),  // 2 WETH
-    ethers.parseUnits('1', 18),  // 1 SPX (this won't be used directly in the swap)
-    ethers.parseUnits('1', 18)   // 1 MOG (this won't be used directly in the swap)
+    ethers.parseUnits('2', 18),
+    ethers.parseUnits('1', 18),
+    ethers.parseUnits('1', 18)
   ];
   const minAmounts = [
-    ethers.parseUnits('1', 0),  // Minimum 1 wei for SPX
-    ethers.parseUnits('1', 0)   // Minimum 1 wei for MOG
+    ethers.parseUnits("1",0),  // Minimum amount for SPX6900 (adjust as needed)
+    ethers.parseUnits("1",0)   // Minimum amount for MOG (adjust as needed)
   ];
-
-  // Approve WETH spending
-  const wethContract = new ethers.Contract(wethAddress, ERC20_ABI, signer);
-  const approveTx = await wethContract.approve(swapContractAddress, ethers.MaxUint256);
-  await approveTx.wait();
-
-  // Perform the swap
+  const deadline = 1929063379; // 20 minutes from now
+    // Log contract call parameters
+    console.log("Contract call parameters:");
+    console.log("path:", path);
+    console.log("sellAmounts:", sellAmounts);
+    console.log("minAmounts:", minAmounts);
+    console.log("deadline:", deadline);
   return await contract.swapTokenForMultiTokens(
     sellAmounts,
     minAmounts,
     path,
-    Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
+    deadline,
+    { gasLimit: 300000, gasPrice: 100000000000000 } // Add a gas limit to ensure the transaction goes through
   );
 }
