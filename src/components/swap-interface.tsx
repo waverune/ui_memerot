@@ -478,9 +478,9 @@ function SwapInterfaceContent() {
       toast.error('Failed to fetch market caps. Using default values.');
       // Use mock data if API fails
       setMarketCaps({
-        mog: 742944760,
-        spx6900: 606265150,
-        dogecoin: 18354750059
+        mog: 758062091,
+        spx6900: 651612027,
+        dogecoin: 18653136099
       });
     }
   }, []);
@@ -495,7 +495,8 @@ function SwapInterfaceContent() {
   // Calculate ratio function
   const calculateRatio = useCallback((outputTokenMC: number) => {
     const ratio = marketCaps.dogecoin / outputTokenMC;
-    return isNaN(ratio) ? "N/A" : ratio.toFixed(2);
+    console.log(ratio)
+    return isNaN(ratio) || !isFinite(ratio) ? "N/A" : ratio.toFixed(2);
   }, [marketCaps.dogecoin]);
 
   return (
@@ -606,8 +607,8 @@ function SwapInterfaceContent() {
                     className="bg-transparent border-none text-right w-24"
                   />
                   <span className="text-xs text-gray-400">
-                    {token === "SPX6900" && `Ratio: ${calculateRatio(marketCaps.spx6900)}x`}
-                    {token === "MOG" && `Ratio: ${calculateRatio(marketCaps.mog)}x`}
+                    {token === "SPX6900" && `DogeRatio: ${calculateRatio(marketCaps.spx6900)}x`}
+                    {token === "MOG" && `DogeRatio: ${calculateRatio(marketCaps.mog)}x`}
                   </span>
                 </div>
               </div>
@@ -667,6 +668,11 @@ function SwapInterfaceContent() {
           ? "Swapping..."
           : "Swap"}
       </Button>
+
+      {/* Add the explanatory text here */}
+      <div className="text-xs text-gray-400 mt-4 text-center">
+        DogeRatio is the multiplier to the current price for the token with market cap of Dogecoin
+      </div>
     </div>
   );
 }
@@ -679,7 +685,6 @@ export function SwapInterface() {
           <div className="min-h-screen bg-gray-900 text-white flex flex-col justify-between p-4">
             <div className="w-full max-w-7xl mx-auto flex justify-between items-center mb-8">
               <h1 className="text-2xl font-bold">Swap</h1>
-
               <CustomConnectButton />
             </div>
             <div className="flex-grow flex items-center justify-center">
