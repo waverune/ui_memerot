@@ -3,13 +3,16 @@ import { ERC20_ABI, SWAP_ABI } from './contracts';
 
 export async function getTokenBalance(
   tokenAddress: string,
-  userAddress: string,
+  walletAddress: string,
   provider: ethers.Provider
 ): Promise<string> {
-  const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-  const balance = await contract.balanceOf(userAddress);
-  const decimals = await contract.decimals();
-  return ethers.formatUnits(balance, decimals);
+  const tokenContract = new ethers.Contract(
+    tokenAddress,
+    ["function balanceOf(address) view returns (uint256)"],
+    provider
+  );
+  const balance = await tokenContract.balanceOf(walletAddress);
+  return balance.toString(); // Return the raw balance as a string
 }
 
 export async function approveToken(
@@ -75,16 +78,16 @@ export async function performHardcodedSwap(
     ethers.parseUnits('1', 18)
   ];
   const minAmounts = [
-    ethers.parseUnits("1",0),  // Minimum amount for SPX6900 (adjust as needed)
-    ethers.parseUnits("1",0)   // Minimum amount for MOG (adjust as needed)
+    ethers.parseUnits("1", 0),  // Minimum amount for SPX6900 (adjust as needed)
+    ethers.parseUnits("1", 0)   // Minimum amount for MOG (adjust as needed)
   ];
   const deadline = 1929063379; // 20 minutes from now
-    // Log contract call parameters
-    console.log("Contract call parameters:");
-    console.log("path:", path);
-    console.log("sellAmounts:", sellAmounts);
-    console.log("minAmounts:", minAmounts);
-    console.log("deadline:", deadline);
+  // Log contract call parameters
+  console.log("Contract call parameters:");
+  console.log("path:", path);
+  console.log("sellAmounts:", sellAmounts);
+  console.log("minAmounts:", minAmounts);
+  console.log("deadline:", deadline);
   return await contract.swapTokenForMultiTokens(
     sellAmounts,
     minAmounts,

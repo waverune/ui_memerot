@@ -86,12 +86,14 @@ const spx6900Logo = "/spx6900-logo.png";
 
 const ethPrice = 2500; // $2500 per ETH
 
-type Token = "SPX6900" | "MOG" | "WETH" | "ETH" | string;
+// Add USDC address and update Token type
+type Token = "SPX6900" | "MOG" | "WETH" | "ETH" | "USDC" | string;
 
 // Define token addresses
 const SPX_ADDRESS = "0xe0f63a424a4439cbe457d80e4f4b51ad25b2c56c";
 const MOG_ADDRESS = "0xaaee1a9723aadb7afa2810263653a34ba2c21c7a";
 const WETH_ADDRESS = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 
 // Mock data for when wallet is not connected
 const MOCK_BALANCES: Record<Token, string> = {
@@ -99,6 +101,7 @@ const MOCK_BALANCES: Record<Token, string> = {
   SPX6900: "0",
   MOG: "0",
   WETH: "0.0",
+  USDC: "0.0",
 };
 
 const MOCK_EXPECTED_OUTPUT: Record<Token, string> = {
@@ -148,6 +151,7 @@ function SwapInterfaceContent() {
     SPX6900: "10000",
     MOG: "5000000",
     WETH: "0",
+    USDC: "0",
   });
 
   const swapContractAddress = "0xADD940680b1608b1423B0eB6080c5E0fe3D31EDC"; // Replace with your actual swap contract address
@@ -174,27 +178,17 @@ function SwapInterfaceContent() {
     if (address) {
       try {
         const provider = getProvider();
-        const spxBalance = await getTokenBalance(
-          SPX_ADDRESS,
-          address,
-          provider
-        );
-        const mogBalance = await getTokenBalance(
-          MOG_ADDRESS,
-          address,
-          provider
-        );
-        const wethBalance = await getTokenBalance(
-          WETH_ADDRESS,
-          address,
-          provider
-        );
+        const spxBalance = await getTokenBalance(SPX_ADDRESS, address, provider);
+        const mogBalance = await getTokenBalance(MOG_ADDRESS, address, provider);
+        const wethBalance = await getTokenBalance(WETH_ADDRESS, address, provider);
+        const usdcBalance = await getTokenBalance(USDC_ADDRESS, address, provider);
 
         setTokenBalances((prev) => ({
           ...prev,
           SPX6900: spxBalance,
           MOG: mogBalance,
           WETH: wethBalance,
+          USDC: (parseInt(usdcBalance) / 1e6).toFixed(2), // Convert to a decimal string with 2 decimal places
         }));
       } catch (error) {
         console.error("Error fetching token balances:", error);
@@ -252,6 +246,7 @@ function SwapInterfaceContent() {
               try {
                 const provider = getProvider();
                 let tokenAddress;
+                let decimals = 18;
                 switch (token) {
                   case "SPX6900":
                     tokenAddress = SPX_ADDRESS;
@@ -262,17 +257,19 @@ function SwapInterfaceContent() {
                   case "WETH":
                     tokenAddress = WETH_ADDRESS;
                     break;
+                  case "USDC":
+                    tokenAddress = USDC_ADDRESS;
+                    decimals = 6;
+                    break;
                   default:
                     return;
                 }
-                const balance = await getTokenBalance(
-                  tokenAddress,
-                  address,
-                  provider
-                );
+                const balance = await getTokenBalance(tokenAddress, address, provider);
                 setTokenBalances((prev) => ({
                   ...prev,
-                  [token]: balance,
+                  [token]: token === "USDC" 
+                    ? (parseInt(balance) / 1e6).toFixed(2) 
+                    : ethers.formatUnits(balance, decimals),
                 }));
               } catch (error) {
                 console.error("Error fetching token balance:", error);
@@ -499,6 +496,19 @@ function SwapInterfaceContent() {
     return isNaN(ratio) || !isFinite(ratio) ? "N/A" : ratio.toFixed(2);
   }, [marketCaps.dogecoin]);
 
+  // Update the USD value calculation
+  const getUsdValue = (amount: string, token: Token) => {
+    switch (token) {
+      case "ETH":
+      case "WETH":
+        return (parseFloat(amount) * ethPrice).toFixed(2);
+      case "USDC":
+        return parseFloat(amount).toFixed(2); // 1 USDC = 1 USD
+      default:
+        return "0.00";
+    }
+  };
+
   return (
     <div className="w-full max-w-md space-y-4">
       {/* <div className="flex items-center space-x-2 bg-gray-800 rounded-lg p-2">
@@ -536,6 +546,9 @@ function SwapInterfaceContent() {
                   <option value="WETH" className="text-black">
                     WETH
                   </option>
+                  <option value="USDC" className="text-black">
+                    USDC
+                  </option>
                   <option value="SPX6900" className="text-black">
                     SPX6900
                   </option>
@@ -556,7 +569,7 @@ function SwapInterfaceContent() {
                 className="bg-transparent border-none text-right w-24"
               />
               <span className="text-xs text-gray-400">
-                ${(parseFloat(fromAmount) * ethPrice).toFixed(2)}
+                ${getUsdValue(fromAmount, selectedToken)}
               </span>
             </div>
           </div>
