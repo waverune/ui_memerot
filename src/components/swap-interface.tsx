@@ -115,6 +115,12 @@ const DOGE_MARKET_CAP = 18354750059;
 const SPX6900_MARKET_CAP = 606265150;
 const MOG_MARKET_CAP = 742944760;
 
+// Add these constants at the top of your file
+const SPX_DECIMALS = 8;
+const MOG_DECIMALS = 18;
+const USDC_DECIMALS = 6;
+const WETH_DECIMALS = 18;
+
 function SwapInterfaceContent() {
   const { showToast } = useToast();
   const [simpleSwap, setSimpleSwap] = useState(false);
@@ -186,10 +192,10 @@ function SwapInterfaceContent() {
 
         setTokenBalances((prev) => ({
           ...prev,
-          SPX6900: spxBalance,
-          MOG: mogBalance,
-          WETH: wethBalance,
-          USDC: (parseInt(usdcBalance) / 1e6).toFixed(2), // Convert to a decimal string with 2 decimal places
+          SPX6900: ethers.formatUnits(spxBalance, SPX_DECIMALS),
+          MOG: ethers.formatUnits(mogBalance, MOG_DECIMALS),
+          WETH: ethers.formatUnits(wethBalance, WETH_DECIMALS),
+          USDC: ethers.formatUnits(usdcBalance, USDC_DECIMALS),
         }));
       } catch (error) {
         console.error("Error fetching token balances:", error);
@@ -247,20 +253,23 @@ function SwapInterfaceContent() {
               try {
                 const provider = getProvider();
                 let tokenAddress;
-                let decimals = 18;
+                let decimals;
                 switch (token) {
                   case "SPX6900":
                     tokenAddress = SPX_ADDRESS;
+                    decimals = SPX_DECIMALS;
                     break;
                   case "MOG":
                     tokenAddress = MOG_ADDRESS;
+                    decimals = MOG_DECIMALS;
                     break;
                   case "WETH":
                     tokenAddress = WETH_ADDRESS;
+                    decimals = WETH_DECIMALS;
                     break;
                   case "USDC":
                     tokenAddress = USDC_ADDRESS;
-                    decimals = 6;
+                    decimals = USDC_DECIMALS;
                     break;
                   default:
                     return;
@@ -268,9 +277,7 @@ function SwapInterfaceContent() {
                 const balance = await getTokenBalance(tokenAddress, address, provider);
                 setTokenBalances((prev) => ({
                   ...prev,
-                  [token]: token === "USDC" 
-                    ? (parseInt(balance) / 1e6).toFixed(2) 
-                    : ethers.formatUnits(balance, decimals),
+                  [token]: ethers.formatUnits(balance, decimals),
                 }));
               } catch (error) {
                 console.error("Error fetching token balance:", error);
@@ -328,8 +335,20 @@ function SwapInterfaceContent() {
     if (isConnected && address) {
       try {
         const provider = getProvider();
-        const tokenAddress = selectedToken === "USDC" ? USDC_ADDRESS : WETH_ADDRESS;
-        const decimals = selectedToken === "USDC" ? 6 : 18;
+        let tokenAddress;
+        let decimals;
+        switch (selectedToken) {
+          case "USDC":
+            tokenAddress = USDC_ADDRESS;
+            decimals = USDC_DECIMALS;
+            break;
+          case "WETH":
+            tokenAddress = WETH_ADDRESS;
+            decimals = WETH_DECIMALS;
+            break;
+          default:
+            return;
+        }
         
         const tokenContract = new ethers.Contract(tokenAddress, [
           "function allowance(address owner, address spender) view returns (uint256)"
@@ -410,15 +429,11 @@ function SwapInterfaceContent() {
       const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
 
       let swapTx;
-      if (selectedToken === "USDC" || selectedToken === "WETH") {
-        const tokenAddress = selectedToken === "USDC" ? USDC_ADDRESS : WETH_ADDRESS;
-        const decimals = selectedToken === "USDC" ? 6 : 18;
-
+      if (selectedToken === "USDC") {
         const contract = new ethers.Contract(swapContractAddress, [
           "function swapUSDForMultiTokens(address sellToken, uint256 sellAmount, uint256[] memory sellAmounts, uint256[] memory minAmounts, address[] memory path, uint256 deadline) external returns (uint256[] memory amounts)"
         ], signer);
-
-        // const sellAmount = ethers.parseUnits(fromAmount, decimals);
+    // const sellAmount = ethers.parseUnits(fromAmount, decimals);
           // hsrdcoded for testing
           const sellAmountsForUSDCMulti = [
             ethers.parseEther('2'),
@@ -429,7 +444,7 @@ function SwapInterfaceContent() {
           const usdcSellAmount = ethers.parseUnits(fromAmount, 6);
         
         swapTx = await contract.swapUSDForMultiTokens(
-          tokenAddress,
+          USDC_ADDRESS,
           usdcSellAmount,
           sellAmountsForUSDCMulti,
           minAmounts,
