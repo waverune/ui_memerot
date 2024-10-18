@@ -35,6 +35,7 @@ import { ethers } from "ethers";
 import { toast } from "react-toastify";
 import { useToast } from '../hooks/useToast';
 import { SWAP_ABI } from "../lib/contracts";
+import { TOKENS, TokenSymbol } from '../config/tokens';
 
 const BuildBearChain = {
   id: 21026,
@@ -88,13 +89,7 @@ const spx6900Logo = "/spx6900-logo.png";
 const ethPrice = 2500; // $2500 per ETH
 
 // Add USDC address and update Token type
-type Token = "SPX6900" | "MOG" | "WETH" | "ETH" | "USDC" | string;
-
-// Define token addresses
-const SPX_ADDRESS = "0xe0f63a424a4439cbe457d80e4f4b51ad25b2c56c";
-const MOG_ADDRESS = "0xaaee1a9723aadb7afa2810263653a34ba2c21c7a";
-const WETH_ADDRESS = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
-const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+type Token = TokenSymbol;
 
 // Mock data for when wallet is not connected
 const MOCK_BALANCES: Record<Token, string> = {
@@ -114,12 +109,6 @@ const MOCK_EXPECTED_OUTPUT: Record<Token, string> = {
 const DOGE_MARKET_CAP = 18354750059;
 const SPX6900_MARKET_CAP = 606265150;
 const MOG_MARKET_CAP = 742944760;
-
-// Add these constants at the top of your file
-const SPX_DECIMALS = 8;
-const MOG_DECIMALS = 18;
-const USDC_DECIMALS = 6;
-const WETH_DECIMALS = 18;
 
 function SwapInterfaceContent() {
   const { showToast } = useToast();
@@ -185,17 +174,18 @@ function SwapInterfaceContent() {
     if (address) {
       try {
         const provider = getProvider();
-        const spxBalance = await getTokenBalance(SPX_ADDRESS, address, provider);
-        const mogBalance = await getTokenBalance(MOG_ADDRESS, address, provider);
-        const wethBalance = await getTokenBalance(WETH_ADDRESS, address, provider);
-        const usdcBalance = await getTokenBalance(USDC_ADDRESS, address, provider);
+        const newBalances: Partial<Record<Token, string>> = {};
 
-        setTokenBalances((prev) => ({
+        for (const [symbol, config] of Object.entries(TOKENS)) {
+          if (symbol !== 'ETH') {
+            const balance = await getTokenBalance(config.address, address, provider);
+            newBalances[symbol as Token] = ethers.formatUnits(balance, config.decimals);
+          }
+        }
+
+        setTokenBalances(prev => ({
           ...prev,
-          SPX6900: ethers.formatUnits(spxBalance, SPX_DECIMALS),
-          MOG: ethers.formatUnits(mogBalance, MOG_DECIMALS),
-          WETH: ethers.formatUnits(wethBalance, WETH_DECIMALS),
-          USDC: ethers.formatUnits(usdcBalance, USDC_DECIMALS),
+          ...newBalances,
         }));
       } catch (error) {
         console.error("Error fetching token balances:", error);
@@ -252,32 +242,11 @@ function SwapInterfaceContent() {
             if (address) {
               try {
                 const provider = getProvider();
-                let tokenAddress;
-                let decimals;
-                switch (token) {
-                  case "SPX6900":
-                    tokenAddress = SPX_ADDRESS;
-                    decimals = SPX_DECIMALS;
-                    break;
-                  case "MOG":
-                    tokenAddress = MOG_ADDRESS;
-                    decimals = MOG_DECIMALS;
-                    break;
-                  case "WETH":
-                    tokenAddress = WETH_ADDRESS;
-                    decimals = WETH_DECIMALS;
-                    break;
-                  case "USDC":
-                    tokenAddress = USDC_ADDRESS;
-                    decimals = USDC_DECIMALS;
-                    break;
-                  default:
-                    return;
-                }
-                const balance = await getTokenBalance(tokenAddress, address, provider);
+                const config = TOKENS[token];
+                const balance = await getTokenBalance(config.address, address, provider);
                 setTokenBalances((prev) => ({
                   ...prev,
-                  [token]: ethers.formatUnits(balance, decimals),
+                  [token]: ethers.formatUnits(balance, config.decimals),
                 }));
               } catch (error) {
                 console.error("Error fetching token balance:", error);
@@ -332,36 +301,22 @@ function SwapInterfaceContent() {
   const [needsApproval, setNeedsApproval] = useState(true);
 
   const checkAllowance = useCallback(async () => {
-    if (isConnected && address) {
+    if (isConnected && address && selectedToken !== "ETH") {
       try {
         const provider = getProvider();
-        let tokenAddress;
-        let decimals;
-        switch (selectedToken) {
-          case "USDC":
-            tokenAddress = USDC_ADDRESS;
-            decimals = USDC_DECIMALS;
-            break;
-          case "WETH":
-            tokenAddress = WETH_ADDRESS;
-            decimals = WETH_DECIMALS;
-            break;
-          default:
-            return;
-        }
+        const config = TOKENS[selectedToken];
         
-        const tokenContract = new ethers.Contract(tokenAddress, [
+        const tokenContract = new ethers.Contract(config.address, [
           "function allowance(address owner, address spender) view returns (uint256)"
         ], provider);
 
         const allowance = await tokenContract.allowance(address, swapContractAddress);
-        const requiredAmount = ethers.parseUnits(fromAmount || "0", decimals);
+        const requiredAmount = ethers.parseUnits(fromAmount || "0", config.decimals);
         
-        // Use BigInt for comparison
         setNeedsApproval(BigInt(allowance) < BigInt(requiredAmount));
       } catch (error) {
         console.error("Error checking allowance:", error);
-        setNeedsApproval(true); // Assume approval is needed if check fails
+        setNeedsApproval(true);
       }
     }
   }, [isConnected, address, fromAmount, getProvider, selectedToken]);
@@ -383,8 +338,8 @@ function SwapInterfaceContent() {
         throw new Error("Signer not available");
       }
 
-      const tokenAddress = selectedToken === "USDC" ? USDC_ADDRESS : WETH_ADDRESS;
-      const tokenContract = new ethers.Contract(tokenAddress, [
+      const config = TOKENS[selectedToken];
+      const tokenContract = new ethers.Contract(config.address, [
         "function approve(address spender, uint256 amount) public returns (bool)"
       ], signer);
 
@@ -416,7 +371,7 @@ function SwapInterfaceContent() {
       const spx6900Amount = (parseFloat(fromAmount) * sliderValues.SPX6900 / 100).toString();
       const mogAmount = (parseFloat(fromAmount) * sliderValues.MOG / 100).toString();
 
-      const path = [WETH_ADDRESS, SPX_ADDRESS, MOG_ADDRESS];
+      const path = [TOKENS.WETH.address, TOKENS.SPX6900.address, TOKENS.MOG.address];
       const sellAmounts = [
         ethers.parseEther(fromAmount),
         ethers.parseEther(spx6900Amount),
@@ -429,30 +384,24 @@ function SwapInterfaceContent() {
       const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
 
       let swapTx;
-      if (selectedToken === "USDC") {
+      if (selectedToken !== "ETH") {
+        const config = TOKENS[selectedToken];
         const contract = new ethers.Contract(swapContractAddress, [
           "function swapUSDForMultiTokens(address sellToken, uint256 sellAmount, uint256[] memory sellAmounts, uint256[] memory minAmounts, address[] memory path, uint256 deadline) external returns (uint256[] memory amounts)"
         ], signer);
-    // const sellAmount = ethers.parseUnits(fromAmount, decimals);
-          // hsrdcoded for testing
-          const sellAmountsForUSDCMulti = [
-            ethers.parseEther('2'),
-            ethers.parseEther('1'),
-            ethers.parseEther('1')
-          ];
-          // Convert USDC amount to Wei (USDC has 6 decimals)
-          const usdcSellAmount = ethers.parseUnits(fromAmount, 6);
-        
+
+        const sellAmount = ethers.parseUnits(fromAmount, config.decimals);
+
         swapTx = await contract.swapUSDForMultiTokens(
-          USDC_ADDRESS,
-          usdcSellAmount,
-          sellAmountsForUSDCMulti,
+          config.address,
+          sellAmount,
+          sellAmounts,
           minAmounts,
           path,
           deadline,
           { 
             gasLimit: 300000,
-            gasPrice: ethers.parseUnits("100", "gwei")  // Adjust as needed
+            gasPrice: ethers.parseUnits("100", "gwei")
           }
         );
       } else if (selectedToken === "ETH") {
@@ -551,6 +500,12 @@ function SwapInterfaceContent() {
     }
   };
 
+  const [imageError, setImageError] = useState<Record<TokenSymbol, boolean>>({});
+
+  const handleImageError = (token: TokenSymbol) => {
+    setImageError(prev => ({ ...prev, [token]: true }));
+  };
+
   return (
     <div className="w-full max-w-md space-y-4">
       {/* <div className="flex items-center space-x-2 bg-gray-800 rounded-lg p-2">
@@ -573,30 +528,31 @@ function SwapInterfaceContent() {
           <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
             <div className="flex flex-col items-start space-y-1">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-                  {selectedToken}
-                </div>
+                {!imageError[selectedToken] ? (
+                  <img
+                    src={TOKENS[selectedToken].logo}
+                    alt={`${selectedToken} logo`}
+                    width={24}
+                    height={24}
+                    className="rounded-full"
+                    onError={() => handleImageError(selectedToken)}
+                  />
+                ) : (
+                  <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs">
+                    {selectedToken.charAt(0)}
+                  </div>
+                )}
                 <span className="font-medium">{selectedToken}</span>
                 <select
                   value={selectedToken}
                   onChange={(e) => handleTokenSelect(e.target.value as Token)}
                   className="bg-transparent border-none text-black"
                 >
-                  <option value="ETH" className="text-black">
-                    ETH
-                  </option>
-                  <option value="WETH" className="text-black">
-                    WETH
-                  </option>
-                  <option value="USDC" className="text-black">
-                    USDC
-                  </option>
-                  <option value="SPX6900" className="text-black">
-                    SPX6900
-                  </option>
-                  <option value="MOG" className="text-black">
-                    MOG
-                  </option>
+                  {Object.entries(TOKENS).map(([symbol, config]) => (
+                    <option key={symbol} value={symbol} className="text-black">
+                      {config.symbol}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="text-xs text-gray-400">
