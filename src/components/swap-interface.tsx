@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 // import { Switch } from "./ui/switch";
-import { ArrowDownUp, ChevronDown, Lock, Unlock, Plus } from "lucide-react";
+import { ArrowDownUp, ChevronDown, Lock, Unlock, Plus, X } from "lucide-react";
 import Image from "next/image";
 
 import "@rainbow-me/rainbowkit/styles.css";
@@ -483,6 +483,31 @@ function SwapInterfaceContent() {
     }
   };
 
+  const removeOutputToken = (tokenToRemove: TokenSymbol) => {
+    setSelectedOutputTokens(prev => prev.filter(token => token !== tokenToRemove));
+    setToAmounts(prev => {
+      const { [tokenToRemove]: _, ...rest } = prev;
+      return rest;
+    });
+    setSliderValues(prev => {
+      const { [tokenToRemove]: removedValue, ...rest } = prev;
+      const totalRemaining = Object.values(rest).reduce((sum, value) => sum + value, 0);
+      if (totalRemaining === 0) {
+        // If all remaining values are 0, distribute evenly
+        const newValue = 100 / Object.keys(rest).length;
+        return Object.fromEntries(Object.keys(rest).map(key => [key, newValue]));
+      } else {
+        // Redistribute the removed value proportionally
+        const factor = 100 / totalRemaining;
+        return Object.fromEntries(Object.entries(rest).map(([key, value]) => [key, value * factor]));
+      }
+    });
+    setLockedTokens(prev => {
+      const { [tokenToRemove]: _, ...rest } = prev;
+      return rest;
+    });
+  };
+
   return (
     <div className="w-full max-w-md space-y-4">
       <div className="bg-gray-800 rounded-lg p-4 space-y-4">
@@ -581,6 +606,14 @@ function SwapInterfaceContent() {
                     DogeRatio: {calculateRatio(marketCaps[token.toLowerCase() as keyof typeof marketCaps] || 0)}x
                   </span>
                 </div>
+                {selectedOutputTokens.length > 1 && (
+                  <button
+                    onClick={() => removeOutputToken(token)}
+                    className="ml-2 text-gray-400 hover:text-white"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
