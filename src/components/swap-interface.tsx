@@ -34,7 +34,7 @@ import {
 import { ethers } from "ethers";
 import { toast } from "react-toastify";
 import { useToast } from '../hooks/useToast';
-import { SWAP_ABI } from "../lib/contracts";
+// import { SWAP_ABI } from "../lib/contracts";
 import { TOKENS, TokenSymbol } from '../config/tokens';
 
 const BuildBearChain = {
@@ -503,7 +503,15 @@ function SwapInterfaceContent() {
   const [imageError, setImageError] = useState<Record<TokenSymbol, boolean>>({});
 
   const handleImageError = (token: TokenSymbol) => {
+    console.error(`Failed to load image for token: ${token}`);
     setImageError(prev => ({ ...prev, [token]: true }));
+  };
+
+  // Add this debugging function
+  const getTokenLogo = (token: TokenSymbol) => {
+    console.log(`Getting logo for token: ${token}`);
+    console.log(`Token config:`, TOKENS[token]);
+    return TOKENS[token]?.logo || '';
   };
 
   return (
@@ -585,63 +593,68 @@ function SwapInterfaceContent() {
 
         <div className="space-y-2">
           <label className="text-sm text-gray-400">To</label>
-          {Object.entries(toAmounts).map(([token, amount]) => (
-            <div key={token} className="space-y-2">
-              <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
-                <div className="flex flex-col items-start space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <Image
-                      src={
-                        token === "MOG"
-                          ? mogLogo
-                          : token === "SPX6900"
-                          ? spx6900Logo
-                          : "/placeholder.svg"
-                      }
-                      alt={token}
-                      width={32}
-                      height={32}
-                      className="rounded-full"
+          {Object.entries(toAmounts).map(([token, amount]) => {
+            const tokenSymbol = token as TokenSymbol;
+            console.log(`Rendering token: ${tokenSymbol}`);
+            return (
+              <div key={token} className="space-y-2">
+                <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
+                  <div className="flex flex-col items-start space-y-1">
+                    <div className="flex items-center space-x-2">
+                      {!imageError[tokenSymbol] ? (
+                        <img
+                          src={getTokenLogo(tokenSymbol)}
+                          alt={`${token} logo`}
+                          width={24}
+                          height={24}
+                          className="rounded-full"
+                          onError={() => handleImageError(tokenSymbol)}
+                        />
+                      ) : (
+                        <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-700">
+                          {token.charAt(0)}
+                        </div>
+                      )}
+                      <span className="font-medium">{token}</span>
+                      <ChevronDown className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      Balance: {tokenBalances[tokenSymbol] || "0"}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <input
+                      type="number"
+                      value={amount}
+                      readOnly
+                      className="bg-transparent border-none text-right w-24"
                     />
-                    <span className="font-medium">{token}</span>
-                    <ChevronDown className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    Balance: {tokenBalances[token] || "0"}
+                    <span className="text-xs text-gray-400">
+                      {token === "SPX6900" && `DogeRatio: ${calculateRatio(marketCaps.spx6900)}x`}
+                      {token === "MOG" && `DogeRatio: ${calculateRatio(marketCaps.mog)}x`}
+                    </span>
                   </div>
                 </div>
-                <div className="flex flex-col items-end">
-                  <input
-                    type="number"
-                    value={amount}
-                    readOnly
-                    className="bg-transparent border-none text-right w-24"
-                  />
-                  <span className="text-xs text-gray-400">
-                    {token === "SPX6900" && `DogeRatio: ${calculateRatio(marketCaps.spx6900)}x`}
-                    {token === "MOG" && `DogeRatio: ${calculateRatio(marketCaps.mog)}x`}
-                  </span>
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={sliderValues[tokenSymbol]}
+                      onChange={(e) => handleSliderChange(tokenSymbol, parseInt(e.target.value))}
+                      className="flex-grow"
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>0%</span>
+                    <span>{sliderValues[tokenSymbol].toFixed(2)}%</span>
+                    <span>100%</span>
+                  </div>
                 </div>
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={sliderValues[token as Token]}
-                    onChange={(e) => handleSliderChange(token as Token, parseInt(e.target.value))}
-                    className="flex-grow"
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-gray-400">
-                  <span>0%</span>
-                  <span>{sliderValues[token as Token].toFixed(2)}%</span>
-                  <span>100%</span>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           <Button
             variant="outline"
             onClick={addToken}
