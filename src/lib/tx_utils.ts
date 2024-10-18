@@ -97,45 +97,45 @@ export async function performHardcodedSwap(
   );
 }
 
-const swapTokenForMultiTokens = async () => {
-  try {
-    const path = [WETH_ADDRESS, SPX_ADDRESS, MOG_ADDRESS];
-    const sellAmounts = [
-      ethers.parseEther("2"),  // 2 WETH
-      ethers.parseEther("1"),  // 1 SPX (this is ignored in the contract)
-      ethers.parseEther("1")   // 1 MOG (this is ignored in the contract)
-    ];
-    const minAmounts = [
-      ethers.parseEther("0.000001"),  // Minimum SPX to receive
-      ethers.parseEther("0.000001")   // Minimum MOG to receive
-    ];
-    const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
+// const swapTokenForMultiTokens = async () => {
+//   try {
+//     const path = [WETH_ADDRESS, SPX_ADDRESS, MOG_ADDRESS];
+//     const sellAmounts = [
+//       ethers.parseEther("2"),  // 2 WETH
+//       ethers.parseEther("1"),  // 1 SPX (this is ignored in the contract)
+//       ethers.parseEther("1")   // 1 MOG (this is ignored in the contract)
+//     ];
+//     const minAmounts = [
+//       ethers.parseEther("0.000001"),  // Minimum SPX to receive
+//       ethers.parseEther("0.000001")   // Minimum MOG to receive
+//     ];
+//     const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
 
-    console.log("Swap parameters:", { path, sellAmounts, minAmounts, deadline });
+//     console.log("Swap parameters:", { path, sellAmounts, minAmounts, deadline });
 
-    // Ensure approval is set
-    const wethContract = new ethers.Contract(WETH_ADDRESS, ERC20_ABI, signer);
-    await wethContract.approve(SWAP_CONTRACT_ADDRESS, ethers.MaxUint256);
+//     // Ensure approval is set
+//     const wethContract = new ethers.Contract(WETH_ADDRESS, ERC20_ABI, signer);
+//     await wethContract.approve(SWAP_CONTRACT_ADDRESS, ethers.MaxUint256);
 
-    const swapContract = new ethers.Contract(SWAP_CONTRACT_ADDRESS, SWAP_ABI, signer);
-    const tx = await swapContract.swapTokenForMultiTokens(
-      sellAmounts,
-      minAmounts,
-      path,
-      deadline,
-      { gasLimit: 300000 }
-    );
+//     const swapContract = new ethers.Contract(SWAP_CONTRACT_ADDRESS, SWAP_ABI, signer);
+//     const tx = await swapContract.swapTokenForMultiTokens(
+//       sellAmounts,
+//       minAmounts,
+//       path,
+//       deadline,
+//       { gasLimit: 300000 }
+//     );
 
-    console.log("Transaction sent:", tx.hash);
-    const receipt = await tx.wait();
-    console.log("Transaction receipt:", receipt);
+//     console.log("Transaction sent:", tx.hash);
+//     const receipt = await tx.wait();
+//     console.log("Transaction receipt:", receipt);
 
-    // Handle successful swap
-  } catch (error) {
-    console.error("Swap failed:", error);
-    // Handle error (e.g., show user-friendly message)
-  }
-};
+//     // Handle successful swap
+//   } catch (error) {
+//     console.error("Swap failed:", error);
+//     // Handle error (e.g., show user-friendly message)
+//   }
+// };
 
 export async function checkAndApproveToken(
   tokenAddress: string,
