@@ -29,6 +29,7 @@ import {
   performSwap,
   getExpectedOutputAmount,
   performHardcodedSwap,
+  checkAndApproveToken,
 } from "../lib/tx_utils";
 import { ethers } from "ethers";
 import { toast } from "react-toastify";
@@ -154,7 +155,7 @@ function SwapInterfaceContent() {
     USDC: "0",
   });
 
-  const swapContractAddress = "0xADD940680b1608b1423B0eB6080c5E0fe3D31EDC"; // Replace with your actual swap contract address
+  const swapContractAddress = "0x99D6dE141D7A9C76a92266776770994644Ff8053"; // Replace with your actual swap contract address
 
   const getProvider = useCallback(() => {
     if (publicClient) {
@@ -327,12 +328,15 @@ function SwapInterfaceContent() {
     if (isConnected && address) {
       try {
         const provider = getProvider();
-        const wethContract = new ethers.Contract(WETH_ADDRESS, [
+        const tokenAddress = selectedToken === "USDC" ? USDC_ADDRESS : WETH_ADDRESS;
+        const decimals = selectedToken === "USDC" ? 6 : 18;
+        
+        const tokenContract = new ethers.Contract(tokenAddress, [
           "function allowance(address owner, address spender) view returns (uint256)"
         ], provider);
 
-        const allowance = await wethContract.allowance(address, swapContractAddress);
-        const requiredAmount = ethers.parseEther(fromAmount || "0");
+        const allowance = await tokenContract.allowance(address, swapContractAddress);
+        const requiredAmount = ethers.parseUnits(fromAmount || "0", decimals);
         
         // Use BigInt for comparison
         setNeedsApproval(BigInt(allowance) < BigInt(requiredAmount));
@@ -341,7 +345,7 @@ function SwapInterfaceContent() {
         setNeedsApproval(true); // Assume approval is needed if check fails
       }
     }
-  }, [isConnected, address, fromAmount, getProvider]);
+  }, [isConnected, address, fromAmount, getProvider, selectedToken]);
 
   useEffect(() => {
     checkAllowance();
@@ -360,15 +364,16 @@ function SwapInterfaceContent() {
         throw new Error("Signer not available");
       }
 
-      const wethContract = new ethers.Contract(WETH_ADDRESS, [
+      const tokenAddress = selectedToken === "USDC" ? USDC_ADDRESS : WETH_ADDRESS;
+      const tokenContract = new ethers.Contract(tokenAddress, [
         "function approve(address spender, uint256 amount) public returns (bool)"
       ], signer);
 
       const maxApproval = ethers.MaxUint256;
-      const approveTx = await wethContract.approve(swapContractAddress, maxApproval);
+      const approveTx = await tokenContract.approve(swapContractAddress, maxApproval);
       await approveTx.wait();
       
-      toast.success("WETH approved for swapping");
+      toast.success(`${selectedToken} approved for swapping`);
       setNeedsApproval(false);
     } catch (error) {
       console.error("Approval failed:", error);
@@ -399,13 +404,43 @@ function SwapInterfaceContent() {
         ethers.parseEther(mogAmount)
       ];
       const minAmounts = [
-        ethers.parseUnits("1",0),  // Minimum amount for SPX6900 (adjust as needed)
-        ethers.parseUnits("1",0)   // Minimum amount for MOG (adjust as needed)
+        ethers.parseUnits("1", 0),  // Minimum amount for SPX6900 (adjust as needed)
+        ethers.parseUnits("1", 0)   // Minimum amount for MOG (adjust as needed)
       ];
       const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
 
       let swapTx;
-      if (selectedToken === "ETH") {
+      if (selectedToken === "USDC" || selectedToken === "WETH") {
+        const tokenAddress = selectedToken === "USDC" ? USDC_ADDRESS : WETH_ADDRESS;
+        const decimals = selectedToken === "USDC" ? 6 : 18;
+
+        const contract = new ethers.Contract(swapContractAddress, [
+          "function swapUSDForMultiTokens(address sellToken, uint256 sellAmount, uint256[] memory sellAmounts, uint256[] memory minAmounts, address[] memory path, uint256 deadline) external returns (uint256[] memory amounts)"
+        ], signer);
+
+        // const sellAmount = ethers.parseUnits(fromAmount, decimals);
+          // hsrdcoded for testing
+          const sellAmountsForUSDCMulti = [
+            ethers.parseEther('2'),
+            ethers.parseEther('1'),
+            ethers.parseEther('1')
+          ];
+          // Convert USDC amount to Wei (USDC has 6 decimals)
+          const usdcSellAmount = ethers.parseUnits(fromAmount, 6);
+        
+        swapTx = await contract.swapUSDForMultiTokens(
+          tokenAddress,
+          usdcSellAmount,
+          sellAmountsForUSDCMulti,
+          minAmounts,
+          path,
+          deadline,
+          { 
+            gasLimit: 300000,
+            gasPrice: ethers.parseUnits("100", "gwei")  // Adjust as needed
+          }
+        );
+      } else if (selectedToken === "ETH") {
         const contract = new ethers.Contract(swapContractAddress, [
           "function swapEthForMultiTokens(uint256[] memory sellAmounts, uint256[] memory minAmounts, address[] memory path, uint256 deadline) external payable returns (uint256[] memory amounts)"
         ], signer);
@@ -422,25 +457,17 @@ function SwapInterfaceContent() {
           }
         );
       } else {
-        swapTx = await performHardcodedSwap(
-          swapContractAddress,
-          WETH_ADDRESS,
-          SPX_ADDRESS,
-          MOG_ADDRESS,
-          spx6900Amount,
-          mogAmount,
-          signer
-        );
+        throw new Error("Unsupported token for swap");
       }
 
       showToast("Swap transaction sent. Waiting for confirmation...", "info");
       await swapTx.wait();
 
-      showToast("Hardcoded swap completed successfully!", "success");
+      showToast("Swap completed successfully!", "success");
       fetchBalances();
     } catch (error) {
-      console.error("Hardcoded swap failed:", error);
-      showToast(`Hardcoded swap failed: ${error.message}`, "error");
+      console.error("Swap failed:", error);
+      showToast(`Swap failed: ${error.message}`, "error");
     } finally {
       setIsSwapping(false);
     }

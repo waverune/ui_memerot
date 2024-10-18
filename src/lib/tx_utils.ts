@@ -136,3 +136,28 @@ const swapTokenForMultiTokens = async () => {
     // Handle error (e.g., show user-friendly message)
   }
 };
+
+export async function checkAndApproveToken(
+  tokenAddress: string,
+  spenderAddress: string,
+  amount: string,
+  decimals: number,
+  signer: ethers.Signer,
+  onStatus: (message: string) => void
+): Promise<void> {
+  const tokenContract = new ethers.Contract(tokenAddress, [
+    "function approve(address spender, uint256 amount) public returns (bool)",
+    "function allowance(address owner, address spender) public view returns (uint256)"
+  ], signer);
+
+  const signerAddress = await signer.getAddress();
+  const currentAllowance = await tokenContract.allowance(signerAddress, spenderAddress);
+  const requiredAmount = ethers.parseUnits(amount, decimals);
+
+  if (currentAllowance < requiredAmount) {
+    onStatus(`Approving token for swapping...`);
+    const approveTx = await tokenContract.approve(spenderAddress, ethers.MaxUint256);
+    await approveTx.wait();
+    onStatus(`Token approved for swapping`);
+  }
+}
