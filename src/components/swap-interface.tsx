@@ -635,13 +635,13 @@ export function SwapInterface() {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
-          <div className="min-h-screen bg-gray-900 text-white flex flex-col justify-between p-4">
+          <div className="min-h-screen flex flex-col justify-between p-4">
             <div className="w-full max-w-7xl mx-auto flex justify-between items-center mb-8">
               <h1 className="text-2xl font-bold">Swap</h1>
               <CustomConnectButton />
             </div>
             <div className="flex-grow flex items-center justify-center">
-              <div className="w-full max-w-md space-y-4">
+              <div className="w-full max-w-md space-y-4 bg-gray-900 border-2 border-blue-800 rounded-lg p-6 shadow-lg">
                 <SwapInterfaceContent />
               </div>
             </div>

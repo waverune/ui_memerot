@@ -4,16 +4,14 @@ import { SwapInterface } from "./components/swap-interface";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
-import { ToastContainer, toast } from 'react-toastify';
+import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-// Add this to your main layout or App component
-<ToastContainer position="bottom-right" autoClose={5000} />
 function Home() {
   const [count, setCount] = useState(0);
 
   return (
-    <>
+    <div className="flex flex-col items-center justify-center min-h-screen w-full">
       <div>
         <a href="https://vitejs.dev" target="_blank">
           <img src={viteLogo} className="logo" alt="Vite logo" />
@@ -34,18 +32,21 @@ function Home() {
       <p className="read-the-docs">
         Click on the Vite and React logos to learn more
       </p>
-      <Link to="/swap">Go to Swap Page</Link>
-    </>
+      <Link to="/swap" className="text-blue-400 hover:text-blue-300">Go to Swap Page</Link>
+    </div>
   );
 }
 
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/swap" element={<SwapInterface />} />
-      </Routes>
+      <div className="app-container bg-gray-800 text-white">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/swap" element={<SwapInterface />} />
+        </Routes>
+        <ToastContainer position="bottom-right" autoClose={5000} />
+      </div>
     </Router>
   );
 }
