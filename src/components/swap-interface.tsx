@@ -518,7 +518,7 @@ function SwapInterfaceContent() {
                 </select>
               </div>
               <div className="text-xs text-gray-400">
-                Balance: {/* Add actual balance here */}
+                Balance: {tokenBalances[selectedToken] || "0"}
               </div>
             </div>
             <input
@@ -567,7 +567,7 @@ function SwapInterfaceContent() {
                     </select>
                   </div>
                   <div className="text-xs text-gray-400">
-                    Balance: {/* Add actual balance here */}
+                    Balance: {tokenBalances[token] || "0"}
                   </div>
                 </div>
                 <div className="flex flex-col items-end">
