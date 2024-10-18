@@ -114,21 +114,22 @@ function SwapInterfaceContent() {
   const { showToast } = useToast();
   const [simpleSwap, setSimpleSwap] = useState(false);
   const [fromAmount, setFromAmount] = useState("0.69");
-  const [toAmounts, setToAmounts] = useState<Record<Token, string>>({
+  const [selectedToken, setSelectedToken] = useState<TokenSymbol>("ETH");
+  const [selectedOutputTokens, setSelectedOutputTokens] = useState<TokenSymbol[]>(["SPX6900", "MOG"]);
+  const [toAmounts, setToAmounts] = useState<Record<TokenSymbol, string>>({
     SPX6900: "0",
     MOG: "0",
   });
-  const [sliderValues, setSliderValues] = useState<Record<Token, number>>({
+  const [sliderValues, setSliderValues] = useState<Record<TokenSymbol, number>>({
     SPX6900: 50,
     MOG: 50,
   });
-  const [lockedTokens, setLockedTokens] = useState<Record<Token, boolean>>({
+  const [lockedTokens, setLockedTokens] = useState<Record<TokenSymbol, boolean>>({
     SPX6900: false,
     MOG: false,
   });
   const [isApproving, setIsApproving] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
-  const [selectedToken, setSelectedToken] = useState<Token>("ETH");
   const { address, isConnected } = useAccount();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
@@ -212,90 +213,122 @@ function SwapInterfaceContent() {
     }
   }, [ethBalanceData]);
 
-  // Update toAmounts when fromAmount or sliderValues change
-  useEffect(() => {
-    const updateToAmounts = () => {
-      if (fromAmount) {
-        const totalEthValue = parseFloat(fromAmount);
-        const updatedToAmounts: Record<Token, string> = {};
+  // Mock market caps (replace with actual data fetching in production)
+  const [marketCaps, setMarketCaps] = useState({
+    mog: 742944760,
+    spx6900: 606265150,
+    dogecoin: 18354750059,
+    hpos: 322944760
+  });
 
-        Object.keys(toAmounts).forEach(token => {
-          const percentage = sliderValues[token as Token] / 100;
-          updatedToAmounts[token as Token] = (totalEthValue * percentage).toFixed(6);
-        });
+  const [imageError, setImageError] = useState<Record<TokenSymbol, boolean>>({});
 
-        setToAmounts(updatedToAmounts);
-      }
-    };
+  const handleImageError = (token: TokenSymbol) => {
+    setImageError(prev => ({ ...prev, [token]: true }));
+  };
 
-    updateToAmounts();
-  }, [fromAmount, sliderValues]);
+  const getTokenLogo = (token: TokenSymbol) => {
+    return TOKENS[token]?.logo || '';
+  };
 
-  const handleTokenSelect = useCallback(
-    (token: Token) => {
-      setSelectedToken(token);
-      if (isConnected) {
-        if (token === "ETH") {
-          refetchEthBalance();
-        } else {
-          const fetchTokenBalance = async () => {
-            if (address) {
-              try {
-                const provider = getProvider();
-                const config = TOKENS[token];
-                const balance = await getTokenBalance(config.address, address, provider);
-                setTokenBalances((prev) => ({
-                  ...prev,
-                  [token]: ethers.formatUnits(balance, config.decimals),
-                }));
-              } catch (error) {
-                console.error("Error fetching token balance:", error);
-                toast.error("Failed to fetch token balance. Please try again.");
-              }
-            }
-          };
-          fetchTokenBalance();
-        }
-      }
-    },
-    [isConnected, address, getProvider, refetchEthBalance]
-  );
+  const calculateRatio = useCallback((outputTokenMC: number) => {
+    const ratio = marketCaps.dogecoin / outputTokenMC;
+    return isNaN(ratio) || !isFinite(ratio) ? "N/A" : ratio.toFixed(2);
+  }, [marketCaps.dogecoin]);
 
-  const handleSliderChange = useCallback((token: Token, value: number) => {
+  const handleOutputTokenSelect = (index: number, newToken: TokenSymbol) => {
+    setSelectedOutputTokens(prev => {
+      const updated = [...prev];
+      updated[index] = newToken;
+      return updated;
+    });
+
+    setToAmounts(prev => {
+      const updated = { ...prev };
+      delete updated[selectedOutputTokens[index]];
+      updated[newToken] = "0";
+      return updated;
+    });
+
+    setSliderValues(prev => {
+      const updated = { ...prev };
+      delete updated[selectedOutputTokens[index]];
+      updated[newToken] = 100 / selectedOutputTokens.length;
+      return updated;
+    });
+
+    setLockedTokens(prev => {
+      const updated = { ...prev };
+      delete updated[selectedOutputTokens[index]];
+      updated[newToken] = false;
+      return updated;
+    });
+  };
+
+  const handleSliderChange = useCallback((token: TokenSymbol, value: number) => {
     setSliderValues(prev => {
       const updatedSliderValues = { ...prev };
       updatedSliderValues[token] = value;
 
-      // Adjust other slider to maintain total of 100%
-      const otherToken = Object.keys(prev).find(t => t !== token) as Token;
-      if (otherToken) {
-        updatedSliderValues[otherToken] = 100 - value;
-      }
+      const unlockedTokens = selectedOutputTokens.filter(t => !lockedTokens[t] && t !== token);
+      const remainingValue = 100 - value - selectedOutputTokens.reduce((sum, t) => 
+        lockedTokens[t] ? sum + (prev[t] || 0) : sum, 0
+      );
+
+      unlockedTokens.forEach((otherToken, index) => {
+        if (index === unlockedTokens.length - 1) {
+          updatedSliderValues[otherToken] = Math.max(0, remainingValue);
+        } else {
+          const currentValue = updatedSliderValues[otherToken] || 0;
+          updatedSliderValues[otherToken] = Math.min(currentValue, remainingValue / unlockedTokens.length);
+        }
+      });
 
       return updatedSliderValues;
     });
-  }, []);
+  }, [selectedOutputTokens, lockedTokens]);
 
-  const handleFromAmountChange = useCallback((value: string) => {
-    setFromAmount(value);
-  }, []);
-
-  const toggleLock = (token: Token) => {
-    setLockedTokens((prev) => ({ ...prev, [token]: !prev[token] }));
+  const toggleLock = (token: TokenSymbol) => {
+    setLockedTokens(prev => ({ ...prev, [token]: !prev[token] }));
   };
 
-  const addToken = () => {
-    // In a real scenario, you would open a modal to select from supported tokens
-    const newToken = `Token${Object.keys(toAmounts).length + 1}`;
-    setToAmounts((prev) => ({ ...prev, [newToken]: "0" }));
-    setSliderValues((prev) => {
-      const newValue = 100 / (Object.keys(prev).length + 1);
-      return Object.fromEntries(
-        Object.entries(prev).map(([token, value]) => [token, newValue])
-      );
-    });
-    setLockedTokens((prev) => ({ ...prev, [newToken]: false }));
-    setTokenBalances((prev) => ({ ...prev, [newToken]: "0" }));
+  useEffect(() => {
+    if (fromAmount) {
+      const totalEthValue = parseFloat(fromAmount);
+      const updatedToAmounts: Record<TokenSymbol, string> = {};
+
+      selectedOutputTokens.forEach(token => {
+        const percentage = (sliderValues[token] || 0) / 100;
+        updatedToAmounts[token] = (totalEthValue * percentage).toFixed(6);
+      });
+
+      setToAmounts(updatedToAmounts);
+    }
+  }, [fromAmount, sliderValues, selectedOutputTokens]);
+
+  // Add this function to filter out disabled tokens
+  const getAvailableOutputTokens = useCallback(() => {
+    return Object.entries(TOKENS).filter(([symbol, _]) => 
+      symbol !== selectedToken && 
+      symbol !== 'WETH' && 
+      symbol !== 'USDC' &&
+      !selectedOutputTokens.includes(symbol as TokenSymbol)
+    );
+  }, [selectedToken, selectedOutputTokens]);
+
+  // Modify the addOutputToken function
+  const addOutputToken = () => {
+    const availableTokens = getAvailableOutputTokens();
+    if (availableTokens.length > 0) {
+      const [newToken] = availableTokens[0];
+      setSelectedOutputTokens(prev => [...prev, newToken as TokenSymbol]);
+      setToAmounts(prev => ({ ...prev, [newToken]: "0" }));
+      setSliderValues(prev => {
+        const newValue = 100 / (Object.keys(prev).length + 1);
+        return { ...prev, [newToken]: newValue };
+      });
+      setLockedTokens(prev => ({ ...prev, [newToken]: false }));
+    }
   };
 
   const [needsApproval, setNeedsApproval] = useState(true);
@@ -437,56 +470,6 @@ function SwapInterfaceContent() {
     }
   };
 
-  // Add this function to calculate the ratio
-  // const calculateRatio = (outputTokenMC: number) => {
-  //   return (DOGE_MARKET_CAP / outputTokenMC).toFixed(2);
-  // };
-
-  const [marketCaps, setMarketCaps] = useState({
-    mog: 742944760,  // Mock data
-    spx6900: 606265150,  // Mock data
-    dogecoin: 18354750059  // Mock data
-  });
-
-  // Fetch market caps
-  const fetchMarketCaps = useCallback(async () => {
-    try {
-      const response = await fetch('http://localhost:8000/market_caps');
-      if (!response.ok) {
-        throw new Error('Failed to fetch market caps');
-      }
-      const data = await response.json();
-      setMarketCaps({
-        mog: data.mog,
-        spx6900: data.spx6900,
-        dogecoin: data.dogecoin
-      });
-    } catch (error) {
-      console.error('Error fetching market caps:', error);
-      toast.error('Failed to fetch market caps. Using default values.');
-      // Use mock data if API fails
-      setMarketCaps({
-        mog: 758062091,
-        spx6900: 651612027,
-        dogecoin: 18653136099
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMarketCaps();
-    // Set up an interval to fetch market caps every 5 minutes
-    const intervalId = setInterval(fetchMarketCaps, 5 * 60 * 1000);
-    return () => clearInterval(intervalId);
-  }, [fetchMarketCaps]);
-
-  // Calculate ratio function
-  const calculateRatio = useCallback((outputTokenMC: number) => {
-    const ratio = marketCaps.dogecoin / outputTokenMC;
-    console.log(ratio)
-    return isNaN(ratio) || !isFinite(ratio) ? "N/A" : ratio.toFixed(2);
-  }, [marketCaps.dogecoin]);
-
   // Update the USD value calculation
   const getUsdValue = (amount: string, token: Token) => {
     switch (token) {
@@ -500,36 +483,8 @@ function SwapInterfaceContent() {
     }
   };
 
-  const [imageError, setImageError] = useState<Record<TokenSymbol, boolean>>({});
-
-  const handleImageError = (token: TokenSymbol) => {
-    console.error(`Failed to load image for token: ${token}`);
-    setImageError(prev => ({ ...prev, [token]: true }));
-  };
-
-  // Add this debugging function
-  const getTokenLogo = (token: TokenSymbol) => {
-    console.log(`Getting logo for token: ${token}`);
-    console.log(`Token config:`, TOKENS[token]);
-    return TOKENS[token]?.logo || '';
-  };
-
   return (
     <div className="w-full max-w-md space-y-4">
-      {/* <div className="flex items-center space-x-2 bg-gray-800 rounded-lg p-2">
-        <Switch
-          id="simple-swap"
-          checked={simpleSwap}
-          onCheckedChange={setSimpleSwap}
-        />
-        <label htmlFor="simple-swap" className="text-sm">
-          Try Simple Swap - No Slippage or Gas Fees
-        </label>
-        <span className="bg-orange-500 text-xs font-bold px-2 py-1 rounded">
-          NEW
-        </span>
-      </div> */}
-
       <div className="bg-gray-800 rounded-lg p-4 space-y-4">
         <div className="space-y-2">
           <label className="text-sm text-gray-400">From</label>
@@ -538,7 +493,7 @@ function SwapInterfaceContent() {
               <div className="flex items-center space-x-2">
                 {!imageError[selectedToken] ? (
                   <img
-                    src={TOKENS[selectedToken].logo}
+                    src={getTokenLogo(selectedToken)}
                     alt={`${selectedToken} logo`}
                     width={24}
                     height={24}
@@ -550,11 +505,10 @@ function SwapInterfaceContent() {
                     {selectedToken.charAt(0)}
                   </div>
                 )}
-                <span className="font-medium">{selectedToken}</span>
                 <select
                   value={selectedToken}
-                  onChange={(e) => handleTokenSelect(e.target.value as Token)}
-                  className="bg-transparent border-none text-black"
+                  onChange={(e) => setSelectedToken(e.target.value as TokenSymbol)}
+                  className="bg-transparent border-none text-white"
                 >
                   {Object.entries(TOKENS).map(([symbol, config]) => (
                     <option key={symbol} value={symbol} className="text-black">
@@ -564,116 +518,102 @@ function SwapInterfaceContent() {
                 </select>
               </div>
               <div className="text-xs text-gray-400">
-                Balance: {tokenBalances[selectedToken] || "0"}
+                Balance: {/* Add actual balance here */}
               </div>
             </div>
-            <div className="flex flex-col items-end">
-              <Input
-                type="number"
-                value={fromAmount}
-                onChange={(e) => handleFromAmountChange(e.target.value)}
-                className="bg-transparent border-none text-right w-24"
-              />
-              <span className="text-xs text-gray-400">
-                ${getUsdValue(fromAmount, selectedToken)}
-              </span>
-            </div>
+            <input
+              type="number"
+              value={fromAmount}
+              onChange={(e) => setFromAmount(e.target.value)}
+              className="bg-transparent border-none text-right w-24"
+            />
           </div>
-        </div>
-
-        <div className="flex justify-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full bg-gray-700"
-          >
-            <ArrowDownUp className="h-6 w-6" />
-          </Button>
         </div>
 
         <div className="space-y-2">
           <label className="text-sm text-gray-400">To</label>
-          {Object.entries(toAmounts).map(([token, amount]) => {
-            const tokenSymbol = token as TokenSymbol;
-            console.log(`Rendering token: ${tokenSymbol}`);
-            return (
-              <div key={token} className="space-y-2">
-                <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
-                  <div className="flex flex-col items-start space-y-1">
-                    <div className="flex items-center space-x-2">
-                      {!imageError[tokenSymbol] ? (
-                        <img
-                          src={getTokenLogo(tokenSymbol)}
-                          alt={`${token} logo`}
-                          width={24}
-                          height={24}
-                          className="rounded-full"
-                          onError={() => handleImageError(tokenSymbol)}
-                        />
-                      ) : (
-                        <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-700">
-                          {token.charAt(0)}
-                        </div>
-                      )}
-                      <span className="font-medium">{token}</span>
-                      <ChevronDown className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      Balance: {tokenBalances[tokenSymbol] || "0"}
-                    </div>
+          {selectedOutputTokens.map((token, index) => (
+            <div key={index} className="space-y-2">
+              <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
+                <div className="flex flex-col items-start space-y-1">
+                  <div className="flex items-center space-x-2">
+                    {!imageError[token] ? (
+                      <img
+                        src={getTokenLogo(token)}
+                        alt={`${token} logo`}
+                        width={24}
+                        height={24}
+                        className="rounded-full"
+                        onError={() => handleImageError(token)}
+                      />
+                    ) : (
+                      <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-700">
+                        {token.charAt(0)}
+                      </div>
+                    )}
+                    <select
+                      value={token}
+                      onChange={(e) => handleOutputTokenSelect(index, e.target.value as TokenSymbol)}
+                      className="bg-transparent border-none text-white"
+                    >
+                      {[
+                        [token, TOKENS[token]],
+                        ...getAvailableOutputTokens()
+                      ].map(([symbol, config]) => (
+                        <option key={symbol} value={symbol} className="text-black">
+                          {config.symbol}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="flex flex-col items-end">
-                    <input
-                      type="number"
-                      value={amount}
-                      readOnly
-                      className="bg-transparent border-none text-right w-24"
-                    />
-                    <span className="text-xs text-gray-400">
-                      {token === "SPX6900" && `DogeRatio: ${calculateRatio(marketCaps.spx6900)}x`}
-                      {token === "MOG" && `DogeRatio: ${calculateRatio(marketCaps.mog)}x`}
-                    </span>
+                  <div className="text-xs text-gray-400">
+                    Balance: {/* Add actual balance here */}
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={sliderValues[tokenSymbol]}
-                      onChange={(e) => handleSliderChange(tokenSymbol, parseInt(e.target.value))}
-                      className="flex-grow"
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>0%</span>
-                    <span>{sliderValues[tokenSymbol].toFixed(2)}%</span>
-                    <span>100%</span>
-                  </div>
+                <div className="flex flex-col items-end">
+                  <input
+                    type="number"
+                    value={toAmounts[token] || "0"}
+                    readOnly
+                    className="bg-transparent border-none text-right w-24"
+                  />
+                  <span className="text-xs text-gray-400">
+                    DogeRatio: {calculateRatio(marketCaps[token.toLowerCase() as keyof typeof marketCaps] || 0)}x
+                  </span>
                 </div>
               </div>
-            );
-          })}
-          <Button
-            variant="outline"
-            onClick={addToken}
-            className="w-full mt-2 flex items-center justify-center space-x-2 text-white bg-gray-700 hover:bg-gray-600"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Select multiple tokens</span>
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-2 text-sm">
-        <div className="flex justify-between">
-          <span className="text-gray-400">Output Value</span>
-          <span>3000.01 USD</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-400">Minimum Received</span>
-          <span>2997.06 USD</span>
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={sliderValues[token] || 0}
+                    onChange={(e) => handleSliderChange(token, parseInt(e.target.value))}
+                    className="flex-grow"
+                  />
+                  <button onClick={() => toggleLock(token)}>
+                    {lockedTokens[token] ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                  </button>
+                </div>
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>0%</span>
+                  <span>{(sliderValues[token] || 0).toFixed(2)}%</span>
+                  <span>100%</span>
+                </div>
+              </div>
+            </div>
+          ))}
+          {getAvailableOutputTokens().length > 0 && (
+            <Button
+              variant="outline"
+              onClick={addOutputToken}
+              className="w-full mt-2 flex items-center justify-center space-x-2 text-white bg-gray-700 hover:bg-gray-600"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add another token</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -692,11 +632,6 @@ function SwapInterfaceContent() {
           ? "Swapping..."
           : "Swap"}
       </Button>
-
-      {/* Add the explanatory text here */}
-      <div className="text-xs text-gray-400 mt-4 text-center">
-        DogeRatio is the multiplier to the current price for the token with market cap of Dogecoin
-      </div>
     </div>
   );
 }
