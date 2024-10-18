@@ -566,9 +566,9 @@ function SwapInterfaceContent() {
                 {selectedOutputTokens.length > 1 && (
                   <button
                     onClick={() => removeOutputToken(token)}
-                    className="ml-2 text-gray-400 hover:text-white"
+                    className="ml-1 text-gray-400 hover:text-white p-1" // Reduced margin-left and added minimal padding
                   >
-                    <X size={16} />
+                    <X size={8} /> {/* Further reduced from size={12} to size={8} */}
                   </button>
                 )}
               </div>
