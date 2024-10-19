@@ -547,6 +547,12 @@ function SwapInterfaceContent() {
           </div>
         </div>
 
+        <div className="flex justify-center">
+          <div className="bg-gray-700 rounded-full p-2">
+            <ArrowDownUp className="h-6 w-6 text-gray-400" />
+          </div>
+        </div>
+
         <div className="space-y-2">
           <label className="text-sm text-gray-400">To</label>
           {selectedOutputTokens.map((token, index) => (
