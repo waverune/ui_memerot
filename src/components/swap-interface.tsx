@@ -621,24 +621,30 @@ function SwapInterfaceContent() {
                 ${getUsdValue(fromAmount || "0", selectedToken)}
               </span>
             </div>
-            <button
-              onClick={() => openTokenPopup('from')}
-              className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
-            >
-              {selectedToken ? (
-                <>
-                  <img
-                    src={TOKENS[selectedToken].logo}
-                    alt={`${selectedToken} logo`}
-                    className="w-6 h-6 rounded-full"
-                  />
-                  <span>{selectedToken}</span>
-                </>
-              ) : (
-                <span>Select a token</span>
-              )}
-              <ChevronDown className="h-4 w-4" />
-            </button>
+            <div className="flex flex-col items-end">
+              <button
+                onClick={() => openTokenPopup('from')}
+                className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
+              >
+                {selectedToken ? (
+                  <>
+                    <img
+                      src={TOKENS[selectedToken].logo}
+                      alt={`${selectedToken} logo`}
+                      className="w-6 h-6 rounded-full"
+                    />
+                    <span>{selectedToken}</span>
+                  </>
+                ) : (
+                  <span>Select a token</span>
+                )}
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              {/* Add the balance display here */}
+              <span className="text-xs text-gray-400 mt-1">
+                Balance: {parseFloat(tokenBalances[selectedToken]).toFixed(4)} {selectedToken}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -686,9 +692,15 @@ function SwapInterfaceContent() {
                     <ChevronDown className="h-4 w-4" />
                   </button>
                   {token && (
-                    <div className="text-xs text-gray-400 mt-1">
-                      Doge ratio: {calculateDogeRatio(token)}
-                    </div>
+                    <>
+                      <div className="text-xs text-gray-400 mt-1">
+                        Doge ratio: {calculateDogeRatio(token)}
+                      </div>
+                      {/* Add the balance display for output tokens */}
+                      <span className="text-xs text-gray-400 mt-1">
+                        Balance: {parseFloat(tokenBalances[token]).toFixed(3)} {token}
+                      </span>
+                    </>
                   )}
                 </div>
                 {selectedOutputTokens.length > 1 && (
