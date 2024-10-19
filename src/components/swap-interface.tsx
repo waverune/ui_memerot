@@ -434,17 +434,15 @@ function SwapInterfaceContent() {
 
   // Modify the addOutputToken function
   const addOutputToken = () => {
-    const availableTokens = getAvailableOutputTokens();
-    if (availableTokens.length > 0) {
-      const [newToken] = availableTokens[0];
-      setSelectedOutputTokens(prev => [...prev, newToken as TokenSymbol]);
-      setToAmounts(prev => ({ ...prev, [newToken]: "0" }));
-      setSliderValues(prev => {
-        const newValue = 100 / (Object.keys(prev).length + 1);
-        return { ...prev, [newToken]: newValue };
+    setSelectedOutputTokens(prev => [...prev, ""]);
+    setSliderValues(prev => {
+      const newValue = 100 / (Object.keys(prev).length + 1);
+      const updatedValues = { ...prev };
+      Object.keys(updatedValues).forEach(key => {
+        updatedValues[key] = newValue;
       });
-      setLockedTokens(prev => ({ ...prev, [newToken]: false }));
-    }
+      return updatedValues;
+    });
   };
 
   const [needsApproval, setNeedsApproval] = useState(false);
