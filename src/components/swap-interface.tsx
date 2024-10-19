@@ -172,7 +172,7 @@ const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances }) =>
             />
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
-            {['ETH', 'DAI', 'USDC', 'USDT', 'WBTC', 'WETH'].map((symbol) => (
+            {['ETH', 'USDC', 'USDT', 'WETH', 'SPX6900', 'MOG', 'HPOS'].map((symbol) => (
               <button
                 key={symbol}
                 className="bg-gray-800 rounded-full px-3 py-1 text-sm"
