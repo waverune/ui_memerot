@@ -501,8 +501,30 @@ function SwapInterfaceContent() {
         <div className="space-y-2">
           <label className="text-sm text-gray-400">From</label>
           <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
-            <div className="flex flex-col items-start space-y-1">
+            <div className="flex flex-col items-start">
+              <input
+                type="number"
+                value={fromAmount}
+                onChange={(e) => setFromAmount(e.target.value)}
+                className="bg-transparent border-none text-left w-24"
+              />
+              <span className="text-xs text-gray-400">
+                ≈ ${getUsdValue(fromAmount, selectedToken)}
+              </span>
+            </div>
+            <div className="flex flex-col items-end space-y-1">
               <div className="flex items-center space-x-2">
+                <select
+                  value={selectedToken}
+                  onChange={(e) => setSelectedToken(e.target.value as TokenSymbol)}
+                  className="bg-transparent border-none text-white"
+                >
+                  {Object.entries(TOKENS).map(([symbol, config]) => (
+                    <option key={symbol} value={symbol} className="text-black">
+                      {config.symbol}
+                    </option>
+                  ))}
+                </select>
                 {!imageError[selectedToken] ? (
                   <img
                     src={getTokenLogo(selectedToken)}
@@ -517,32 +539,10 @@ function SwapInterfaceContent() {
                     {selectedToken.charAt(0)}
                   </div>
                 )}
-                <select
-                  value={selectedToken}
-                  onChange={(e) => setSelectedToken(e.target.value as TokenSymbol)}
-                  className="bg-transparent border-none text-white"
-                >
-                  {Object.entries(TOKENS).map(([symbol, config]) => (
-                    <option key={symbol} value={symbol} className="text-black">
-                      {config.symbol}
-                    </option>
-                  ))}
-                </select>
               </div>
               <div className="text-xs text-gray-400">
                 Balance: {tokenBalances[selectedToken] || "0"}
               </div>
-            </div>
-            <div className="flex flex-col items-end">
-              <input
-                type="number"
-                value={fromAmount}
-                onChange={(e) => setFromAmount(e.target.value)}
-                className="bg-transparent border-none text-right w-24"
-              />
-              <span className="text-xs text-gray-400">
-                ≈ ${getUsdValue(fromAmount, selectedToken)}
-              </span>
             </div>
           </div>
         </div>
@@ -558,22 +558,19 @@ function SwapInterfaceContent() {
           {selectedOutputTokens.map((token, index) => (
             <div key={index} className="space-y-2">
               <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
-                <div className="flex flex-col items-start space-y-1">
+                <div className="flex flex-col items-start">
+                  <input
+                    type="number"
+                    value={toAmounts[token] || "0"}
+                    readOnly
+                    className="bg-transparent border-none text-left w-24"
+                  />
+                  <span className="text-xs text-gray-400">
+                    ≈ ${getUsdValue(toAmounts[token] || "0", token)}
+                  </span>
+                </div>
+                <div className="flex flex-col items-end space-y-1">
                   <div className="flex items-center space-x-2">
-                    {!imageError[token] ? (
-                      <img
-                        src={getTokenLogo(token)}
-                        alt={`${token} logo`}
-                        width={24}
-                        height={24}
-                        className="rounded-full"
-                        onError={() => handleImageError(token)}
-                      />
-                    ) : (
-                      <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-700">
-                        {token.charAt(0)}
-                      </div>
-                    )}
                     <select
                       value={token}
                       onChange={(e) => handleOutputTokenSelect(index, e.target.value as TokenSymbol)}
@@ -588,21 +585,24 @@ function SwapInterfaceContent() {
                         </option>
                       ))}
                     </select>
+                    {!imageError[token] ? (
+                      <img
+                        src={getTokenLogo(token)}
+                        alt={`${token} logo`}
+                        width={24}
+                        height={24}
+                        className="rounded-full"
+                        onError={() => handleImageError(token)}
+                      />
+                    ) : (
+                      <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-700">
+                        {token.charAt(0)}
+                      </div>
+                    )}
                   </div>
                   <div className="text-xs text-gray-400">
                     Balance: {tokenBalances[token] || "0"}
                   </div>
-                </div>
-                <div className="flex flex-col items-end">
-                  <input
-                    type="number"
-                    value={toAmounts[token] || "0"}
-                    readOnly
-                    className="bg-transparent border-none text-right w-24"
-                  />
-                  <span className="text-xs text-gray-400">
-                    ≈ ${getUsdValue(toAmounts[token] || "0", token)}
-                  </span>
                 </div>
                 {selectedOutputTokens.length > 1 && (
                   <button
