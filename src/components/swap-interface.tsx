@@ -86,7 +86,7 @@ const CustomConnectButton = () => {
 const mogLogo = "/mog-logo.png";
 const spx6900Logo = "/spx6900-logo.png";
 
-const ethPrice = 2500; // $2500 per ETH
+const ethPrice = 2600; // $2500 per ETH
 
 // Add USDC address and update Token type
 type Token = TokenSymbol;
@@ -109,6 +109,11 @@ const MOCK_EXPECTED_OUTPUT: Record<Token, string> = {
 const DOGE_MARKET_CAP = 18354750059;
 const SPX6900_MARKET_CAP = 606265150;
 const MOG_MARKET_CAP = 742944760;
+
+// Update these constants near the top of the file
+const SPX6900_PRICE = 0.6344; // $0.6344 per SPX6900
+const MOG_PRICE = 0.000002062; // $0.000002062 per MOG
+const HPOS_PRICE = 0.309; // $0.309 per HPOS
 
 function SwapInterfaceContent() {
   const { showToast } = useToast();
@@ -429,12 +434,20 @@ function SwapInterfaceContent() {
 
   // Update the USD value calculation
   const getUsdValue = (amount: string, token: Token) => {
+    const numAmount = parseFloat(amount);
     switch (token) {
       case "ETH":
+        return (numAmount * ethPrice).toFixed(2);
       case "WETH":
-        return (parseFloat(amount) * ethPrice).toFixed(2);
+        return (numAmount * ethPrice).toFixed(2);
       case "USDC":
-        return parseFloat(amount).toFixed(2); // 1 USDC = 1 USD
+        return numAmount.toFixed(2); // 1 USDC = 1 USD
+      case "SPX6900":
+        return (numAmount * SPX6900_PRICE).toFixed(2);
+      case "MOG":
+        return (numAmount * MOG_PRICE).toFixed(3); // Using more decimal places due to small value
+      case "HPOS":
+        return (numAmount * HPOS_PRICE).toFixed(2);
       default:
         return "0.00";
     }
@@ -503,12 +516,17 @@ function SwapInterfaceContent() {
                 Balance: {tokenBalances[selectedToken] || "0"}
               </div>
             </div>
-            <input
-              type="number"
-              value={fromAmount}
-              onChange={(e) => setFromAmount(e.target.value)}
-              className="bg-transparent border-none text-right w-24"
-            />
+            <div className="flex flex-col items-end">
+              <input
+                type="number"
+                value={fromAmount}
+                onChange={(e) => setFromAmount(e.target.value)}
+                className="bg-transparent border-none text-right w-24"
+              />
+              <span className="text-xs text-gray-400">
+                ≈ ${getUsdValue(fromAmount, selectedToken)}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -559,6 +577,9 @@ function SwapInterfaceContent() {
                     readOnly
                     className="bg-transparent border-none text-right w-24"
                   />
+                  <span className="text-xs text-gray-400">
+                    ≈ ${getUsdValue(toAmounts[token] || "0", token)}
+                  </span>
                   <span className="text-xs text-gray-400">
                     DogeRatio: {calculateRatio(marketCaps[token.toLowerCase() as keyof typeof marketCaps] || 0)}x
                   </span>
