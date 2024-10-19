@@ -299,17 +299,34 @@ function SwapInterfaceContent() {
 
   useEffect(() => {
     if (fromAmount) {
-      const totalEthValue = parseFloat(fromAmount);
+      const inputUsdValue = parseFloat(getUsdValue(fromAmount, selectedToken));
       const updatedToAmounts: Record<TokenSymbol, string> = {};
 
       selectedOutputTokens.forEach(token => {
         const percentage = (sliderValues[token] || 0) / 100;
-        updatedToAmounts[token] = (totalEthValue * percentage).toFixed(6);
+        const tokenUsdValue = inputUsdValue * percentage;
+        let tokenAmount: number;
+
+        switch (token) {
+          case "SPX6900":
+            tokenAmount = tokenUsdValue / SPX6900_PRICE;
+            break;
+          case "MOG":
+            tokenAmount = tokenUsdValue / MOG_PRICE;
+            break;
+          case "HPOS":
+            tokenAmount = tokenUsdValue / HPOS_PRICE;
+            break;
+          default:
+            tokenAmount = 0;
+        }
+
+        updatedToAmounts[token] = tokenAmount.toFixed(6);
       });
 
       setToAmounts(updatedToAmounts);
     }
-  }, [fromAmount, sliderValues, selectedOutputTokens]);
+  }, [fromAmount, sliderValues, selectedOutputTokens, selectedToken]);
 
   // Add this function to filter out disabled tokens
   const getAvailableOutputTokens = useCallback(() => {
@@ -580,16 +597,13 @@ function SwapInterfaceContent() {
                   <span className="text-xs text-gray-400">
                     ≈ ${getUsdValue(toAmounts[token] || "0", token)}
                   </span>
-                  <span className="text-xs text-gray-400">
-                    DogeRatio: {calculateRatio(marketCaps[token.toLowerCase() as keyof typeof marketCaps] || 0)}x
-                  </span>
                 </div>
                 {selectedOutputTokens.length > 1 && (
                   <button
                     onClick={() => removeOutputToken(token)}
-                    className="ml-1 text-gray-400 hover:text-white p-1" // Reduced margin-left and added minimal padding
+                    className="ml-1 text-gray-400 hover:text-white p-1"
                   >
-                    <X size={8} /> {/* Further reduced from size={12} to size={8} */}
+                    <X size={8} />
                   </button>
                 )}
               </div>
