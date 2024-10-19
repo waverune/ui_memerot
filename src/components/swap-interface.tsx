@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-// import { Switch } from "./ui/switch";
-import { ArrowDownUp, ChevronDown, Lock, Unlock, Plus, X } from "lucide-react";
+import { ArrowDownUp, ChevronDown, Lock, Unlock, Plus, X, Search, Settings } from "lucide-react";
 import Image from "next/image";
 
 import "@rainbow-me/rainbowkit/styles.css";
@@ -114,6 +113,83 @@ const MOG_MARKET_CAP = 742944760;
 const SPX6900_PRICE = 0.6344; // $0.6344 per SPX6900
 const MOG_PRICE = 0.000002062; // $0.000002062 per MOG
 const HPOS_PRICE = 0.309; // $0.309 per HPOS
+
+const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances }) => {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredTokens = useMemo(() => {
+    return Object.entries(tokens).filter(([symbol, config]) =>
+      symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      config.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [tokens, searchTerm]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-900 rounded-lg w-96 max-h-[80vh] overflow-hidden">
+        <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+          <h2 className="text-xl font-bold">Select a token</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="p-4">
+          <div className="flex items-center bg-gray-800 rounded-lg px-3 py-2 mb-4">
+            <Search className="h-4 w-4 text-gray-400 mr-2" />
+            <input
+              type="text"
+              placeholder="Search tokens"
+              className="bg-transparent border-none focus:outline-none text-white w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {['ETH', 'DAI', 'USDC', 'USDT', 'WETH'].map((symbol) => (
+              <button
+                key={symbol}
+                className="bg-gray-800 rounded-full px-3 py-1 text-sm"
+                onClick={() => onSelect(symbol)}
+              >
+                {symbol}
+              </button>
+            ))}
+          </div>
+          <div className="border-t border-gray-800 pt-4">
+            <h3 className="text-sm text-gray-400 mb-2">Your tokens</h3>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {filteredTokens.map(([symbol, config]) => (
+                <button
+                  key={symbol}
+                  className="flex items-center justify-between w-full px-3 py-2 hover:bg-gray-800 rounded-lg"
+                  onClick={() => onSelect(symbol)}
+                >
+                  <div className="flex items-center space-x-3">
+                    <img
+                      src={config.logo}
+                      alt={`${symbol} logo`}
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">{symbol}</span>
+                      <span className="text-sm text-gray-400">{config.name}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div>${(balances[symbol] * config.price).toFixed(2)}</div>
+                    <div className="text-sm text-gray-400">{balances[symbol]} {symbol}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 function SwapInterfaceContent() {
   const { showToast } = useToast();
@@ -489,9 +565,27 @@ function SwapInterfaceContent() {
     });
   };
 
+  const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
+  const [activeTokenSelection, setActiveTokenSelection] = useState<'from' | number | null>(null);
+
+  const openTokenPopup = (type: 'from' | number) => {
+    setActiveTokenSelection(type);
+    setIsTokenPopupOpen(true);
+  };
+
+  const handleTokenSelect = (token: TokenSymbol) => {
+    if (activeTokenSelection === 'from') {
+      setSelectedToken(token);
+    } else if (typeof activeTokenSelection === 'number') {
+      handleOutputTokenSelect(activeTokenSelection, token);
+    }
+    setIsTokenPopupOpen(false);
+  };
+
   return (
     <div className="w-full max-w-md space-y-4">
       <div className="bg-gray-800 rounded-lg p-4 space-y-4">
+        {/* Input (Sell) section */}
         <div className="space-y-2">
           <label className="text-sm text-gray-400">Sell</label>
           <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
@@ -506,47 +600,35 @@ function SwapInterfaceContent() {
                 ≈ ${getUsdValue(fromAmount, selectedToken)}
               </span>
             </div>
-            <div className="flex flex-col items-end space-y-1">
-              <div className="flex items-center space-x-2">
-                <select
-                  value={selectedToken}
-                  onChange={(e) => setSelectedToken(e.target.value as TokenSymbol)}
-                  className="bg-transparent border-none text-white"
-                >
-                  {Object.entries(TOKENS).map(([symbol, config]) => (
-                    <option key={symbol} value={symbol} className="text-black">
-                      {config.symbol}
-                    </option>
-                  ))}
-                </select>
-                {!imageError[selectedToken] ? (
+            <button
+              onClick={() => openTokenPopup('from')}
+              className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
+            >
+              {selectedToken ? (
+                <>
                   <img
-                    src={getTokenLogo(selectedToken)}
+                    src={TOKENS[selectedToken].logo}
                     alt={`${selectedToken} logo`}
-                    width={24}
-                    height={24}
-                    className="rounded-full"
-                    onError={() => handleImageError(selectedToken)}
+                    className="w-6 h-6 rounded-full"
                   />
-                ) : (
-                  <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs">
-                    {selectedToken.charAt(0)}
-                  </div>
-                )}
-              </div>
-              <div className="text-xs text-gray-400">
-                Balance: {tokenBalances[selectedToken] || "0"}
-              </div>
-            </div>
+                  <span>{selectedToken}</span>
+                </>
+              ) : (
+                <span>Select a token</span>
+              )}
+              <ChevronDown className="h-4 w-4" />
+            </button>
           </div>
         </div>
 
+        {/* Swap arrow */}
         <div className="flex justify-center">
           <div className="bg-gray-700 rounded-full p-2">
             <ArrowDownUp className="h-6 w-6 text-gray-400" />
           </div>
         </div>
 
+        {/* Output (Buy) section */}
         <div className="space-y-2">
           <label className="text-sm text-gray-400">Buy</label>
           {selectedOutputTokens.map((token, index) => (
@@ -563,50 +645,30 @@ function SwapInterfaceContent() {
                     ≈ ${token ? getUsdValue(toAmounts[token] || "0", token) : "0.00"}
                   </span>
                 </div>
-                <div className="flex flex-col items-end space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <select
-                      value={token || ""}
-                      onChange={(e) => handleOutputTokenSelect(index, e.target.value as TokenSymbol | "")}
-                      className="bg-transparent border-none text-white"
-                    >
-                      <option value="" className="text-black">Select token</option>
-                      {[
-                        ...(token ? [[token, TOKENS[token]]] : []),
-                        ...getAvailableOutputTokens()
-                      ].map(([symbol, config]) => (
-                        <option key={symbol} value={symbol} className="text-black">
-                          {config.symbol}
-                        </option>
-                      ))}
-                    </select>
-                    {token && !imageError[token] ? (
+                <button
+                  onClick={() => openTokenPopup(index)}
+                  className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
+                >
+                  {token ? (
+                    <>
                       <img
-                        src={getTokenLogo(token)}
+                        src={TOKENS[token].logo}
                         alt={`${token} logo`}
-                        width={24}
-                        height={24}
-                        className="rounded-full"
-                        onError={() => handleImageError(token)}
+                        className="w-6 h-6 rounded-full"
                       />
-                    ) : token ? (
-                      <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-700">
-                        {token.charAt(0)}
-                      </div>
-                    ) : null}
-                  </div>
-                  {token && (
-                    <div className="text-xs text-gray-400">
-                      Balance: {tokenBalances[token] || "0"}
-                    </div>
+                      <span>{token}</span>
+                    </>
+                  ) : (
+                    <span>Select a token</span>
                   )}
-                </div>
+                  <ChevronDown className="h-4 w-4" />
+                </button>
                 {selectedOutputTokens.length > 1 && (
                   <button
                     onClick={() => removeOutputToken(token)}
                     className="ml-1 text-gray-400 hover:text-white p-1"
                   >
-                    <X size={8} />
+                    <X size={16} />
                   </button>
                 )}
               </div>
@@ -634,38 +696,34 @@ function SwapInterfaceContent() {
               )}
             </div>
           ))}
-          {getAvailableOutputTokens().length > 0 && (
-            <Button
-              variant="outline"
+          {selectedOutputTokens.length < 3 && (
+            <button
               onClick={addOutputToken}
-              className="w-full mt-2 flex items-center justify-center space-x-2 text-white bg-gray-700 hover:bg-gray-600"
+              className="w-full mt-2 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center"
             >
-              <Plus className="h-4 w-4" />
-              <span>Add another token</span>
-            </Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Add another token
+            </button>
           )}
         </div>
       </div>
 
+      {/* Swap button */}
       <Button
         className="w-full bg-blue-600 hover:bg-blue-700"
-        onClick={selectedToken === "ETH" ? handleSwap : (needsApproval ? handleApprove : handleSwap)}
-        disabled={!isConnected || isApproving || isSwapping}
+        onClick={handleSwap}
+        disabled={!isConnected || isSwapping}
       >
-        {!isConnected
-          ? "Connect Wallet"
-          : selectedToken === "ETH"
-          ? isSwapping
-            ? "Swapping..."
-            : "Swap"
-          : needsApproval
-          ? isApproving
-            ? "Approving..."
-            : "Approve"
-          : isSwapping
-          ? "Swapping..."
-          : "Swap"}
+        {!isConnected ? "Connect Wallet" : isSwapping ? "Swapping..." : "Swap"}
       </Button>
+
+      <TokenSelectionPopup
+        isOpen={isTokenPopupOpen}
+        onClose={() => setIsTokenPopupOpen(false)}
+        onSelect={handleTokenSelect}
+        tokens={TOKENS}
+        balances={tokenBalances}
+      />
     </div>
   );
 }
