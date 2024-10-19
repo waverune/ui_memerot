@@ -114,6 +114,17 @@ const SPX6900_PRICE = 0.6344; // $0.6344 per SPX6900
 const MOG_PRICE = 0.000002062; // $0.000002062 per MOG
 const HPOS_PRICE = 0.309; // $0.309 per HPOS
 
+// Update or add these constants at the top of the file
+const MOCK_PRICES = {
+  ETH: 2600,
+  SPX6900: 0.6344,
+  MOG: 0.000002062,
+  WETH: 2600,
+  USDC: 1,
+  HPOS: 0.309,
+  // Add other tokens as needed
+};
+
 const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -123,6 +134,20 @@ const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances }) =>
       config.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [tokens, searchTerm]);
+
+  const getTokenPrice = (symbol: string) => {
+    return MOCK_PRICES[symbol] || 0;
+  };
+
+  const getTokenBalance = (symbol: string) => {
+    return parseFloat(balances[symbol] || "0");
+  };
+
+  const getTokenValue = (symbol: string) => {
+    const price = getTokenPrice(symbol);
+    const balance = getTokenBalance(symbol);
+    return price * balance;
+  };
 
   if (!isOpen) return null;
 
@@ -147,7 +172,7 @@ const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances }) =>
             />
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
-            {['ETH', 'DAI', 'USDC', 'USDT', 'WETH'].map((symbol) => (
+            {['ETH', 'DAI', 'USDC', 'USDT', 'WBTC', 'WETH'].map((symbol) => (
               <button
                 key={symbol}
                 className="bg-gray-800 rounded-full px-3 py-1 text-sm"
@@ -178,8 +203,13 @@ const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances }) =>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div>${(balances[symbol] * config.price).toFixed(2)}</div>
-                    <div className="text-sm text-gray-400">{balances[symbol]} {symbol}</div>
+                  <div className="text-sm text-gray-400">
+                      ${getTokenPrice(symbol).toFixed(2)} USD
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {getTokenBalance(symbol).toFixed(4)} {symbol}
+                    </div>
+                    
                   </div>
                 </button>
               ))}
@@ -224,13 +254,7 @@ function SwapInterfaceContent() {
   const mogPrice = 0.000003; // $0.000003 per MOG
 
   // Simulated token balances (in a real scenario, these would be fetched using ERC20:balanceOf() multicall)
-  const [tokenBalances, setTokenBalances] = useState<Record<Token, string>>({
-    ETH: "42",
-    SPX6900: "10000",
-    MOG: "5000000",
-    WETH: "0",
-    USDC: "0",
-  });
+  const [tokenBalances, setTokenBalances] = useState<Record<Token, string>>(MOCK_BALANCES);
 
   const swapContractAddress = "0x99D6dE141D7A9C76a92266776770994644Ff8053"; // Replace with your actual swap contract address
 
