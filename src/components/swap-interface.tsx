@@ -341,6 +341,19 @@ function SwapInterfaceContent() {
     return isNaN(ratio) || !isFinite(ratio) ? "N/A" : ratio.toFixed(2);
   }, [marketCaps.dogecoin]);
 
+  const recalculateSliders = useCallback(() => {
+    const activeTokens = selectedOutputTokens.filter(token => token !== "");
+    if (activeTokens.length > 0) {
+      const newSliderValue = 100 / activeTokens.length;
+      const updatedSliderValues = Object.fromEntries(
+        activeTokens.map(token => [token, newSliderValue])
+      );
+      setSliderValues(updatedSliderValues);
+    } else {
+      setSliderValues({});
+    }
+  }, [selectedOutputTokens]);
+
   const handleOutputTokenSelect = (index: number, newToken: TokenSymbol | "") => {
     setSelectedOutputTokens(prev => {
       const updated = [...prev];
@@ -348,79 +361,79 @@ function SwapInterfaceContent() {
       return updated;
     });
 
-    if (newToken) {
-      setToAmounts(prev => ({
-        ...prev,
-        [newToken]: "0"
-      }));
-      setSliderValues(prev => ({
-        ...prev,
-        [newToken]: 100 / selectedOutputTokens.length
-      }));
-      setLockedTokens(prev => ({
-        ...prev,
-        [newToken]: false
-      }));
-    }
+    // Recalculate sliders after updating selectedOutputTokens
+    setTimeout(recalculateSliders, 0);
   };
+
+  const removeOutputToken = (tokenToRemove: TokenSymbol) => {
+    setSelectedOutputTokens(prev => prev.filter(token => token !== tokenToRemove));
+    setToAmounts(prev => {
+      const { [tokenToRemove]: _, ...rest } = prev;
+      return rest;
+    });
+    
+    // Recalculate sliders after removing the token
+    setTimeout(recalculateSliders, 0);
+  };
+
+  useEffect(() => {
+    if (fromAmount && selectedToken) {
+      const inputUsdValue = parseFloat(getUsdValue(fromAmount, selectedToken));
+      const updatedToAmounts: Record<TokenSymbol, string> = {};
+
+      const activeTokens = selectedOutputTokens.filter(token => token !== "");
+      const tokenCount = activeTokens.length;
+
+      if (tokenCount > 0) {
+        const usdPerToken = inputUsdValue / tokenCount;
+
+        activeTokens.forEach(token => {
+          if (token) {
+            let tokenAmount: number;
+
+            switch (token) {
+              case "SPX6900":
+                tokenAmount = usdPerToken / SPX6900_PRICE;
+                break;
+              case "MOG":
+                tokenAmount = usdPerToken / MOG_PRICE;
+                break;
+              case "HPOS":
+                tokenAmount = usdPerToken / HPOS_PRICE;
+                break;
+              default:
+                tokenAmount = 0;
+            }
+
+            updatedToAmounts[token] = tokenAmount.toFixed(6);
+          }
+        });
+      }
+
+      setToAmounts(updatedToAmounts);
+      recalculateSliders();
+    }
+  }, [fromAmount, selectedToken, selectedOutputTokens, recalculateSliders]);
 
   const handleSliderChange = useCallback((token: TokenSymbol, value: number) => {
     setSliderValues(prev => {
-      const updatedSliderValues = { ...prev };
-      updatedSliderValues[token] = value;
-
-      const unlockedTokens = selectedOutputTokens.filter(t => !lockedTokens[t] && t !== token);
-      const remainingValue = 100 - value - selectedOutputTokens.reduce((sum, t) => 
-        lockedTokens[t] ? sum + (prev[t] || 0) : sum, 0
-      );
-
-      unlockedTokens.forEach((otherToken, index) => {
-        if (index === unlockedTokens.length - 1) {
-          updatedSliderValues[otherToken] = Math.max(0, remainingValue);
-        } else {
-          const currentValue = updatedSliderValues[otherToken] || 0;
-          updatedSliderValues[otherToken] = Math.min(currentValue, remainingValue / unlockedTokens.length);
+      const updatedSliderValues = { ...prev, [token]: value };
+      const totalValue = Object.values(updatedSliderValues).reduce((sum, val) => sum + val, 0);
+      
+      // Adjust other sliders proportionally
+      Object.keys(updatedSliderValues).forEach(key => {
+        if (key !== token) {
+          updatedSliderValues[key] = (updatedSliderValues[key] / totalValue) * (100 - value);
         }
       });
 
       return updatedSliderValues;
     });
-  }, [selectedOutputTokens, lockedTokens]);
+  }, []);
 
   const toggleLock = (token: TokenSymbol) => {
     setLockedTokens(prev => ({ ...prev, [token]: !prev[token] }));
   };
-
-  useEffect(() => {
-    if (fromAmount) {
-      const inputUsdValue = parseFloat(getUsdValue(fromAmount, selectedToken));
-      const updatedToAmounts: Record<TokenSymbol, string> = {};
-
-      selectedOutputTokens.forEach(token => {
-        const percentage = (sliderValues[token] || 0) / 100;
-        const tokenUsdValue = inputUsdValue * percentage;
-        let tokenAmount: number;
-
-        switch (token) {
-          case "SPX6900":
-            tokenAmount = tokenUsdValue / SPX6900_PRICE;
-            break;
-          case "MOG":
-            tokenAmount = tokenUsdValue / MOG_PRICE;
-            break;
-          case "HPOS":
-            tokenAmount = tokenUsdValue / HPOS_PRICE;
-            break;
-          default:
-            tokenAmount = 0;
-        }
-
-        updatedToAmounts[token] = tokenAmount.toFixed(6);
-      });
-
-      setToAmounts(updatedToAmounts);
-    }
-  }, [fromAmount, sliderValues, selectedOutputTokens, selectedToken]);
 
   // Add this function to filter out disabled tokens
   const getAvailableOutputTokens = useCallback(() => {
@@ -560,31 +573,6 @@ function SwapInterfaceContent() {
       default:
         return "0.00";
     }
-  };
-
-  const removeOutputToken = (tokenToRemove: TokenSymbol) => {
-    setSelectedOutputTokens(prev => prev.filter(token => token !== tokenToRemove));
-    setToAmounts(prev => {
-      const { [tokenToRemove]: _, ...rest } = prev;
-      return rest;
-    });
-    setSliderValues(prev => {
-      const { [tokenToRemove]: removedValue, ...rest } = prev;
-      const totalRemaining = Object.values(rest).reduce((sum, value) => sum + value, 0);
-      if (totalRemaining === 0) {
-        // If all remaining values are 0, distribute evenly
-        const newValue = 100 / Object.keys(rest).length;
-        return Object.fromEntries(Object.keys(rest).map(key => [key, newValue]));
-      } else {
-        // Redistribute the removed value proportionally
-        const factor = 100 / totalRemaining;
-        return Object.fromEntries(Object.entries(rest).map(([key, value]) => [key, value * factor]));
-      }
-    });
-    setLockedTokens(prev => {
-      const { [tokenToRemove]: _, ...rest } = prev;
-      return rest;
-    });
   };
 
   const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
