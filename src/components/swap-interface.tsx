@@ -120,7 +120,7 @@ function SwapInterfaceContent() {
   const [simpleSwap, setSimpleSwap] = useState(false);
   const [fromAmount, setFromAmount] = useState("0.69");
   const [selectedToken, setSelectedToken] = useState<TokenSymbol>("ETH");
-  const [selectedOutputTokens, setSelectedOutputTokens] = useState<TokenSymbol[]>(["SPX6900", "MOG"]);
+  const [selectedOutputTokens, setSelectedOutputTokens] = useState<(TokenSymbol | "")[]>([""]); // Use "" to represent "Select token"
   const [toAmounts, setToAmounts] = useState<Record<TokenSymbol, string>>({
     SPX6900: "0",
     MOG: "0",
@@ -241,33 +241,27 @@ function SwapInterfaceContent() {
     return isNaN(ratio) || !isFinite(ratio) ? "N/A" : ratio.toFixed(2);
   }, [marketCaps.dogecoin]);
 
-  const handleOutputTokenSelect = (index: number, newToken: TokenSymbol) => {
+  const handleOutputTokenSelect = (index: number, newToken: TokenSymbol | "") => {
     setSelectedOutputTokens(prev => {
       const updated = [...prev];
       updated[index] = newToken;
       return updated;
     });
 
-    setToAmounts(prev => {
-      const updated = { ...prev };
-      delete updated[selectedOutputTokens[index]];
-      updated[newToken] = "0";
-      return updated;
-    });
-
-    setSliderValues(prev => {
-      const updated = { ...prev };
-      delete updated[selectedOutputTokens[index]];
-      updated[newToken] = 100 / selectedOutputTokens.length;
-      return updated;
-    });
-
-    setLockedTokens(prev => {
-      const updated = { ...prev };
-      delete updated[selectedOutputTokens[index]];
-      updated[newToken] = false;
-      return updated;
-    });
+    if (newToken) {
+      setToAmounts(prev => ({
+        ...prev,
+        [newToken]: "0"
+      }));
+      setSliderValues(prev => ({
+        ...prev,
+        [newToken]: 100 / selectedOutputTokens.length
+      }));
+      setLockedTokens(prev => ({
+        ...prev,
+        [newToken]: false
+      }));
+    }
   };
 
   const handleSliderChange = useCallback((token: TokenSymbol, value: number) => {
@@ -499,7 +493,7 @@ function SwapInterfaceContent() {
     <div className="w-full max-w-md space-y-4">
       <div className="bg-gray-800 rounded-lg p-4 space-y-4">
         <div className="space-y-2">
-          <label className="text-sm text-gray-400">From</label>
+          <label className="text-sm text-gray-400">Sell</label>
           <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
             <div className="flex flex-col items-start">
               <input
@@ -554,30 +548,31 @@ function SwapInterfaceContent() {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm text-gray-400">To</label>
+          <label className="text-sm text-gray-400">Buy</label>
           {selectedOutputTokens.map((token, index) => (
             <div key={index} className="space-y-2">
               <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
                 <div className="flex flex-col items-start">
                   <input
                     type="number"
-                    value={toAmounts[token] || "0"}
+                    value={token ? (toAmounts[token] || "0") : "0"}
                     readOnly
                     className="bg-transparent border-none text-left w-24"
                   />
                   <span className="text-xs text-gray-400">
-                    ≈ ${getUsdValue(toAmounts[token] || "0", token)}
+                    ≈ ${token ? getUsdValue(toAmounts[token] || "0", token) : "0.00"}
                   </span>
                 </div>
                 <div className="flex flex-col items-end space-y-1">
                   <div className="flex items-center space-x-2">
                     <select
-                      value={token}
-                      onChange={(e) => handleOutputTokenSelect(index, e.target.value as TokenSymbol)}
+                      value={token || ""}
+                      onChange={(e) => handleOutputTokenSelect(index, e.target.value as TokenSymbol | "")}
                       className="bg-transparent border-none text-white"
                     >
+                      <option value="" className="text-black">Select token</option>
                       {[
-                        [token, TOKENS[token]],
+                        ...(token ? [[token, TOKENS[token]]] : []),
                         ...getAvailableOutputTokens()
                       ].map(([symbol, config]) => (
                         <option key={symbol} value={symbol} className="text-black">
@@ -585,7 +580,7 @@ function SwapInterfaceContent() {
                         </option>
                       ))}
                     </select>
-                    {!imageError[token] ? (
+                    {token && !imageError[token] ? (
                       <img
                         src={getTokenLogo(token)}
                         alt={`${token} logo`}
@@ -594,15 +589,17 @@ function SwapInterfaceContent() {
                         className="rounded-full"
                         onError={() => handleImageError(token)}
                       />
-                    ) : (
+                    ) : token ? (
                       <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-700">
                         {token.charAt(0)}
                       </div>
-                    )}
+                    ) : null}
                   </div>
-                  <div className="text-xs text-gray-400">
-                    Balance: {tokenBalances[token] || "0"}
-                  </div>
+                  {token && (
+                    <div className="text-xs text-gray-400">
+                      Balance: {tokenBalances[token] || "0"}
+                    </div>
+                  )}
                 </div>
                 {selectedOutputTokens.length > 1 && (
                   <button
@@ -613,26 +610,28 @@ function SwapInterfaceContent() {
                   </button>
                 )}
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={sliderValues[token] || 0}
-                    onChange={(e) => handleSliderChange(token, parseInt(e.target.value))}
-                    className="flex-grow"
-                  />
-                  <button onClick={() => toggleLock(token)}>
-                    {lockedTokens[token] ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                  </button>
+              {token && (
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={sliderValues[token] || 0}
+                      onChange={(e) => handleSliderChange(token, parseInt(e.target.value))}
+                      className="flex-grow"
+                    />
+                    <button onClick={() => toggleLock(token)}>
+                      {lockedTokens[token] ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>0%</span>
+                    <span>{(sliderValues[token] || 0).toFixed(2)}%</span>
+                    <span>100%</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-xs text-gray-400">
-                  <span>0%</span>
-                  <span>{(sliderValues[token] || 0).toFixed(2)}%</span>
-                  <span>100%</span>
-                </div>
-              </div>
+              )}
             </div>
           ))}
           {getAvailableOutputTokens().length > 0 && (
