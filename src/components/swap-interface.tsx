@@ -224,7 +224,8 @@ const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances }) =>
 function SwapInterfaceContent() {
   const { showToast } = useToast();
   const [simpleSwap, setSimpleSwap] = useState(false);
-  const [fromAmount, setFromAmount] = useState("0.69");
+  // Change the initial state of fromAmount to an empty string
+  const [fromAmount, setFromAmount] = useState("");
   const [selectedToken, setSelectedToken] = useState<TokenSymbol>("ETH");
   const [selectedOutputTokens, setSelectedOutputTokens] = useState<(TokenSymbol | "")[]>([""]); // Use "" to represent "Select token"
   const [toAmounts, setToAmounts] = useState<Record<TokenSymbol, string>>({
@@ -592,6 +593,15 @@ function SwapInterfaceContent() {
     setIsTokenPopupOpen(false);
   };
 
+  // Add this function to calculate the Doge ratio
+  const calculateDogeRatio = useCallback((token: TokenSymbol) => {
+    const tokenMarketCap = token === 'SPX6900' ? marketCaps.spx6900 : 
+                           token === 'MOG' ? marketCaps.mog :
+                           token === 'HPOS' ? marketCaps.hpos : 0;
+    const ratio = marketCaps.dogecoin / tokenMarketCap;
+    return isNaN(ratio) || !isFinite(ratio) ? "N/A" : ratio.toFixed(2);
+  }, [marketCaps]);
+
   return (
     <div className="w-full max-w-md space-y-4">
       <div className="bg-gray-800 rounded-lg p-4 space-y-4">
@@ -604,10 +614,11 @@ function SwapInterfaceContent() {
                 type="number"
                 value={fromAmount}
                 onChange={(e) => setFromAmount(e.target.value)}
-                className="bg-transparent border-none text-left w-24"
+                placeholder="0"
+                className="bg-transparent border-none text-left w-24 placeholder-gray-500 focus:outline-none focus:ring-0"
               />
               <span className="text-xs text-gray-400">
-                ≈ ${getUsdValue(fromAmount, selectedToken)}
+                ${getUsdValue(fromAmount || "0", selectedToken)}
               </span>
             </div>
             <button
@@ -649,30 +660,37 @@ function SwapInterfaceContent() {
                     type="number"
                     value={token ? (toAmounts[token] || "0") : "0"}
                     readOnly
-                    className="bg-transparent border-none text-left w-24"
+                    className="bg-transparent border-none text-left w-24 focus:outline-none focus:ring-0"
                   />
                   <span className="text-xs text-gray-400">
-                    ≈ ${token ? getUsdValue(toAmounts[token] || "0", token) : "0.00"}
+                    ${token ? getUsdValue(toAmounts[token] || "0", token) : "0.00"}
                   </span>
                 </div>
-                <button
-                  onClick={() => openTokenPopup(index)}
-                  className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
-                >
-                  {token ? (
-                    <>
-                      <img
-                        src={TOKENS[token].logo}
-                        alt={`${token} logo`}
-                        className="w-6 h-6 rounded-full"
-                      />
-                      <span>{token}</span>
-                    </>
-                  ) : (
-                    <span>Select a token</span>
+                <div className="flex flex-col items-end">
+                  <button
+                    onClick={() => openTokenPopup(index)}
+                    className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
+                  >
+                    {token ? (
+                      <>
+                        <img
+                          src={TOKENS[token].logo}
+                          alt={`${token} logo`}
+                          className="w-6 h-6 rounded-full"
+                        />
+                        <span>{token}</span>
+                      </>
+                    ) : (
+                      <span>Select a token</span>
+                    )}
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                  {token && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      Doge ratio: {calculateDogeRatio(token)}
+                    </div>
                   )}
-                  <ChevronDown className="h-4 w-4" />
-                </button>
+                </div>
                 {selectedOutputTokens.length > 1 && (
                   <button
                     onClick={() => removeOutputToken(token)}
