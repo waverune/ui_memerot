@@ -798,7 +798,7 @@ export function SwapInterface() {
         <RainbowKitProvider>
           <div className="min-h-screen flex flex-col justify-between p-4">
             <div className="w-full max-w-7xl mx-auto flex justify-between items-center mb-8">
-              <h1 className="text-2xl font-bold">Swap</h1>
+              <h1 className="text-2xl font-bold">memerot</h1>
               <CustomConnectButton />
             </div>
             <div className="flex-grow flex items-center justify-center">
