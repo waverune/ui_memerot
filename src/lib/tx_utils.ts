@@ -27,22 +27,41 @@ export async function approveToken(
 
 export async function performSwap(
   swapContractAddress: string,
-  tokenInAddress: string,
-  tokenOutAddress: string,
-  amountIn: string,
-  minAmountOut: string,
-  userAddress: string,
+  inputToken: string,
+  inputAmount: bigint,
+  sellAmounts: bigint[],
+  minAmounts: bigint[],
+  path: string[],
+  deadline: number,
   signer: ethers.Signer
 ): Promise<ethers.TransactionResponse> {
   const contract = new ethers.Contract(swapContractAddress, SWAP_ABI, signer);
-  return await contract.swap(
-    tokenInAddress,
-    tokenOutAddress,
-    ethers.parseUnits(amountIn, 18),
-    ethers.parseUnits(minAmountOut, 18),
-    userAddress,
-    { value: tokenInAddress === ethers.ZeroAddress ? ethers.parseUnits(amountIn, 18) : '0' }
-  );
+
+  if (inputToken === "ETH") {
+    return await contract.swapEthForMultiTokens(
+      sellAmounts,
+      minAmounts,
+      path,
+      deadline,
+      { value: inputAmount, gasLimit: 900000 },
+    );
+  } else if (inputToken === "WETH") {
+    return await contract.swapTokenForMultiTokens(
+      sellAmounts,
+      minAmounts,
+      path,
+      deadline
+    );
+  } else {
+    return await contract.swapUSDForMultiTokens(
+      path[0], // sellToken address
+      inputAmount,
+      sellAmounts.slice(1), // Remove the first element (total token amount)
+      minAmounts,
+      path.slice(1), // Remove the input token address from the path
+      deadline,
+    );
+  }
 }
 
 export async function getExpectedOutputAmount(

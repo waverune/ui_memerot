@@ -122,7 +122,6 @@ const MOCK_PRICES = {
   WETH: 2600,
   USDC: 1,
   HPOS: 0.309,
-  // Add other tokens as needed
 };
 
 const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances }) => {
@@ -390,22 +389,8 @@ function SwapInterfaceContent() {
 
         activeTokens.forEach(token => {
           if (token) {
-            let tokenAmount: number;
-
-            switch (token) {
-              case "SPX6900":
-                tokenAmount = usdPerToken / SPX6900_PRICE;
-                break;
-              case "MOG":
-                tokenAmount = usdPerToken / MOG_PRICE;
-                break;
-              case "HPOS":
-                tokenAmount = usdPerToken / HPOS_PRICE;
-                break;
-              default:
-                tokenAmount = 0;
-            }
-
+            const tokenPrice = MOCK_PRICES[token] || 1;
+            const tokenAmount = usdPerToken / tokenPrice;
             updatedToAmounts[token] = tokenAmount.toFixed(6);
           }
         });
@@ -531,22 +516,72 @@ function SwapInterfaceContent() {
       return;
     }
 
-    if (needsApproval && selectedToken !== "ETH") {
-      showToast("Please approve the token before swapping.", "error");
-      return;
-    }
-
     setIsSwapping(true);
     try {
-      // Implement your swap logic here
-      // If selectedToken is ETH, use a different method that doesn't require approval
-      if (selectedToken === "ETH") {
-        // Implement ETH swap logic
-      } else {
-        // Implement ERC20 token swap logic
+      const signer = await getSigner();
+      if (!signer) {
+        throw new Error("Signer not available");
       }
 
+      if (!fromAmount || isNaN(parseFloat(fromAmount))) {
+        throw new Error("Invalid input amount");
+      }
+
+      const inputAmount = ethers.parseUnits(fromAmount, TOKENS[selectedToken].decimals);
+      const activeOutputTokens = selectedOutputTokens.filter(token => token !== "");
+      
+      // Prepare path
+      const path = [TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
+
+      // Calculate total USD value of input
+      const inputUsdValue = parseFloat(fromAmount) * MOCK_PRICES[selectedToken];
+
+      // Prepare sellAmounts
+      const sellAmounts = [inputAmount];
+      for (let i = 0; i < activeOutputTokens.length; i++) {
+        const token = activeOutputTokens[i];
+        const tokenUsdValue = inputUsdValue * (sliderValues[token] / 100);
+        const wethAmount = tokenUsdValue / MOCK_PRICES.WETH;
+        
+        if (isNaN(wethAmount) || !isFinite(wethAmount)) {
+          throw new Error(`Invalid WETH amount calculated for ${token}`);
+        }
+        
+        const tokenWethAmount = ethers.parseUnits(wethAmount.toFixed(18), 18);
+        sellAmounts.push(tokenWethAmount);
+      }
+
+      // Prepare minAmounts (you might want to adjust this based on your requirements)
+      const minAmounts = activeOutputTokens.map(() => ethers.parseUnits("1", "wei")); // Set minimum amount to 1 wei
+
+      const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
+
+      console.log("Swap parameters:", {
+        inputToken: selectedToken,
+        inputAmount: inputAmount.toString(),
+        sellAmounts: sellAmounts.map(a => a.toString()),
+        minAmounts: minAmounts.map(a => a.toString()),
+        path,
+        deadline
+      });
+
+      const swapTx = await performSwap(
+        swapContractAddress,
+        selectedToken,
+        inputAmount,
+        sellAmounts,
+        minAmounts,
+        path,
+        deadline,
+        signer
+      );
+
+      await swapTx.wait();
       showToast("Swap completed successfully!", "success");
+      
+      // Refresh balances after successful swap
+      fetchBalances();
+      refetchEthBalance();
     } catch (error) {
       console.error("Swap failed:", error);
       showToast(`Swap failed: ${error.message}`, "error");
@@ -558,22 +593,10 @@ function SwapInterfaceContent() {
   // Update the USD value calculation
   const getUsdValue = (amount: string, token: Token) => {
     const numAmount = parseFloat(amount);
-    switch (token) {
-      case "ETH":
-        return (numAmount * ethPrice).toFixed(2);
-      case "WETH":
-        return (numAmount * ethPrice).toFixed(2);
-      case "USDC":
-        return numAmount.toFixed(2); // 1 USDC = 1 USD
-      case "SPX6900":
-        return (numAmount * SPX6900_PRICE).toFixed(2);
-      case "MOG":
-        return (numAmount * MOG_PRICE).toFixed(3); // Using more decimal places due to small value
-      case "HPOS":
-        return (numAmount * HPOS_PRICE).toFixed(2);
-      default:
-        return "0.00";
-    }
+    if (isNaN(numAmount)) return "0.00";
+    
+    const price = MOCK_PRICES[token] || 0;
+    return (numAmount * price).toFixed(2);
   };
 
   const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
