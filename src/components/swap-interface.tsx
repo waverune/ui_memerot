@@ -220,6 +220,21 @@ const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances }) =>
   );
 };
 
+// Add this mock function at the top of the file, outside of any component
+const mockUniswapOutput = (inputToken: TokenSymbol, inputAmount: number, outputToken: TokenSymbol): number => {
+  const inputPrice = MOCK_PRICES[inputToken];
+  const outputPrice = MOCK_PRICES[outputToken];
+  const inputValue = inputAmount * inputPrice;
+  let outputAmount = (inputValue / outputPrice) * 0.997; // 0.3% fee simulation
+  
+  if (outputToken === 'USDC') {
+    // Round to 6 decimal places for USDC
+    outputAmount = Math.round(outputAmount * 1e6) / 1e6;
+  }
+  
+  return outputAmount;
+};
+
 function SwapInterfaceContent() {
   const { showToast } = useToast();
   const [simpleSwap, setSimpleSwap] = useState(false);
@@ -625,6 +640,56 @@ function SwapInterfaceContent() {
     return isNaN(ratio) || !isFinite(ratio) ? "N/A" : ratio.toFixed(2);
   }, [marketCaps]);
 
+  const [simulatedOutput, setSimulatedOutput] = useState<Record<TokenSymbol, string>>({});
+
+  const simulateAndLogSwap = useCallback(() => {
+    if (!fromAmount || isNaN(parseFloat(fromAmount)) || selectedOutputTokens.length === 0) {
+      console.log("Invalid input or no output tokens selected");
+      return;
+    }
+
+    const inputAmount = parseFloat(fromAmount);
+    const inputTokenPrice = MOCK_PRICES[selectedToken];
+    const inputValueInWETH = selectedToken === 'WETH' ? inputAmount : (inputAmount * inputTokenPrice) / MOCK_PRICES.WETH;
+
+    console.log(`Input: ${inputAmount} ${selectedToken} (${inputValueInWETH.toFixed(6)} WETH)`);
+
+    const activeOutputTokens = selectedOutputTokens.filter(token => token !== "") as TokenSymbol[];
+    const outputResults: Record<TokenSymbol, string> = {};
+
+    activeOutputTokens.forEach((token, index) => {
+      let simulatedInput: number;
+      if (index === 0) {
+        // For the first token, use half of the input WETH
+        simulatedInput = inputValueInWETH / 2;
+      } else {
+        // For the second token, use the remaining half
+        simulatedInput = inputValueInWETH / 2;
+      }
+      
+      const outputAmount = mockUniswapOutput('WETH', simulatedInput, token);
+      
+      // Handle USDC's 6 decimals
+      if (token === 'USDC') {
+        outputResults[token] = outputAmount.toFixed(6);
+      } else {
+        outputResults[token] = outputAmount.toFixed(9);
+      }
+    });
+
+    console.log("Simulated Uniswap output:");
+    Object.entries(outputResults).forEach(([token, amount]) => {
+      console.log(`${token}: ${amount}`);
+    });
+
+    setSimulatedOutput(outputResults);
+  }, [fromAmount, selectedToken, selectedOutputTokens]);
+
+  // Add this useEffect to trigger the simulation when input changes
+  useEffect(() => {
+    simulateAndLogSwap();
+  }, [simulateAndLogSwap]);
+
   return (
     <div className="w-full max-w-md space-y-4">
       <div className="bg-gray-800 rounded-lg p-4 space-y-4">
@@ -787,6 +852,21 @@ function SwapInterfaceContent() {
         tokens={TOKENS}
         balances={tokenBalances}
       />
+
+      {Object.entries(simulatedOutput).length > 0 && (
+        <div className="mt-4 p-3 bg-gray-700 rounded-lg">
+          <h3 className="text-sm font-semibold mb-2">Simulated Output:</h3>
+          <div className="text-xs text-gray-400 mb-2">
+            Input: {fromAmount} {selectedToken} ({(parseFloat(fromAmount) * MOCK_PRICES[selectedToken] / MOCK_PRICES.WETH).toFixed(6)} WETH)
+          </div>
+          {Object.entries(simulatedOutput).map(([token, amount]) => (
+            <div key={token} className="flex justify-between text-sm">
+              <span>{token}:</span>
+              <span>{token === 'USDC' ? parseFloat(amount).toFixed(6) : parseFloat(amount).toFixed(9)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
