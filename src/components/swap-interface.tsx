@@ -645,6 +645,7 @@ function SwapInterfaceContent() {
   const simulateAndLogSwap = useCallback(() => {
     if (!fromAmount || isNaN(parseFloat(fromAmount)) || selectedOutputTokens.length === 0) {
       console.log("Invalid input or no output tokens selected");
+      setToAmounts({});
       return;
     }
 
@@ -659,17 +660,15 @@ function SwapInterfaceContent() {
 
     activeOutputTokens.forEach((token, index) => {
       let simulatedInput: number;
-      if (index === 0) {
-        // For the first token, use half of the input WETH
-        simulatedInput = inputValueInWETH / 2;
+      if (activeOutputTokens.length === 1) {
+        simulatedInput = inputValueInWETH;
       } else {
-        // For the second token, use the remaining half
-        simulatedInput = inputValueInWETH / 2;
+        const sliderValue = sliderValues[token] || 100 / activeOutputTokens.length;
+        simulatedInput = inputValueInWETH * (sliderValue / 100);
       }
       
       const outputAmount = mockUniswapOutput('WETH', simulatedInput, token);
       
-      // Handle USDC's 6 decimals
       if (token === 'USDC') {
         outputResults[token] = outputAmount.toFixed(6);
       } else {
@@ -677,15 +676,12 @@ function SwapInterfaceContent() {
       }
     });
 
-    console.log("Simulated Uniswap output:");
-    Object.entries(outputResults).forEach(([token, amount]) => {
-      console.log(`${token}: ${amount}`);
-    });
-
+    console.log("Simulated Uniswap output:", outputResults);
+    setToAmounts(outputResults);
     setSimulatedOutput(outputResults);
-  }, [fromAmount, selectedToken, selectedOutputTokens]);
+  }, [fromAmount, selectedToken, selectedOutputTokens, sliderValues]);
 
-  // Add this useEffect to trigger the simulation when input changes
+  // Trigger simulation when input changes
   useEffect(() => {
     simulateAndLogSwap();
   }, [simulateAndLogSwap]);
