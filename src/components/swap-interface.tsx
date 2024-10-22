@@ -35,6 +35,8 @@ import { toast } from "react-toastify";
 import { useToast } from '../hooks/useToast';
 // import { SWAP_ABI } from "../lib/contracts";
 import { TOKENS, TokenSymbol } from '../config/tokens';
+import { useNavigate, useLocation } from 'react-router-dom';
+import debounce from 'lodash/debounce';
 
 const BuildBearChain = {
   id: 21026,
@@ -238,10 +240,11 @@ const mockUniswapOutput = (inputToken: TokenSymbol, inputAmount: number, outputT
 function SwapInterfaceContent() {
   const { showToast } = useToast();
   const [simpleSwap, setSimpleSwap] = useState(false);
-  // Change the initial state of fromAmount to an empty string
+  const navigate = useNavigate();
+  const location = useLocation();
   const [fromAmount, setFromAmount] = useState("");
   const [selectedToken, setSelectedToken] = useState<TokenSymbol>("ETH");
-  const [selectedOutputTokens, setSelectedOutputTokens] = useState<(TokenSymbol | "")[]>([""]); // Use "" to represent "Select token"
+  const [selectedOutputTokens, setSelectedOutputTokens] = useState<TokenSymbol[]>([]);
   const [toAmounts, setToAmounts] = useState<Record<TokenSymbol, string>>({
     SPX6900: "0",
     MOG: "0",
@@ -415,22 +418,6 @@ function SwapInterfaceContent() {
       recalculateSliders();
     }
   }, [fromAmount, selectedToken, selectedOutputTokens, recalculateSliders]);
-
-  const handleSliderChange = useCallback((token: TokenSymbol, value: number) => {
-    setSliderValues(prev => {
-      const updatedSliderValues = { ...prev, [token]: value };
-      const totalValue = Object.values(updatedSliderValues).reduce((sum, val) => sum + val, 0);
-      
-      // Adjust other sliders proportionally
-      Object.keys(updatedSliderValues).forEach(key => {
-        if (key !== token) {
-          updatedSliderValues[key] = (updatedSliderValues[key] / totalValue) * (100 - value);
-        }
-      });
-
-      return updatedSliderValues;
-    });
-  }, []);
 
   const toggleLock = (token: TokenSymbol) => {
     setLockedTokens(prev => ({ ...prev, [token]: !prev[token] }));
@@ -686,6 +673,105 @@ function SwapInterfaceContent() {
     simulateAndLogSwap();
   }, [simulateAndLogSwap]);
 
+  const [allocationRatio, setAllocationRatio] = useState("");
+  const [debouncedAllocationRatio, setDebouncedAllocationRatio] = useState("");
+
+  // Non-recursive GCD calculation
+  const gcd = useCallback((a: number, b: number): number => {
+    while (b !== 0) {
+      let t = b;
+      b = a % b;
+      a = t;
+    }
+    return a;
+  }, []);
+
+  // Validate and format allocation ratio
+  const formattedAllocationRatio = useMemo(() => {
+    const parts = debouncedAllocationRatio.split(':').map(Number);
+    if (parts.some(isNaN) || parts.length === 0) {
+      return '';
+    }
+
+    let result = parts[0];
+    for (let i = 1; i < parts.length; i++) {
+      result = gcd(result, parts[i]);
+    }
+
+    return parts.map(part => part / result).join(':');
+  }, [debouncedAllocationRatio, gcd]);
+
+  // Calculate slider values based on allocation ratio
+  const calculatedSliderValues = useMemo(() => {
+    const parts = formattedAllocationRatio.split(':').map(Number);
+    const total = parts.reduce((sum, part) => sum + part, 0);
+    
+    if (total === 0) {
+      return {};
+    }
+
+    return parts.reduce((acc, part, index) => {
+      acc[`token${index + 1}`] = (part / total) * 100;
+      return acc;
+    }, {} as Record<string, number>);
+  }, [formattedAllocationRatio]);
+
+  // Update slider values when tokens are selected or allocation changes
+  useEffect(() => {
+    if (selectedOutputTokens.length === 0) {
+      setSliderValues(calculatedSliderValues);
+    } else {
+      const newSliderValues: Record<TokenSymbol, number> = {};
+      selectedOutputTokens.forEach((token, index) => {
+        newSliderValues[token] = calculatedSliderValues[`token${index + 1}`] || 0;
+      });
+      setSliderValues(newSliderValues);
+    }
+  }, [selectedOutputTokens, calculatedSliderValues]);
+
+  // Debounced function to update allocation ratio
+  const debouncedSetAllocationRatio = useCallback(
+    debounce((value: string) => {
+      setDebouncedAllocationRatio(value);
+    }, 500),
+    []
+  );
+
+  // Handle allocation ratio input change
+  const handleAllocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setAllocationRatio(newValue);
+    debouncedSetAllocationRatio(newValue);
+  };
+
+  // Update URL when configuration changes
+  useEffect(() => {
+    const searchParams = new URLSearchParams();
+    if (fromAmount) searchParams.set('fromAmount', fromAmount);
+    if (selectedToken) searchParams.set('fromToken', selectedToken);
+    if (selectedOutputTokens.length > 0) searchParams.set('toTokens', selectedOutputTokens.join(','));
+    if (formattedAllocationRatio) searchParams.set('allocation', formattedAllocationRatio);
+
+    navigate(`?${searchParams.toString()}`, { replace: true });
+  }, [fromAmount, selectedToken, selectedOutputTokens, formattedAllocationRatio, navigate]);
+
+  // Parse URL parameters on component mount
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const fromAmount = searchParams.get('fromAmount');
+    const fromToken = searchParams.get('fromToken');
+    const toTokens = searchParams.get('toTokens');
+    const allocation = searchParams.get('allocation');
+
+    if (fromAmount) setFromAmount(fromAmount);
+    if (fromToken) setSelectedToken(fromToken as TokenSymbol);
+    if (toTokens) setSelectedOutputTokens(toTokens.split(',') as TokenSymbol[]);
+    if (allocation) {
+      setAllocationRatio(allocation);
+      setDebouncedAllocationRatio(allocation);
+    }
+  }, [location.search]);
+
   return (
     <div className="w-full max-w-md space-y-4">
       <div className="bg-gray-800 rounded-lg p-4 space-y-4">
@@ -796,28 +882,15 @@ function SwapInterfaceContent() {
                   </button>
                 )}
               </div>
-              {token && (
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={sliderValues[token] || 0}
-                      onChange={(e) => handleSliderChange(token, parseInt(e.target.value))}
-                      className="flex-grow"
-                    />
-                    <button onClick={() => toggleLock(token)}>
-                      {lockedTokens[token] ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>0%</span>
-                    <span>{(sliderValues[token] || 0).toFixed(2)}%</span>
-                    <span>100%</span>
-                  </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-full bg-gray-700 h-2 rounded-full">
+                  <div
+                    className="bg-blue-500 h-full rounded-full"
+                    style={{ width: `${sliderValues[token] || 0}%` }}
+                  ></div>
                 </div>
-              )}
+                <span className="text-sm text-gray-400">{sliderValues[token]?.toFixed(1)}%</span>
+              </div>
             </div>
           ))}
           {selectedOutputTokens.length < 3 && (
@@ -841,14 +914,37 @@ function SwapInterfaceContent() {
         {!isConnected ? "Connect Wallet" : isSwapping ? "Swapping..." : "Swap"}
       </Button>
 
-      <TokenSelectionPopup
-        isOpen={isTokenPopupOpen}
-        onClose={() => setIsTokenPopupOpen(false)}
-        onSelect={handleTokenSelect}
-        tokens={TOKENS}
-        balances={tokenBalances}
-      />
+      {/* Allocation ratio input */}
+      <div className="space-y-2">
+        <label className="text-sm text-gray-400">Allocation Ratio</label>
+        <input
+          type="text"
+          value={allocationRatio}
+          onChange={handleAllocationChange}
+          placeholder="e.g., 1:1 or 60:40"
+          className="w-full bg-gray-700 rounded-lg p-2 text-white"
+        />
+      </div>
 
+      {/* Output tokens with view-only sliders */}
+      {Object.entries(sliderValues).map(([token, value], index) => (
+        <div key={token} className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-400">
+              {selectedOutputTokens[index] || `Token ${index + 1}`}
+            </span>
+            <span className="text-sm text-gray-400">{value.toFixed(1)}%</span>
+          </div>
+          <div className="w-full bg-gray-700 h-2 rounded-full">
+            <div
+              className="bg-blue-500 h-full rounded-full"
+              style={{ width: `${value}%` }}
+            ></div>
+          </div>
+        </div>
+      ))}
+
+      {/* Simulated Output */}
       {Object.entries(simulatedOutput).length > 0 && (
         <div className="mt-4 p-3 bg-gray-700 rounded-lg">
           <h3 className="text-sm font-semibold mb-2">Simulated Output:</h3>
@@ -863,6 +959,14 @@ function SwapInterfaceContent() {
           ))}
         </div>
       )}
+
+      <TokenSelectionPopup
+        isOpen={isTokenPopupOpen}
+        onClose={() => setIsTokenPopupOpen(false)}
+        onSelect={handleTokenSelect}
+        tokens={TOKENS}
+        balances={tokenBalances}
+      />
     </div>
   );
 }
