@@ -747,10 +747,10 @@ function SwapInterfaceContent() {
   // Update URL when configuration changes
   useEffect(() => {
     const searchParams = new URLSearchParams();
-    if (fromAmount) searchParams.set('fromAmount', fromAmount);
-    if (selectedToken) searchParams.set('fromToken', selectedToken);
-    if (selectedOutputTokens.length > 0) searchParams.set('toTokens', selectedOutputTokens.join(','));
-    if (formattedAllocationRatio) searchParams.set('allocation', formattedAllocationRatio);
+    if (fromAmount) searchParams.set('amount', fromAmount);
+    if (selectedToken) searchParams.set('from', selectedToken);
+    if (selectedOutputTokens.length > 0) searchParams.set('to', selectedOutputTokens.join('-'));
+    if (formattedAllocationRatio) searchParams.set('ratio', formattedAllocationRatio.replace(/:/g, '-'));
 
     navigate(`?${searchParams.toString()}`, { replace: true });
   }, [fromAmount, selectedToken, selectedOutputTokens, formattedAllocationRatio, navigate]);
@@ -758,17 +758,18 @@ function SwapInterfaceContent() {
   // Parse URL parameters on component mount
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
-    const fromAmount = searchParams.get('fromAmount');
-    const fromToken = searchParams.get('fromToken');
-    const toTokens = searchParams.get('toTokens');
-    const allocation = searchParams.get('allocation');
+    const amount = searchParams.get('amount');
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    const ratio = searchParams.get('ratio');
 
-    if (fromAmount) setFromAmount(fromAmount);
-    if (fromToken) setSelectedToken(fromToken as TokenSymbol);
-    if (toTokens) setSelectedOutputTokens(toTokens.split(',') as TokenSymbol[]);
-    if (allocation) {
-      setAllocationRatio(allocation);
-      setDebouncedAllocationRatio(allocation);
+    if (amount) setFromAmount(amount);
+    if (from) setSelectedToken(from as TokenSymbol);
+    if (to) setSelectedOutputTokens(to.split('-') as TokenSymbol[]);
+    if (ratio) {
+      const formattedRatio = ratio.replace(/-/g, ':');
+      setAllocationRatio(formattedRatio);
+      setDebouncedAllocationRatio(formattedRatio);
     }
   }, [location.search]);
 
