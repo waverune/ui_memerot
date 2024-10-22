@@ -774,200 +774,200 @@ function SwapInterfaceContent() {
   }, [location.search]);
 
   return (
-    <div className="w-full max-w-md space-y-4">
-      <div className="bg-gray-800 rounded-lg p-4 space-y-4">
+    <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8">
+      <div className="w-full lg:w-1/2 space-y-4">
         {/* Input (Sell) section */}
-        <div className="space-y-2">
-          <label className="text-sm text-gray-400">Sell</label>
-          <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
-            <div className="flex flex-col items-start">
-              <input
-                type="number"
-                value={fromAmount}
-                onChange={(e) => setFromAmount(e.target.value)}
-                placeholder="0"
-                className="bg-transparent border-none text-left w-24 placeholder-gray-500 focus:outline-none focus:ring-0"
-              />
-              <span className="text-xs text-gray-400">
-                ${getUsdValue(fromAmount || "0", selectedToken)}
-              </span>
-            </div>
-            <div className="flex flex-col items-end">
-              <button
-                onClick={() => openTokenPopup('from')}
-                className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
-              >
-                {selectedToken ? (
-                  <>
-                    <img
-                      src={TOKENS[selectedToken].logo}
-                      alt={`${selectedToken} logo`}
-                      className="w-6 h-6 rounded-full"
-                    />
-                    <span>{selectedToken}</span>
-                  </>
-                ) : (
-                  <span>Select a token</span>
-                )}
-                <ChevronDown className="h-4 w-4" />
-              </button>
-              {/* Add the balance display here */}
-              <span className="text-xs text-gray-400 mt-1">
-                Balance: {parseFloat(tokenBalances[selectedToken]).toFixed(4)} {selectedToken}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Swap arrow */}
-        <div className="flex justify-center">
-          <div className="bg-gray-700 rounded-full p-2">
-            <ArrowDownUp className="h-6 w-6 text-gray-400" />
-          </div>
-        </div>
-
-        {/* Output (Buy) section */}
-        <div className="space-y-2">
-          <label className="text-sm text-gray-400">Buy</label>
-          {selectedOutputTokens.map((token, index) => (
-            <div key={index} className="space-y-2">
-              <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
-                <div className="flex flex-col items-start">
-                  <input
-                    type="number"
-                    value={token ? (toAmounts[token] || "0") : "0"}
-                    readOnly
-                    className="bg-transparent border-none text-left w-24 focus:outline-none focus:ring-0"
-                  />
-                  <span className="text-xs text-gray-400">
-                    ${token ? getUsdValue(toAmounts[token] || "0", token) : "0.00"}
-                  </span>
-                </div>
-                <div className="flex flex-col items-end">
-                  <button
-                    onClick={() => openTokenPopup(index)}
-                    className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
-                  >
-                    {token ? (
-                      <>
-                        <img
-                          src={TOKENS[token].logo}
-                          alt={`${token} logo`}
-                          className="w-6 h-6 rounded-full"
-                        />
-                        <span>{token}</span>
-                      </>
-                    ) : (
-                      <span>Select a token</span>
-                    )}
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
-                  {token && (
+        <div className="bg-gray-800 rounded-lg p-4 space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm text-gray-400">Sell</label>
+            <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
+              <div className="flex flex-col items-start">
+                <input
+                  type="number"
+                  value={fromAmount}
+                  onChange={(e) => setFromAmount(e.target.value)}
+                  placeholder="0"
+                  className="bg-transparent border-none text-left w-24 placeholder-gray-500 focus:outline-none focus:ring-0"
+                />
+                <span className="text-xs text-gray-400">
+                  ${getUsdValue(fromAmount || "0", selectedToken)}
+                </span>
+              </div>
+              <div className="flex flex-col items-end">
+                <button
+                  onClick={() => openTokenPopup('from')}
+                  className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
+                >
+                  {selectedToken ? (
                     <>
-                      <div className="text-xs text-gray-400 mt-1">
-                        Doge ratio: {calculateDogeRatio(token)}
-                      </div>
-                      {/* Add the balance display for output tokens */}
-                      <span className="text-xs text-gray-400 mt-1">
-                        Balance: {parseFloat(tokenBalances[token]).toFixed(3)} {token}
-                      </span>
+                      <img
+                        src={TOKENS[selectedToken].logo}
+                        alt={`${selectedToken} logo`}
+                        className="w-6 h-6 rounded-full"
+                      />
+                      <span>{selectedToken}</span>
                     </>
+                  ) : (
+                    <span>Select a token</span>
                   )}
-                </div>
-                {selectedOutputTokens.length > 1 && (
-                  <button
-                    onClick={() => removeOutputToken(token)}
-                    className="ml-1 text-gray-400 hover:text-white p-1"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-full bg-gray-700 h-2 rounded-full">
-                  <div
-                    className="bg-blue-500 h-full rounded-full"
-                    style={{ width: `${sliderValues[token] || 0}%` }}
-                  ></div>
-                </div>
-                <span className="text-sm text-gray-400">{sliderValues[token]?.toFixed(1)}%</span>
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+                {/* Add the balance display here */}
+                <span className="text-xs text-gray-400 mt-1">
+                  Balance: {parseFloat(tokenBalances[selectedToken]).toFixed(4)} {selectedToken}
+                </span>
               </div>
             </div>
-          ))}
-          {selectedOutputTokens.length < 3 && (
-            <button
-              onClick={addOutputToken}
-              className="w-full mt-2 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add another token
-            </button>
-          )}
+          </div>
+
+          {/* Swap arrow */}
+          <div className="flex justify-center">
+            <div className="bg-gray-700 rounded-full p-2">
+              <ArrowDownUp className="h-6 w-6 text-gray-400" />
+            </div>
+          </div>
+
+          {/* Output (Buy) section */}
+          <div className="bg-gray-800 rounded-lg p-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm text-gray-400">Buy</label>
+              {selectedOutputTokens.map((token, index) => (
+                <div key={index} className="space-y-2">
+                  <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
+                    <div className="flex flex-col items-start">
+                      <input
+                        type="number"
+                        value={token ? (toAmounts[token] || "0") : "0"}
+                        readOnly
+                        className="bg-transparent border-none text-left w-24 focus:outline-none focus:ring-0"
+                      />
+                      <span className="text-xs text-gray-400">
+                        ${token ? getUsdValue(toAmounts[token] || "0", token) : "0.00"}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <button
+                        onClick={() => openTokenPopup(index)}
+                        className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
+                      >
+                        {token ? (
+                          <>
+                            <img
+                              src={TOKENS[token].logo}
+                              alt={`${token} logo`}
+                              className="w-6 h-6 rounded-full"
+                            />
+                            <span>{token}</span>
+                          </>
+                        ) : (
+                          <span>Select a token</span>
+                        )}
+                        <ChevronDown className="h-4 w-4" />
+                      </button>
+                      {token && (
+                        <>
+                          <div className="text-xs text-gray-400 mt-1">
+                            Doge ratio: {calculateDogeRatio(token)}
+                          </div>
+                          {/* Add the balance display for output tokens */}
+                          <span className="text-xs text-gray-400 mt-1">
+                            Balance: {parseFloat(tokenBalances[token]).toFixed(2)}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {selectedOutputTokens.length > 1 && (
+                      <button
+                        onClick={() => removeOutputToken(token)}
+                        className="ml-1 text-gray-400 hover:text-white p-1"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-full bg-gray-700 h-2 rounded-full">
+                      <div
+                        className="bg-blue-500 h-full rounded-full"
+                        style={{ width: `${sliderValues[token] || 0}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-sm text-gray-400">{sliderValues[token]?.toFixed(1)}%</span>
+                  </div>
+                </div>
+              ))}
+              {selectedOutputTokens.length < 3 && (
+                <button
+                  onClick={addOutputToken}
+                  className="w-full mt-2 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add another token
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Swap button */}
+          <Button
+            className="w-full bg-blue-600 hover:bg-blue-700"
+            onClick={handleSwap}
+            disabled={!isConnected || isSwapping}
+          >
+            {!isConnected ? "Connect Wallet" : isSwapping ? "Swapping..." : "Swap"}
+          </Button>
         </div>
       </div>
 
-      {/* Swap button */}
-      <Button
-        className="w-full bg-blue-600 hover:bg-blue-700"
-        onClick={handleSwap}
-        disabled={!isConnected || isSwapping}
-      >
-        {!isConnected ? "Connect Wallet" : isSwapping ? "Swapping..." : "Swap"}
-      </Button>
-
-      {/* Allocation ratio input */}
-      <div className="space-y-2">
-        <label className="text-sm text-gray-400">Allocation Ratio</label>
-        <input
-          type="text"
-          value={allocationRatio} // Use the non-debounced value for immediate feedback
-          onChange={handleAllocationChange}
-          placeholder="e.g., 1:1 or 60:40"
-          className="w-full bg-gray-700 rounded-lg p-2 text-white"
-        />
-      </div>
-
-      {/* Output tokens with view-only sliders */}
-      {Object.entries(sliderValues).map(([token, value], index) => (
-        <div key={token} className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-400">
-              {selectedOutputTokens[index] || `Token ${index + 1}`}
-            </span>
-            <span className="text-sm text-gray-400">{value.toFixed(1)}%</span>
-          </div>
-          <div className="w-full bg-gray-700 h-2 rounded-full">
-            <div
-              className="bg-blue-500 h-full rounded-full"
-              style={{ width: `${value}%` }}
-            ></div>
-          </div>
+      <div className="w-full lg:w-1/2 space-y-4 mt-8 lg:mt-0">
+        {/* Allocation ratio input */}
+        <div className="bg-gray-800 rounded-lg p-4 space-y-2">
+          <label className="text-sm text-gray-400">Allocation Ratio</label>
+          <input
+            type="text"
+            value={allocationRatio}
+            onChange={handleAllocationChange}
+            placeholder="e.g., 1:1 or 60:40"
+            className="w-full bg-gray-700 rounded-lg p-2 text-white"
+          />
         </div>
-      ))}
 
-      {/* Simulated Output */}
-      {Object.entries(simulatedOutput).length > 0 && (
-        <div className="mt-4 p-3 bg-gray-700 rounded-lg">
-          <h3 className="text-sm font-semibold mb-2">Simulated Output:</h3>
-          <div className="text-xs text-gray-400 mb-2">
-            Input: {fromAmount} {selectedToken} ({(parseFloat(fromAmount) * MOCK_PRICES[selectedToken] / MOCK_PRICES.WETH).toFixed(6)} WETH)
-          </div>
-          {Object.entries(simulatedOutput).map(([token, amount]) => (
-            <div key={token} className="flex justify-between text-sm">
-              <span>{token}:</span>
-              <span>{token === 'USDC' ? parseFloat(amount).toFixed(6) : parseFloat(amount).toFixed(9)}</span>
+        {/* Output tokens with view-only sliders */}
+        <div className="bg-gray-800 rounded-lg p-4 space-y-4">
+          {Object.entries(sliderValues).map(([token, value], index) => (
+            <div key={token} className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-400">
+                  {selectedOutputTokens[index] || `Token ${index + 1}`}
+                </span>
+                <span className="text-sm text-gray-400">{value.toFixed(1)}%</span>
+              </div>
+              <div className="w-full bg-gray-700 h-2 rounded-full">
+                <div
+                  className="bg-blue-500 h-full rounded-full"
+                  style={{ width: `${value}%` }}
+                ></div>
+              </div>
             </div>
           ))}
         </div>
-      )}
 
-      <TokenSelectionPopup
-        isOpen={isTokenPopupOpen}
-        onClose={() => setIsTokenPopupOpen(false)}
-        onSelect={handleTokenSelect}
-        tokens={TOKENS}
-        balances={tokenBalances}
-      />
+        {/* Simulated Output */}
+        {Object.entries(simulatedOutput).length > 0 && (
+          <div className="bg-gray-800 rounded-lg p-4">
+            <h3 className="text-sm font-semibold mb-2">Simulated Output:</h3>
+            <div className="text-xs text-gray-400 mb-2">
+              Input: {fromAmount} {selectedToken} ({(parseFloat(fromAmount) * MOCK_PRICES[selectedToken] / MOCK_PRICES.WETH).toFixed(6)} WETH)
+            </div>
+            {Object.entries(simulatedOutput).map(([token, amount]) => (
+              <div key={token} className="flex justify-between text-sm">
+                <span>{token}:</span>
+                <span>{token === 'USDC' ? parseFloat(amount).toFixed(6) : parseFloat(amount).toFixed(9)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -977,13 +977,13 @@ export function SwapInterface() {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
-          <div className="min-h-screen flex flex-col justify-between p-4">
-            <div className="w-full max-w-7xl mx-auto flex justify-between items-center mb-8">
+          <div className="min-h-screen flex flex-col bg-gray-800">
+            <div className="w-full max-w-7xl mx-auto flex justify-between items-center p-4">
               <h1 className="text-2xl font-bold">memerot</h1>
               <CustomConnectButton />
             </div>
-            <div className="flex-grow flex items-center justify-center">
-              <div className="w-full max-w-md space-y-4 bg-gray-900 border-2 border-blue-800 rounded-lg p-6 shadow-lg">
+            <div className="flex-grow flex items-center justify-center p-4">
+              <div className="w-full max-w-md lg:max-w-4xl xl:max-w-6xl bg-gray-900 border-2 border-blue-800 rounded-lg shadow-lg overflow-hidden">
                 <SwapInterfaceContent />
               </div>
             </div>

@@ -14,6 +14,7 @@ body {
   width: 100%;
   display: flex;
   flex-direction: column;
+  background-color: #1f2937; /* This is the Tailwind bg-gray-800 color */
 }
 
 #root {
@@ -61,4 +62,11 @@ body {
 
 .swap-interface-wrapper {
   background-color: #111827 !important;
+}
+
+@media (min-width: 768px) {
+  .swap-interface-wrapper {
+    max-width: none !important;
+    width: 100% !important;
+  }
 }
