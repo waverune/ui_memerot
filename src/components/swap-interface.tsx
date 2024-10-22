@@ -609,13 +609,18 @@ function SwapInterfaceContent() {
     setIsTokenPopupOpen(true);
   };
 
+  const closeTokenPopup = () => {
+    setIsTokenPopupOpen(false);
+    setActiveTokenSelection(null);
+  };
+
   const handleTokenSelect = (token: TokenSymbol) => {
     if (activeTokenSelection === 'from') {
       setSelectedToken(token);
     } else if (typeof activeTokenSelection === 'number') {
       handleOutputTokenSelect(activeTokenSelection, token);
     }
-    setIsTokenPopupOpen(false);
+    closeTokenPopup();
   };
 
   // Add this function to calculate the Doge ratio
@@ -774,10 +779,10 @@ function SwapInterfaceContent() {
   }, [location.search]);
 
   return (
-    <div className="p-3 sm:p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8">
+    <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8">
       <div className="w-full lg:w-1/2 space-y-4">
         {/* Input (Sell) section */}
-        <div className="bg-gray-800 rounded-lg p-3 sm:p-4 space-y-3 sm:space-y-4">
+        <div className="bg-gray-800 rounded-lg p-4 space-y-4">
           <div className="space-y-2">
             <label className="text-sm text-gray-400">Sell</label>
             <div className="bg-gray-700 rounded-lg p-3 flex justify-between items-center">
@@ -823,12 +828,12 @@ function SwapInterfaceContent() {
           {/* Swap arrow */}
           <div className="flex justify-center">
             <div className="bg-gray-700 rounded-full p-2">
-              <ArrowDownUp className="h-5 w-5 sm:h-6 sm:w-6 text-gray-400" />
+              <ArrowDownUp className="h-6 w-6 text-gray-400" />
             </div>
           </div>
 
           {/* Output (Buy) section */}
-          <div className="bg-gray-800 rounded-lg p-3 sm:p-4 space-y-3 sm:space-y-4">
+          <div className="bg-gray-800 rounded-lg p-4 space-y-4">
             <div className="space-y-2">
               <label className="text-sm text-gray-400">Buy</label>
               {selectedOutputTokens.map((token, index) => (
@@ -910,7 +915,7 @@ function SwapInterfaceContent() {
 
           {/* Swap button */}
           <Button
-            className="w-full bg-blue-600 hover:bg-blue-700 py-2 sm:py-3"
+            className="w-full bg-blue-600 hover:bg-blue-700"
             onClick={handleSwap}
             disabled={!isConnected || isSwapping}
           >
@@ -919,30 +924,30 @@ function SwapInterfaceContent() {
         </div>
       </div>
 
-      <div className="w-full lg:w-1/2 space-y-4 mt-6 lg:mt-0">
+      <div className="w-full lg:w-1/2 space-y-4 mt-8 lg:mt-0">
         {/* Allocation ratio input */}
-        <div className="bg-gray-800 rounded-lg p-3 sm:p-4 space-y-2">
+        <div className="bg-gray-800 rounded-lg p-4 space-y-2">
           <label className="text-sm text-gray-400">Allocation Ratio</label>
           <input
             type="text"
             value={allocationRatio}
             onChange={handleAllocationChange}
             placeholder="e.g., 1:1 or 60:40"
-            className="w-full bg-gray-700 rounded-lg p-2 text-white text-sm sm:text-base"
+            className="w-full bg-gray-700 rounded-lg p-2 text-white"
           />
         </div>
 
         {/* Output tokens with view-only sliders */}
-        <div className="bg-gray-800 rounded-lg p-3 sm:p-4 space-y-3 sm:space-y-4">
+        <div className="bg-gray-800 rounded-lg p-4 space-y-4">
           {Object.entries(sliderValues).map(([token, value], index) => (
-            <div key={token} className="space-y-1 sm:space-y-2">
-              <div className="flex items-center justify-between text-xs sm:text-sm">
-                <span className="text-gray-400">
+            <div key={token} className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-400">
                   {selectedOutputTokens[index] || `Token ${index + 1}`}
                 </span>
-                <span className="text-gray-400">{value.toFixed(1)}%</span>
+                <span className="text-sm text-gray-400">{value.toFixed(1)}%</span>
               </div>
-              <div className="w-full bg-gray-700 h-1 sm:h-2 rounded-full">
+              <div className="w-full bg-gray-700 h-2 rounded-full">
                 <div
                   className="bg-blue-500 h-full rounded-full"
                   style={{ width: `${value}%` }}
@@ -954,13 +959,13 @@ function SwapInterfaceContent() {
 
         {/* Simulated Output */}
         {Object.entries(simulatedOutput).length > 0 && (
-          <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
-            <h3 className="text-xs sm:text-sm font-semibold mb-2">Simulated Output:</h3>
+          <div className="bg-gray-800 rounded-lg p-4">
+            <h3 className="text-sm font-semibold mb-2">Simulated Output:</h3>
             <div className="text-xs text-gray-400 mb-2">
               Input: {fromAmount} {selectedToken} ({(parseFloat(fromAmount) * MOCK_PRICES[selectedToken] / MOCK_PRICES.WETH).toFixed(6)} WETH)
             </div>
             {Object.entries(simulatedOutput).map(([token, amount]) => (
-              <div key={token} className="flex justify-between text-xs sm:text-sm">
+              <div key={token} className="flex justify-between text-sm">
                 <span>{token}:</span>
                 <span>{token === 'USDC' ? parseFloat(amount).toFixed(6) : parseFloat(amount).toFixed(9)}</span>
               </div>
@@ -968,6 +973,14 @@ function SwapInterfaceContent() {
           </div>
         )}
       </div>
+
+      <TokenSelectionPopup
+        isOpen={isTokenPopupOpen}
+        onClose={closeTokenPopup}
+        onSelect={handleTokenSelect}
+        tokens={TOKENS}
+        balances={tokenBalances}
+      />
     </div>
   );
 }
@@ -982,8 +995,8 @@ export function SwapInterface() {
               <h1 className="text-2xl font-bold">memerot</h1>
               <CustomConnectButton />
             </div>
-            <div className="flex-grow flex items-center justify-center p-2 sm:p-4">
-              <div className="w-full max-w-[95%] sm:max-w-md lg:max-w-4xl xl:max-w-6xl bg-gray-900 border-2 border-blue-800 rounded-lg shadow-lg overflow-hidden">
+            <div className="flex-grow flex items-center justify-center p-4">
+              <div className="w-full max-w-md lg:max-w-4xl xl:max-w-6xl bg-gray-900 border-2 border-blue-800 rounded-lg shadow-lg overflow-hidden">
                 <SwapInterfaceContent />
               </div>
             </div>
