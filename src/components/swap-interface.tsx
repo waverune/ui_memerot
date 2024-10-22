@@ -729,19 +729,19 @@ function SwapInterfaceContent() {
     }
   }, [selectedOutputTokens, calculatedSliderValues]);
 
-  // Debounced function to update allocation ratio
+  // Increase debounce time to 700ms )
   const debouncedSetAllocationRatio = useCallback(
     debounce((value: string) => {
       setDebouncedAllocationRatio(value);
-    }, 500),
+    }, 700),
     []
   );
 
   // Handle allocation ratio input change
   const handleAllocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    setAllocationRatio(newValue);
-    debouncedSetAllocationRatio(newValue);
+    setAllocationRatio(newValue); // Update the input value immediately
+    debouncedSetAllocationRatio(newValue); // Debounce the actual state update
   };
 
   // Update URL when configuration changes
@@ -919,7 +919,7 @@ function SwapInterfaceContent() {
         <label className="text-sm text-gray-400">Allocation Ratio</label>
         <input
           type="text"
-          value={allocationRatio}
+          value={allocationRatio} // Use the non-debounced value for immediate feedback
           onChange={handleAllocationChange}
           placeholder="e.g., 1:1 or 60:40"
           className="w-full bg-gray-700 rounded-lg p-2 text-white"
