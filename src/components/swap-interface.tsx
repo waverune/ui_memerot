@@ -874,7 +874,6 @@ function SwapInterfaceContent() {
                           <div className="text-xs text-gray-400 mt-1">
                             Doge ratio: {calculateDogeRatio(token)}
                           </div>
-                          {/* Add the balance display for output tokens */}
                           <span className="text-xs text-gray-400 mt-1">
                             Balance: {parseFloat(tokenBalances[token]).toFixed(2)}
                           </span>
@@ -890,15 +889,7 @@ function SwapInterfaceContent() {
                       </button>
                     )}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-full bg-gray-700 h-2 rounded-full">
-                      <div
-                        className="bg-blue-500 h-full rounded-full"
-                        style={{ width: `${sliderValues[token] || 0}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-sm text-gray-400">{sliderValues[token]?.toFixed(1)}%</span>
-                  </div>
+                  {/* Removed the slider from here */}
                 </div>
               ))}
               {selectedOutputTokens.length < 3 && (
