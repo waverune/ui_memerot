@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { ArrowDownUp, ChevronDown, Lock, Unlock, Plus, X, Search, Settings } from "lucide-react";
+import { ArrowDownUp, ChevronDown, Lock, Unlock, Plus, X, Search, Settings, Copy } from "lucide-react";
 import Image from "next/image";
 
 import "@rainbow-me/rainbowkit/styles.css";
@@ -778,6 +778,17 @@ function SwapInterfaceContent() {
     }
   }, [location.search]);
 
+  // Add this function to handle sharing the URL
+  const handleShareUrl = () => {
+    const currentUrl = window.location.href;
+    navigator.clipboard.writeText(currentUrl).then(() => {
+      showToast("URL copied to clipboard!", "success");
+    }).catch((err) => {
+      console.error('Failed to copy URL: ', err);
+      showToast("Failed to copy URL. Please try again.", "error");
+    });
+  };
+
   return (
     <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8">
       <div className="w-full lg:w-1/2 space-y-4">
@@ -904,6 +915,8 @@ function SwapInterfaceContent() {
             </div>
           </div>
 
+        
+
           {/* Swap button */}
           <Button
             className="w-full bg-blue-600 hover:bg-blue-700"
@@ -926,6 +939,14 @@ function SwapInterfaceContent() {
             placeholder="e.g., 1:1 or 60:40"
             className="w-full bg-gray-700 rounded-lg p-2 text-white"
           />
+            {/* Add the Share URL button just above the Swap button */}
+            <Button
+            className="w-full bg-gray-700 hover:bg-gray-600 text-white"
+            onClick={handleShareUrl}
+          >
+            <Copy className="h-4 w-4 mr-2" />
+            Share Allocation
+          </Button>
         </div>
 
         {/* Output tokens with view-only sliders */}
