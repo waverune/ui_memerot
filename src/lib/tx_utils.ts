@@ -50,7 +50,9 @@ export async function performSwap(
       sellAmounts,
       minAmounts,
       path,
-      deadline
+      deadline,
+      { gasLimit: 9000000000 },
+
     );
   } else {
     return await contract.swapUSDForMultiTokens(
@@ -161,9 +163,8 @@ export async function checkAndApproveToken(
   spenderAddress: string,
   amount: string,
   decimals: number,
-  signer: ethers.Signer,
-  onStatus: (message: string) => void
-): Promise<void> {
+  signer: ethers.Signer
+): Promise<boolean> {
   const tokenContract = new ethers.Contract(tokenAddress, [
     "function approve(address spender, uint256 amount) public returns (bool)",
     "function allowance(address owner, address spender) public view returns (uint256)"
@@ -174,9 +175,15 @@ export async function checkAndApproveToken(
   const requiredAmount = ethers.parseUnits(amount, decimals);
 
   if (currentAllowance < requiredAmount) {
-    onStatus(`Approving token for swapping...`);
-    const approveTx = await tokenContract.approve(spenderAddress, ethers.MaxUint256);
-    await approveTx.wait();
-    onStatus(`Token approved for swapping`);
+    try {
+      const approveTx = await tokenContract.approve(spenderAddress, ethers.MaxUint256);
+      await approveTx.wait();
+      return true;
+    } catch (error) {
+      console.error("Approval failed:", error);
+      return false;
+    }
   }
+
+  return true; // Already approved
 }

@@ -302,8 +302,13 @@ function SwapInterfaceContent() {
 
         for (const [symbol, config] of Object.entries(TOKENS)) {
           if (symbol !== 'ETH') {
-            const balance = await getTokenBalance(config.address, address, provider);
-            newBalances[symbol as Token] = ethers.formatUnits(balance, config.decimals);
+            try {
+              const balance = await getTokenBalance(config.address, address, provider);
+              newBalances[symbol as Token] = ethers.formatUnits(balance, config.decimals);
+            } catch (error) {
+              console.error(`Error fetching balance for ${symbol}:`, error);
+              newBalances[symbol as Token] = '0'; // Set balance to 0 if there's an error
+            }
           }
         }
 
@@ -313,7 +318,7 @@ function SwapInterfaceContent() {
         }));
       } catch (error) {
         console.error("Error fetching token balances:", error);
-        toast.error("Failed to fetch token balances. Please try again.");
+        toast.error("Failed to fetch some token balances. Please try again or check your network connection.");
       }
     }
   }, [address, getProvider]);
@@ -448,73 +453,82 @@ function SwapInterfaceContent() {
 
   const [needsApproval, setNeedsApproval] = useState(false);
 
-  const checkAllowance = useCallback(async () => {
-    if (isConnected && address && selectedToken !== "ETH") {
+  const checkApproval = useCallback(async () => {
+    if (isConnected && address && selectedToken !== "ETH" && fromAmount) {
       try {
-        const provider = getProvider();
-        const config = TOKENS[selectedToken];
+        const signer = await getSigner();
+        const tokenAddress = TOKENS[selectedToken].address;
+        const amount = fromAmount;
         
-        const tokenContract = new ethers.Contract(config.address, [
-          "function allowance(address owner, address spender) view returns (uint256)"
-        ], provider);
+        const tokenContract = new ethers.Contract(
+          tokenAddress,
+          ["function allowance(address owner, address spender) view returns (uint256)"],
+          signer
+        );
 
         const allowance = await tokenContract.allowance(address, swapContractAddress);
-        const requiredAmount = ethers.parseUnits(fromAmount || "0", config.decimals);
+        const requiredAmount = ethers.parseUnits(amount, TOKENS[selectedToken].decimals);
         
-        setNeedsApproval(BigInt(allowance) < BigInt(requiredAmount));
+        // Convert allowance and requiredAmount to BigInt
+        const allowanceBigInt = BigInt(allowance.toString());
+        const requiredAmountBigInt = BigInt(requiredAmount.toString());
+
+        const needsApproval = allowanceBigInt < requiredAmountBigInt;
+        setNeedsApproval(needsApproval);
+        console.log(`Approval status for ${selectedToken}: ${needsApproval ? 'Needs approval' : 'Approved'}`);
+        console.log(`Allowance: ${allowanceBigInt.toString()}, Required: ${requiredAmountBigInt.toString()}`);
       } catch (error) {
-        console.error("Error checking allowance:", error);
+        console.error("Error checking approval:", error);
         setNeedsApproval(true);
       }
     } else {
       setNeedsApproval(false);
     }
-  }, [isConnected, address, fromAmount, getProvider, selectedToken]);
+  }, [isConnected, address, selectedToken, fromAmount, getSigner, swapContractAddress]);
 
   useEffect(() => {
-    checkAllowance();
-  }, [checkAllowance]);
+    checkApproval();
+  }, [checkApproval]);
 
   const handleApprove = async () => {
-    if (!isConnected) {
-      showToast("Please connect your wallet to approve.", "error");
-      return;
-    }
-
-    if (selectedToken === "ETH") {
-      showToast("Approval not needed for ETH.", "info");
+    if (!isConnected || selectedToken === "ETH") {
       return;
     }
 
     setIsApproving(true);
     try {
       const signer = await getSigner();
-      if (!signer) {
-        throw new Error("Signer not available");
+      const approved = await checkAndApproveToken(
+        TOKENS[selectedToken].address,
+        swapContractAddress,
+        fromAmount,
+        TOKENS[selectedToken].decimals,
+        signer
+      );
+      if (approved) {
+        setNeedsApproval(false);
+        showToast(`${selectedToken} approved for swapping`, "success");
+        await checkApproval(); // Re-check approval status after successful approval
+      } else {
+        showToast("Approval failed. Please try again.", "error");
       }
-
-      const config = TOKENS[selectedToken];
-      const tokenContract = new ethers.Contract(config.address, [
-        "function approve(address spender, uint256 amount) public returns (bool)"
-      ], signer);
-
-      const maxApproval = ethers.MaxUint256;
-      const approveTx = await tokenContract.approve(swapContractAddress, maxApproval);
-      await approveTx.wait();
-      
-      showToast(`${selectedToken} approved for swapping`, "success");
-      setNeedsApproval(false);
     } catch (error) {
       console.error("Approval failed:", error);
       showToast("Approval failed. Please try again.", "error");
     } finally {
       setIsApproving(false);
+      checkApproval(); // Re-check approval status after the process
     }
   };
 
   const handleSwap = async () => {
     if (!isConnected) {
       showToast("Please connect your wallet to perform a swap.", "error");
+      return;
+    }
+
+    if (needsApproval) {
+      showToast("Please approve the token before swapping.", "error");
       return;
     }
 
@@ -527,6 +541,20 @@ function SwapInterfaceContent() {
 
       if (!fromAmount || isNaN(parseFloat(fromAmount))) {
         throw new Error("Invalid input amount");
+      }
+
+      // Check for approval if the input token is not ETH
+      if (selectedToken !== "ETH") {
+        const isApproved = await checkAndApproveToken(
+          TOKENS[selectedToken].address,
+          swapContractAddress,
+          fromAmount,
+          TOKENS[selectedToken].decimals,
+          signer
+        );
+        if (!isApproved) {
+          throw new Error("Token approval failed or was rejected");
+        }
       }
 
       const inputAmount = ethers.parseUnits(fromAmount, TOKENS[selectedToken].decimals);
@@ -910,14 +938,28 @@ function SwapInterfaceContent() {
           </div>
         </div>
 
-        {/* Swap button */}
-        <Button
-          className="w-full bg-blue-600 hover:bg-blue-700"
-          onClick={handleSwap}
-          disabled={!isConnected || isSwapping}
-        >
-          {!isConnected ? "Connect Wallet" : isSwapping ? "Swapping..." : "Swap"}
-        </Button>
+        {selectedToken !== "ETH" && needsApproval ? (
+          <Button
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            onClick={handleApprove}
+            disabled={!isConnected || isApproving}
+          >
+            {isApproving ? "Approving..." : `Approve ${selectedToken}`}
+          </Button>
+        ) : (
+          <Button
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            onClick={async () => {
+              await checkApproval(); // Re-check approval before swap
+              if (!needsApproval) {
+                handleSwap();
+              }
+            }}
+            disabled={!isConnected || isSwapping}
+          >
+            {!isConnected ? "Connect Wallet" : isSwapping ? "Swapping..." : "Swap"}
+          </Button>
+        )}
       </div>
 
       <div className="w-full lg:w-1/2 space-y-4 mt-8 lg:mt-0">
