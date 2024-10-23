@@ -122,7 +122,7 @@ const MOCK_PRICES = {
   SPX6900: 0.7075,
   MOG: 0.000001809,
   WETH: 2505,
-  USDC: 1,
+  USDC: 0.999898,
   HPOS: 0.2425,
 };
 
