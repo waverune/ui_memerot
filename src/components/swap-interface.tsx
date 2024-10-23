@@ -126,15 +126,16 @@ const MOCK_PRICES = {
   HPOS: 0.2425,
 };
 
-const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances }) => {
+const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances, disabledTokens }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredTokens = useMemo(() => {
     return Object.entries(tokens).filter(([symbol, config]) =>
-      symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      config.name.toLowerCase().includes(searchTerm.toLowerCase())
+      !disabledTokens.includes(symbol) &&
+      (symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      config.name.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-  }, [tokens, searchTerm]);
+  }, [tokens, searchTerm, disabledTokens]);
 
   const getTokenPrice = (symbol: string) => {
     return MOCK_PRICES[symbol] || 0;
@@ -440,15 +441,20 @@ function SwapInterfaceContent() {
 
   // Modify the addOutputToken function
   const addOutputToken = () => {
-    setSelectedOutputTokens(prev => [...prev, ""]);
-    setSliderValues(prev => {
-      const newValue = 100 / (Object.keys(prev).length + 1);
-      const updatedValues = { ...prev };
-      Object.keys(updatedValues).forEach(key => {
-        updatedValues[key] = newValue;
+    const availableTokens = Object.keys(TOKENS).filter(token => !disabledTokens.includes(token as TokenSymbol));
+    if (availableTokens.length > 0) {
+      setSelectedOutputTokens(prev => [...prev, "" as TokenSymbol]);
+      setSliderValues(prev => {
+        const newValue = 100 / (Object.keys(prev).length + 1);
+        const updatedValues = { ...prev };
+        Object.keys(updatedValues).forEach(key => {
+          updatedValues[key] = newValue;
+        });
+        return updatedValues;
       });
-      return updatedValues;
-    });
+    } else {
+      showToast("No more tokens available to add", "error");
+    }
   };
 
   const [needsApproval, setNeedsApproval] = useState(false);
@@ -657,6 +663,17 @@ function SwapInterfaceContent() {
     setActiveTokenSelection(null);
   };
 
+  const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
+
+  const updateDisabledTokens = useCallback(() => {
+    const disabled = [selectedToken, ...selectedOutputTokens].filter(token => token !== "");
+    setDisabledTokens(disabled);
+  }, [selectedToken, selectedOutputTokens]);
+
+  useEffect(() => {
+    updateDisabledTokens();
+  }, [selectedToken, selectedOutputTokens, updateDisabledTokens]);
+
   const handleTokenSelect = (token: TokenSymbol) => {
     if (activeTokenSelection === 'from') {
       setSelectedToken(token);
@@ -664,6 +681,7 @@ function SwapInterfaceContent() {
       handleOutputTokenSelect(activeTokenSelection, token);
     }
     closeTokenPopup();
+    updateDisabledTokens();
   };
 
   // Add this function to calculate the Doge ratio
@@ -1041,6 +1059,7 @@ function SwapInterfaceContent() {
         onSelect={handleTokenSelect}
         tokens={TOKENS}
         balances={tokenBalances}
+        disabledTokens={disabledTokens}
       />
     </div>
   );
