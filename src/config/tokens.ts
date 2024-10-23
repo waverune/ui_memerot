@@ -55,7 +55,7 @@ export const TOKENS: { [key: string]: TokenConfig } = {
         symbol: "WOJAK",
         logo: "/logos/wojak.png"
     },
-    PEIEPEI: {
+    PEIPEI: {
         address: "0x3ffeea07a27fab7ad1df5297fa75e77a43cb5790",
         decimals: 18,
         symbol: "PEIPEI",

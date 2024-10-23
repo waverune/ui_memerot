@@ -125,7 +125,7 @@ const MOCK_PRICES = {
   USDC: 0.999898,
   HPOS: 0.2425,
   WOJAK: 0.0009993,
-  PEIEPEI: 0.0000001293,
+  PEIPEI: 0.0000001293,
 };
 
 const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances, disabledTokens }) => {
@@ -176,7 +176,7 @@ const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances, disa
             />
           </div>
           <div className="flex flex-wrap gap-2 mb-4">
-            {['ETH', 'USDC', 'USDT', 'WETH', 'SPX6900', 'MOG', 'HPOS'].map((symbol) => (
+            {['ETH', 'USDC', 'USDT', 'WETH', 'SPX6900', 'MOG', 'HPOS', 'WOJAK', 'PEIPEI'].map((symbol) => (
               <button
                 key={symbol}
                 className="bg-gray-800 rounded-full px-3 py-1 text-sm"
@@ -345,7 +345,7 @@ function SwapInterfaceContent() {
   }, [ethBalanceData]);
 
   // Mock market caps (replace with actual data fetching in production)
-  const [marketCaps, setMarketCaps] = useState({
+  const [marketCaps] = useState({
     mog: 742944760,
     spx6900: 606265150,
     dogecoin: 18354750059,
@@ -692,7 +692,9 @@ function SwapInterfaceContent() {
   const calculateDogeRatio = useCallback((token: TokenSymbol) => {
     const tokenMarketCap = token === 'SPX6900' ? marketCaps.spx6900 : 
                            token === 'MOG' ? marketCaps.mog :
-                           token === 'HPOS' ? marketCaps.hpos : 0;
+                           token === 'HPOS' ? marketCaps.hpos : 
+                           token === 'WOJAK' ? marketCaps.WOJAK :
+                           token === 'PEIPEI' ? marketCaps.PEIPEI : 0;
     const ratio = marketCaps.dogecoin / tokenMarketCap;
     return isNaN(ratio) || !isFinite(ratio) ? "N/A" : ratio.toFixed(2);
   }, [marketCaps]);
@@ -945,7 +947,7 @@ function SwapInterfaceContent() {
                   {token && (
                     <>
                       <div className="text-xs text-gray-400 mt-1">
-                        Doge ratio: {calculateDogeRatio(token)}
+                        Doge ratio: {calculateDogeRatio(token)}x
                       </div>
                       <span className="text-xs text-gray-400 mt-1">
                         Balance: {parseFloat(tokenBalances[token]).toFixed(2)}
