@@ -83,12 +83,6 @@ const CustomConnectButton = () => {
   );
 };
 
-// Assuming the images are stored in the public folder
-const mogLogo = "/mog-logo.png";
-const spx6900Logo = "/spx6900-logo.png";
-
-const ethPrice = 2600; // $2500 per ETH
-
 // Add USDC address and update Token type
 type Token = TokenSymbol;
 
@@ -101,20 +95,7 @@ const MOCK_BALANCES: Record<Token, string> = {
   USDC: "0.0",
 };
 
-const MOCK_EXPECTED_OUTPUT: Record<Token, string> = {
-  SPX6900: "2000",
-  MOG: "89213.4",
-};
 
-// Add these constants at the top of the file, after other constants
-const DOGE_MARKET_CAP = 18354750059;
-const SPX6900_MARKET_CAP = 606265150;
-const MOG_MARKET_CAP = 742944760;
-
-// Update these constants near the top of the file
-const SPX6900_PRICE = 0.6344; // $0.6344 per SPX6900
-const MOG_PRICE = 0.000002062; // $0.000002062 per MOG
-const HPOS_PRICE = 0.309; // $0.309 per HPOS
 
 // Update or add these constants at the top of the file
 const MOCK_PRICES = {
@@ -147,11 +128,6 @@ const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances, disa
     return parseFloat(balances[symbol] || "0");
   };
 
-  const getTokenValue = (symbol: string) => {
-    const price = getTokenPrice(symbol);
-    const balance = getTokenBalance(symbol);
-    return price * balance;
-  };
 
   if (!isOpen) return null;
 
@@ -242,7 +218,6 @@ const mockUniswapOutput = (inputToken: TokenSymbol, inputAmount: number, outputT
 
 function SwapInterfaceContent() {
   const { showToast } = useToast();
-  const [simpleSwap, setSimpleSwap] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const [fromAmount, setFromAmount] = useState("");
@@ -256,10 +231,7 @@ function SwapInterfaceContent() {
     SPX6900: 50,
     MOG: 50,
   });
-  const [lockedTokens, setLockedTokens] = useState<Record<TokenSymbol, boolean>>({
-    SPX6900: false,
-    MOG: false,
-  });
+  
   const [isApproving, setIsApproving] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
   const { address, isConnected } = useAccount();
@@ -271,8 +243,7 @@ function SwapInterfaceContent() {
     enabled: isConnected,
   });
 
-  const spx6900Price = 0.9; // $0.9 per SPX6900
-  const mogPrice = 0.000003; // $0.000003 per MOG
+
 
   // Simulated token balances (in a real scenario, these would be fetched using ERC20:balanceOf() multicall)
   const [tokenBalances, setTokenBalances] = useState<Record<Token, string>>(MOCK_BALANCES);
@@ -354,20 +325,7 @@ function SwapInterfaceContent() {
     PEIPEI: 54378058,
   });
 
-  const [imageError, setImageError] = useState<Record<TokenSymbol, boolean>>({});
 
-  const handleImageError = (token: TokenSymbol) => {
-    setImageError(prev => ({ ...prev, [token]: true }));
-  };
-
-  const getTokenLogo = (token: TokenSymbol) => {
-    return TOKENS[token]?.logo || '';
-  };
-
-  const calculateRatio = useCallback((outputTokenMC: number) => {
-    const ratio = marketCaps.dogecoin / outputTokenMC;
-    return isNaN(ratio) || !isFinite(ratio) ? "N/A" : ratio.toFixed(2);
-  }, [marketCaps.dogecoin]);
 
   const recalculateSliders = useCallback(() => {
     const activeTokens = selectedOutputTokens.filter(token => token !== "");
@@ -429,20 +387,7 @@ function SwapInterfaceContent() {
     }
   }, [fromAmount, selectedToken, selectedOutputTokens, recalculateSliders]);
 
-  const toggleLock = (token: TokenSymbol) => {
-    setLockedTokens(prev => ({ ...prev, [token]: !prev[token] }));
-  };
-
-  // Add this function to filter out disabled tokens
-  const getAvailableOutputTokens = useCallback(() => {
-    return Object.entries(TOKENS).filter(([symbol, _]) => 
-      symbol !== selectedToken && 
-      symbol !== 'WETH' && 
-      symbol !== 'USDC' &&
-      !selectedOutputTokens.includes(symbol as TokenSymbol)
-    );
-  }, [selectedToken, selectedOutputTokens]);
-
+ 
   // Modify the addOutputToken function
   const addOutputToken = () => {
     const availableTokens = Object.keys(TOKENS).filter(token => !disabledTokens.includes(token as TokenSymbol));
