@@ -118,12 +118,12 @@ const HPOS_PRICE = 0.309; // $0.309 per HPOS
 
 // Update or add these constants at the top of the file
 const MOCK_PRICES = {
-  ETH: 2600,
-  SPX6900: 0.6344,
-  MOG: 0.000002062,
-  WETH: 2600,
+  ETH: 2505,
+  SPX6900: 0.7075,
+  MOG: 0.000001809,
+  WETH: 2505,
   USDC: 1,
-  HPOS: 0.309,
+  HPOS: 0.2425,
 };
 
 const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances }) => {
@@ -561,13 +561,22 @@ function SwapInterfaceContent() {
       const activeOutputTokens = selectedOutputTokens.filter(token => token !== "");
       
       // Prepare path
-      const path = [TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
+      const path = [TOKENS[selectedToken].address, TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
 
       // Calculate total USD value of input
       const inputUsdValue = parseFloat(fromAmount) * MOCK_PRICES[selectedToken];
 
       // Prepare sellAmounts
-      const sellAmounts = [inputAmount];
+      let sellAmounts: bigint[];
+      if (selectedToken === "ETH" || selectedToken === "WETH") {
+        sellAmounts = [inputAmount];
+      } else {
+        // For other tokens, we need to calculate the equivalent WETH amount
+        const wethEquivalent = ethers.parseUnits((inputUsdValue / MOCK_PRICES.WETH).toFixed(18), 18);
+        sellAmounts = [wethEquivalent];
+      }
+
+      let totalWethOutput = BigInt(0);
       for (let i = 0; i < activeOutputTokens.length; i++) {
         const token = activeOutputTokens[i];
         const tokenUsdValue = inputUsdValue * (sliderValues[token] / 100);
@@ -579,6 +588,12 @@ function SwapInterfaceContent() {
         
         const tokenWethAmount = ethers.parseUnits(wethAmount.toFixed(18), 18);
         sellAmounts.push(tokenWethAmount);
+        totalWethOutput += tokenWethAmount;
+      }
+
+      // Ensure the first element of sellAmounts is the sum of the rest for non-ETH/WETH inputs
+      if (selectedToken !== "ETH" && selectedToken !== "WETH") {
+        sellAmounts[0] = totalWethOutput;
       }
 
       // Prepare minAmounts (you might want to adjust this based on your requirements)

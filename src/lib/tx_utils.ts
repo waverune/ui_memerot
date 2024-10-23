@@ -49,19 +49,23 @@ export async function performSwap(
     return await contract.swapTokenForMultiTokens(
       sellAmounts,
       minAmounts,
-      path,
+      path.slice(1),
       deadline,
       { gasLimit: 9000000000 },
 
     );
   } else {
+    // //log params 
+    // const temp = path.slice(1);
+    // console.log('>>>params: ', { path, temp, sellAmounts, minAmounts, deadline });
     return await contract.swapUSDForMultiTokens(
       path[0], // sellToken address
       inputAmount,
-      sellAmounts.slice(1), // Remove the first element (total token amount)
+      sellAmounts, // Remove the first element (total token amount)
       minAmounts,
       path.slice(1), // Remove the input token address from the path
       deadline,
+      { gasLimit: 9000000000000 },
     );
   }
 }
