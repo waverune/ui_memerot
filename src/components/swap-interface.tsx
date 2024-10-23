@@ -39,22 +39,22 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import debounce from 'lodash/debounce';
 
 const BuildBearChain = {
-  id: 21026,
-  name: "BuildBear",
+  id: 21233,
+  name: "BB",
   nativeCurrency: {
-    name: "BuildBear",
+    name: "BB",
     symbol: "ETH",
     decimals: 18,
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc.buildbear.io/sorry-caliban-d9f928d6"],
+      http: ["https://rpc.buildbear.io/relieved-groot-ee2fe6d9"],
     },
   },
   blockExplorers: {
     default: {
       name: "BuildBear Explorer",
-      url: "https://explorer.buildbear.io/sorry-caliban-d9f928d6/",
+      url: "https://explorer.buildbear.io/relieved-groot-ee2fe6d9",
     },
   },
   iconUrl: "https://example.com/avax-icon.png",
@@ -274,7 +274,7 @@ function SwapInterfaceContent() {
   // Simulated token balances (in a real scenario, these would be fetched using ERC20:balanceOf() multicall)
   const [tokenBalances, setTokenBalances] = useState<Record<Token, string>>(MOCK_BALANCES);
 
-  const swapContractAddress = "0x99D6dE141D7A9C76a92266776770994644Ff8053"; // Replace with your actual swap contract address
+  const swapContractAddress = "0x1664A211D6C2414c88671a412065A15388EFEd5d"; // Replace with your actual swap contract address
 
   const getProvider = useCallback(() => {
     if (publicClient) {
@@ -282,7 +282,7 @@ function SwapInterfaceContent() {
     }
     // Fallback to a default provider if wallet is not connected
     return new ethers.JsonRpcProvider(
-      "https://rpc.buildbear.io/sorry-caliban-d9f928d6"
+      "https://rpc.buildbear.io/relieved-groot-ee2fe6d9"
     );
   }, [publicClient]);
 
@@ -898,7 +898,7 @@ function SwapInterfaceContent() {
                 )}
               </div>
             ))}
-            {selectedOutputTokens.length < 3 && (
+            {selectedOutputTokens.length < 4 && (
               <button
                 onClick={addOutputToken}
                 className="w-full mt-2 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center"
