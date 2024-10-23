@@ -118,12 +118,12 @@ const HPOS_PRICE = 0.309; // $0.309 per HPOS
 
 // Update or add these constants at the top of the file
 const MOCK_PRICES = {
-  ETH: 2600,
-  SPX6900: 0.6344,
-  MOG: 0.000002062,
-  WETH: 2600,
+  ETH: 2505,
+  SPX6900: 0.7075,
+  MOG: 0.000001809,
+  WETH: 2505,
   USDC: 1,
-  HPOS: 0.309,
+  HPOS: 0.2425,
 };
 
 const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances }) => {
