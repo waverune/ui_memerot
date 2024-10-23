@@ -49,7 +49,7 @@ export async function performSwap(
     return await contract.swapTokenForMultiTokens(
       sellAmounts,
       minAmounts,
-      path,
+      path.slice(1),
       deadline,
       { gasLimit: 9000000000 },
 
