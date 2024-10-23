@@ -118,12 +118,14 @@ const HPOS_PRICE = 0.309; // $0.309 per HPOS
 
 // Update or add these constants at the top of the file
 const MOCK_PRICES = {
-  ETH: 2505,
+  ETH: 2579,
   SPX6900: 0.7075,
   MOG: 0.000001809,
-  WETH: 2505,
+  WETH: 2579,
   USDC: 0.999898,
   HPOS: 0.2425,
+  WOJAK: 0.0009993,
+  PEIEPEI: 0.0000001293,
 };
 
 const TokenSelectionPopup = ({ isOpen, onClose, onSelect, tokens, balances, disabledTokens }) => {
@@ -347,7 +349,9 @@ function SwapInterfaceContent() {
     mog: 742944760,
     spx6900: 606265150,
     dogecoin: 18354750059,
-    hpos: 322944760
+    hpos: 322944760,
+    WOJAK: 69307369,
+    PEIPEI: 54378058,
   });
 
   const [imageError, setImageError] = useState<Record<TokenSymbol, boolean>>({});

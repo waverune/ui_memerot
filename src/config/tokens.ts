@@ -48,6 +48,18 @@ export const TOKENS: { [key: string]: TokenConfig } = {
         decimals: 8,
         symbol: "HPOS",
         logo: "/logos/HPOS.png"
+    },
+    WOJAK: {
+        address: "0x5026f006b85729a8b14553fae6af249ad16c9aab",
+        decimals: 18,
+        symbol: "WOJAK",
+        logo: "/logos/wojak.png"
+    },
+    PEIEPEI: {
+        address: "0x3ffeea07a27fab7ad1df5297fa75e77a43cb5790",
+        decimals: 18,
+        symbol: "PEIPEI",
+        logo: "/logos/peipei.png"
     }
 };
 
