@@ -6,6 +6,7 @@
 // import hposLogo from '/logos/HPOS.png';
 
 export interface TokenConfig {
+    name?: string;
     address: string;
     decimals: number;
     symbol: string;

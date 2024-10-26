@@ -5,7 +5,10 @@ html, body, #root {
 }
 
 body {
-  background-color: #1f2937; /* This is the Tailwind bg-gray-800 color */
+  background-image: url('./assets/background.jpg');
+  background-size: cover;
+  background-position: center;
+  /* background-color: #1f2937; This is the Tailwind bg-gray-800 color */
   color: white;
 }
 
@@ -14,7 +17,7 @@ body {
   width: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #1f2937; /* This is the Tailwind bg-gray-800 color */
+  /* background-color: #1f2937; This is the Tailwind bg-gray-800 color */
 }
 
 #root {
