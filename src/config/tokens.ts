@@ -11,7 +11,7 @@ export interface TokenConfig {
     decimals: number;
     symbol: string;
     logo: string;
-    coingeckoId: string;
+    coingeckoId?: string;
 }
 
 export const TOKENS: { [key: string]: TokenConfig } = {
