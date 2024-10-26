@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { TOKENS, TokenSymbol } from '../config/tokens';
-import { fetchCoinData } from '../services/coinApi';
+import { fetchCoinData, CoinData } from '../services/coinApi';
 
 interface TokenMarketData {
   symbol: string;
@@ -10,6 +10,34 @@ interface TokenMarketData {
   statusCode: number | null;
   errorMessage: string | null;
 }
+
+const formatPrice = (price: number | null): JSX.Element | string => {
+  if (price === null) return 'N/A';
+  
+  if (price >= 0.001) {
+    // For prices 0.001 and above, show up to 6 decimal places
+    return `$${price.toFixed(6)}`;
+  }
+  
+  // For very small prices (less than 0.001)
+  const priceString = price.toFixed(20); // Use a large number of decimal places
+  const [, decimalPart] = priceString.split('.');
+  
+  const significantIndex = decimalPart.split('').findIndex(char => char !== '0');
+  
+  if (significantIndex === -1) return `$${price.toFixed(20)}`; // In case all digits are zero
+
+  const formattedDecimal = decimalPart.slice(0, significantIndex + 8); // Show up to 8 significant decimal places
+  
+  return (
+    <span>
+      $0.
+      <span className="text-gray-400">0</span>
+      <sub className="text-xs">{significantIndex}</sub>
+      {formattedDecimal.slice(significantIndex)}
+    </span>
+  );
+};
 
 const Status: React.FC = () => {
   const [tokenData, setTokenData] = useState<TokenMarketData[]>([]);
@@ -75,7 +103,7 @@ const Status: React.FC = () => {
                 <tr key={token.symbol} className={`border-b border-gray-700 ${token.status === 'error' ? 'bg-red-900' : ''}`}>
                   <td className="py-3 px-4">{token.symbol}</td>
                   <td className="py-3 px-4">
-                    {token.price !== null ? `$${token.price.toFixed(2)}` : 'N/A'}
+                    {formatPrice(token.price)}
                   </td>
                   <td className="py-3 px-4">
                     {token.marketCap !== null ? `$${token.marketCap.toLocaleString()}` : 'N/A'}
