@@ -19,6 +19,7 @@ const SimulationPage: React.FC = () => {
   } | null>(null);
   const [pairInfo, setPairInfo] = useState<{
     exists: boolean;
+    pairAddress?: string;
     liquidity?: string;
     token0Symbol?: string;
     token1Symbol?: string;
@@ -58,15 +59,11 @@ const SimulationPage: React.FC = () => {
     try {
       const provider = new ethers.JsonRpcProvider('https://rpc.buildbear.io/relieved-groot-ee2fe6d9');
       
-      // Add logging for token addresses
-      // console.log('Input Token (WETH):', inputToken.address);
-      // console.log('Output Token:', tokenAddress);
-      
       // Create token instances
       const inputToken = WETH9[1]; // WETH
       const outputToken = createToken(tokenAddress, 18, '', '');
 
-      // Log the calculated pair address
+      // Calculate pair address
       const pairAddress = Pair.getAddress(inputToken, outputToken);
       console.log('Calculated Pair Address:', pairAddress);
 
@@ -74,11 +71,10 @@ const SimulationPage: React.FC = () => {
       const pair = await fetchUniswapV2Pair(inputToken, outputToken, provider);
       
       if (!pair) {
-        console.log('Pair fetch failed. This could mean:');
-        console.log('1. The pair hasn\'t been created on Uniswap V2 yet');
-        console.log('2. There might be an issue with token decimals');
-        console.log('3. The RPC endpoint might not be responding correctly');
-        setPairInfo({ exists: false });
+        setPairInfo({ 
+          exists: false,
+          pairAddress // Include pair address even if pair doesn't exist
+        });
         return;
       }
 
@@ -114,6 +110,7 @@ const SimulationPage: React.FC = () => {
 
       setPairInfo({
         exists: true,
+        pairAddress,
         liquidity: totalLiquidity,
         token0Symbol,
         token1Symbol
@@ -244,6 +241,9 @@ const SimulationPage: React.FC = () => {
       {pairInfo && (
         <div className="mt-4 p-4 border rounded bg-gray-800 border-gray-700">
           <h2 className="text-xl font-semibold mb-2 text-white">Pair Information</h2>
+          <p className="mb-2 text-gray-200">
+            <span className="font-medium text-gray-300">Pair Address:</span> {pairInfo.pairAddress}
+          </p>
           {pairInfo.exists ? (
             <>
               <p className="mb-2 text-gray-200">✅ Pair exists on Uniswap V2</p>

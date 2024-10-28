@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import IUniswapV2Pair from '@uniswap/v2-core/build/IUniswapV2Pair.json';
-import { Token, Pair } from '@uniswap/sdk';
+import { Token, Pair, TokenAmount } from '@uniswap/sdk';
 
 export const WETH9: { [chainId: number]: Token } = {
     1: new Token(1, '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', 18, 'WETH', 'Wrapped Ether'),
@@ -29,9 +29,11 @@ export async function fetchUniswapV2Pair(
         await pairContract.token0();
 
         const [reserves0, reserves1] = await pairContract.getReserves();
+        const amount0 = ethers.parseUnits(reserves0.toString(), token0.decimals);
+        const amount1 = ethers.parseUnits(reserves1.toString(), token1.decimals);
         return new Pair(
-            ethers.parseUnits(reserves0.toString(), token0.decimals),
-            ethers.parseUnits(reserves1.toString(), token1.decimals)
+            new TokenAmount(token0, amount0.toString()),
+            new TokenAmount(token1, amount1.toString())
         );
     } catch (error) {
         return null;
