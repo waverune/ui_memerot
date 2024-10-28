@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8000'; // Adjust this to your backend URL
+const API_BASE_URL = 'https://coinbackend-production.up.railway.app'; // Adjust this to your backend URL
 
 export interface CoinData {
     coin_id: string;
