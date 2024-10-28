@@ -10,6 +10,8 @@ import { useToast } from "../../hooks/useToast";
 import { TokenConfig, TOKENS, TokenSymbol } from "../../config/tokens";
 import { getTokenBalance, checkAndApproveToken, performSwap } from "../../lib/tx_utils";
 import { toast } from "react-toastify";
+import { fetchCoinData } from "../../services/coinApi";
+
 
 
 // Constants and mock data (if they're not already in a separate file)
@@ -23,7 +25,7 @@ const MOCK_BALANCES: Record<TokenSymbol, string> = {
 type TokenSelectionType = {
     type: 'from' | 'output';
     index?: number;
-  } | null;
+} | null;
 const MOCK_PRICES = {
     ETH: 2600,
     SPX6900: 0.6344,
@@ -71,6 +73,10 @@ function SwapInterfaceContent() {
     const [allocationValues, setAllocationValues] = useState(['1']);
     const [selectedTemplate, setSelectedTemplate] = useState('1');
 
+    const getPrice = async (coinId: string) => {
+        const data = await fetchCoinData(coinId);
+        console.log(data);
+    };
 
     const [isApproving, setIsApproving] = useState(false);
     const [isSwapping, setIsSwapping] = useState(false);
@@ -206,7 +212,7 @@ function SwapInterfaceContent() {
         if (selectedOutputTokens.length === 1) {
             setSelectedOutputTokens(['']); // Keep one empty slot
             setToAmounts({});
-            
+
             // Keep allocation values as is for single slot
             if (allocationType === 'percentage') {
                 setAllocationValues(['100']);
@@ -215,7 +221,7 @@ function SwapInterfaceContent() {
                 setAllocationValues(['1']);
                 setSelectedTemplate('1');
             }
-            
+
             updateDisabledTokens(['']);
             recalculateSliders();
             return;
@@ -345,6 +351,7 @@ function SwapInterfaceContent() {
                     TOKENS[selectedToken].decimals,
                     signer
                 );
+                console.log("isApproved", isApproved);
                 if (!isApproved) {
                     throw new Error("Token approval failed or was rejected");
                 }
@@ -451,7 +458,7 @@ function SwapInterfaceContent() {
 
     const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
 
-   
+
 
 
     const handleTokenSelect = (token: TokenSymbol) => {
@@ -463,12 +470,12 @@ function SwapInterfaceContent() {
                 toast.error("Token already selected");
                 return;
             }
-            
+
             // Update the token at the correct index
             const newSelectedOutputTokens = [...selectedOutputTokens];
             newSelectedOutputTokens[activeTokenSelection.index] = token;
             setSelectedOutputTokens(newSelectedOutputTokens);
-            
+
             // For single token, set allocation to 100%
             if (newSelectedOutputTokens.length === 1) {
                 if (allocationType === 'percentage') {
@@ -479,13 +486,13 @@ function SwapInterfaceContent() {
                     setSelectedTemplate('1');
                 }
             }
-            
+
             // Update the corresponding amount
             setToAmounts(prev => ({
                 ...prev,
                 [token]: "0"
             }));
-            
+
             recalculateSliders();
         }
         closeTokenPopup();
@@ -554,7 +561,7 @@ function SwapInterfaceContent() {
 
         // Preserve existing token selections
         const existingTokens = [...selectedOutputTokens];
-        
+
         // Add new allocation value based on allocation type
         if (allocationType === 'ratio') {
             setAllocationValues(prev => [...prev, '1']);
@@ -569,10 +576,10 @@ function SwapInterfaceContent() {
 
         // Add empty slot while preserving existing selections
         setSelectedOutputTokens([...existingTokens, '']);
-        
+
         // Preserve existing amounts
-        setToAmounts(prev => ({...prev}));
-        
+        setToAmounts(prev => ({ ...prev }));
+
         toast.success(`Added new ${allocationType} allocation slot`);
     }, [allocationType, allocationValues.length, selectedOutputTokens]);
 
@@ -580,29 +587,31 @@ function SwapInterfaceContent() {
     const handleTemplateChange = useCallback((newTemplate: string) => {
         const newValues = newTemplate.split(':');
         const currentTokens = [...selectedOutputTokens];
-        
+
         // Preserve existing token selections up to the new template length
-        const adjustedTokens = Array(newValues.length).fill('').map((_, index) => 
+        const adjustedTokens = Array(newValues.length).fill('').map((_, index) =>
             currentTokens[index] || ''
         );
 
         setSelectedTemplate(newTemplate);
         setAllocationValues(newValues);
         setSelectedOutputTokens(adjustedTokens);
-        
+
         // Preserve amounts for existing tokens
         const newToAmounts = Object.fromEntries(
-            Object.entries(toAmounts).filter(([token]) => 
+            Object.entries(toAmounts).filter(([token]) =>
                 adjustedTokens.includes(token)
             )
         );
         setToAmounts(newToAmounts);
-        
+
         recalculateSliders();
     }, [selectedOutputTokens, toAmounts, recalculateSliders]);
 
     // Modify the existing useEffect to handle new token additions
     useEffect(() => {
+
+        getPrice('ethereum');
         const updateEffects = async () => {
             // Effect 1: Fetch balances and update token balances
             if (isConnected && address) {
@@ -640,9 +649,9 @@ function SwapInterfaceContent() {
             if (selectedOutputTokens.length > 0) searchParams.set('to', selectedOutputTokens.join('-'));
             if (formattedAllocationRatio) searchParams.set('ratio', formattedAllocationRatio.replace(/:/g, '-'));
             navigate(`?${searchParams.toString()}`, { replace: true });
-            
+
             // Update disabled tokens whenever output tokens change
-            if(selectedToken) {
+            if (selectedToken) {
                 updateDisabledTokens();
             }
 
@@ -690,13 +699,14 @@ function SwapInterfaceContent() {
 
         updateEffects();
     }, [
-        isConnected, 
-        address, 
-        ethBalanceData, 
-        fromAmount, 
+        isConnected,
+        address,
+        ethBalanceData,
+        fromAmount,
         selectedToken,
-        selectedOutputTokens, 
-        formattedAllocationRatio, 
+        selectedOutputTokens,
+        formattedAllocationRatio,
+        checkApproval,
         location.search,
         selectedOutputTokens.length // Added this dependency
     ]);
@@ -730,7 +740,7 @@ function SwapInterfaceContent() {
     };
     // Handle from amount change
     const handleFromAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value:string = e.target.value;
+        const value: string = e.target.value;
         if (value.includes('-')) {
             toast.error('Sell amount cannot be negative');
         } else {
@@ -738,7 +748,7 @@ function SwapInterfaceContent() {
         }
     };
 
-    
+
     const ratioTemplates = ['1:1', '1:2', '1:1:2', '1:2:2', '1:1:1:1', '1:1:2:2'];
     const percentageTemplates = ['50:50', '33:33:33', '25:25:25:25', '40:30:30', '50:25:25', '60:20:20'];
 
@@ -900,10 +910,10 @@ function SwapInterfaceContent() {
                 {/* Swap button */}
                 <Button
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                    onClick={handleSwap}
-                    disabled={!isConnected || isSwapping}
+                    onClick={needsApproval ? handleApprove : handleSwap}
+                    disabled={!isConnected || isSwapping || (needsApproval && isApproving)}
                 >
-                    {!isConnected ? "Connect Wallet" : isSwapping ? "Swapping..." : "Swap"}
+                    {!isConnected ? "Connect Wallet" : isSwapping ? "Swapping..." : needsApproval ? "Approve" : "Swap"}
                 </Button>
             </div>
 
@@ -948,11 +958,10 @@ function SwapInterfaceContent() {
                                             <button
                                                 key={template}
                                                 onClick={() => handleTemplateChange(template)}
-                                                className={`px-2.5 py-0.5 text-xs rounded-full transition-all duration-200 whitespace-nowrap ${
-                                                    selectedTemplate === template 
-                                                        ? 'bg-blue-600 text-white ring-2 ring-blue-400 ring-opacity-50' 
+                                                className={`px-2.5 py-0.5 text-xs rounded-full transition-all duration-200 whitespace-nowrap ${selectedTemplate === template
+                                                        ? 'bg-blue-600 text-white ring-2 ring-blue-400 ring-opacity-50'
                                                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
-                                                }`}
+                                                    }`}
                                             >
                                                 {template}
                                             </button>
@@ -964,11 +973,10 @@ function SwapInterfaceContent() {
                                             <button
                                                 key={template}
                                                 onClick={() => handleTemplateChange(template)}
-                                                className={`px-2.5 py-0.5 text-xs rounded-full transition-all duration-200 whitespace-nowrap ${
-                                                    selectedTemplate === template 
-                                                        ? 'bg-blue-600 text-white ring-2 ring-blue-400 ring-opacity-50' 
+                                                className={`px-2.5 py-0.5 text-xs rounded-full transition-all duration-200 whitespace-nowrap ${selectedTemplate === template
+                                                        ? 'bg-blue-600 text-white ring-2 ring-blue-400 ring-opacity-50'
                                                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
-                                                }`}
+                                                    }`}
                                             >
                                                 {template}
                                             </button>
@@ -1014,12 +1022,12 @@ function SwapInterfaceContent() {
                 isOpen={isTokenPopupOpen}
                 onClose={closeTokenPopup}
                 onSelect={handleTokenSelect}
-                tokens={TOKENS as  Record<string, TokenConfig>}
+                tokens={TOKENS as Record<string, TokenConfig>}
                 balances={tokenBalances}
                 disabledTokens={disabledTokens as string[]}
             />
         </div>
     );
 }
-export default SwapInterfaceContent;  
+export default SwapInterfaceContent;
 
