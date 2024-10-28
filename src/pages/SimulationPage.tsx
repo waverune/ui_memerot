@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ethers } from 'ethers';
 import { Pair } from '@uniswap/v2-sdk';
 import { getExecutionPrice, fetchUniswapV2Pair, createToken, WETH9 } from '../lib/uniswap-v2-utils';
+import { quoteTokenForMultiTokens } from '../lib/quoter_utils';
+import { TOKENS } from '../config/tokens';
 
 // note: hardcoded RPCprovider  BuildBear(simulated envirnment for eth mainnet): 
 // Token checker: renders token symbol, name, and decimals also checks if the address is valid checksummed
@@ -12,6 +14,7 @@ import { getExecutionPrice, fetchUniswapV2Pair, createToken, WETH9 } from '../li
 // 2.
 // 3.
 // Utils:save token functionality >> if tokens metadta doesnt exist in tokens.ts, save it.
+const provider = new ethers.JsonRpcProvider('https://rpc.buildbear.io/relieved-groot-ee2fe6d9');
 
 const SimulationPage: React.FC = () => {
   const [tokenAddress, setTokenAddress] = useState('');
@@ -31,6 +34,15 @@ const SimulationPage: React.FC = () => {
   const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checksummedAddress, setChecksummedAddress] = useState<string>('');
+
+  // New state for multi-token quote
+  const [paths, setPaths] = useState<string[]>(['']);
+  const [amounts, setAmounts] = useState<string[]>(['']);
+  const [quoteResult, setQuoteResult] = useState<string[]>([]);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+
+  // Add new state for token symbols
+  const [tokenSymbols, setTokenSymbols] = useState<string[]>([]);
 
   const handleAddressInput = (input: string) => {
     setTokenAddress(input);
@@ -61,7 +73,6 @@ const SimulationPage: React.FC = () => {
     setPairInfo(null);
 
     try {
-      const provider = new ethers.JsonRpcProvider('https://rpc.buildbear.io/relieved-groot-ee2fe6d9');
       
       // Create token instances
       const inputToken = WETH9[1]; // WETH
@@ -174,6 +185,117 @@ const SimulationPage: React.FC = () => {
     }
   };
 
+  // Handle adding new input fields
+  const addPathInput = () => {
+    setPaths([...paths, '']);
+  };
+
+  const addAmountInput = () => {
+    setAmounts([...amounts, '']);
+  };
+
+  // Handle updating path inputs
+  const handlePathChange = (index: number, value: string) => {
+    const newPaths = [...paths];
+    newPaths[index] = value;
+    setPaths(newPaths);
+  };
+
+  // Handle updating amount inputs
+  const handleAmountChange = (index: number, value: string) => {
+    const newAmounts = [...amounts];
+    newAmounts[index] = value;
+    setAmounts(newAmounts);
+  };
+
+  // Remove input field
+  const removePathInput = (index: number) => {
+    const newPaths = paths.filter((_, i) => i !== index);
+    setPaths(newPaths);
+  };
+
+  const removeAmountInput = (index: number) => {
+    const newAmounts = amounts.filter((_, i) => i !== index);
+    setAmounts(newAmounts);
+  };
+
+  // Execute quote
+  const executeMultiTokenQuote = async () => {
+    try {
+      setQuoteError(null);
+      
+      // Validate inputs
+      const validPaths = paths.filter(p => p && ethers.isAddress(p));
+      if (validPaths.length < 2) {
+        throw new Error('Need at least 2 valid addresses in path');
+      }
+
+      // Fetch decimals and symbols for each token in the path
+      const tokenInfo = await Promise.all(
+        validPaths.map(async (address) => {
+          // Check if token exists in tokens.ts
+          const knownToken = TOKENS[address.toLowerCase()];
+          if (knownToken) {
+            return {
+              decimals: knownToken.decimals,
+              symbol: knownToken.symbol
+            };
+          }
+
+          // If not in tokens.ts, fetch from contract
+          const tokenContract = new ethers.Contract(
+            address,
+            [
+              'function decimals() view returns (uint8)',
+              'function symbol() view returns (string)'
+            ],
+            provider
+          );
+          const [decimals, symbol] = await Promise.all([
+            tokenContract.decimals(),
+            tokenContract.symbol()
+          ]);
+          return { decimals, symbol };
+        })
+      );
+
+      const tokenDecimals = tokenInfo.map(info => info.decimals);
+      const symbols = tokenInfo.map(info => info.symbol);
+      setTokenSymbols(symbols);
+
+      // Convert amounts using proper decimals for each token
+      const bigIntAmounts = amounts
+        .filter(a => a)
+        .map((amount, index) => {
+          try {
+            return ethers.parseUnits(amount, tokenDecimals[index]);
+          } catch (e) {
+            throw new Error(`Invalid amount: ${amount}`);
+          }
+        });
+
+      if (bigIntAmounts.length !== validPaths.length - 1) {
+        throw new Error('Number of amounts must be equal to number of paths minus 1');
+      }
+
+      // Execute quote
+      const result = await quoteTokenForMultiTokens(
+        bigIntAmounts,
+        validPaths as `0x${string}`[]
+      );
+
+      // Format results using proper decimals of the output token
+      const formattedResults = result.map((r, index) => 
+        ethers.formatUnits(r.toString(), tokenDecimals[index + 1])
+      );
+
+      setQuoteResult(formattedResults);
+    } catch (err) {
+      console.error('Quote error:', err);
+      setQuoteError(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
   return (
     <div className="container mx-auto p-4 text-white bg-[#111827]">
       <h1 className="text-2xl font-bold mb-4 text-white">Uniswap Pair Checker</h1>
@@ -263,6 +385,98 @@ const SimulationPage: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Multi-token Quote Section */}
+      <div className="mt-8 p-4 border rounded bg-gray-800 border-gray-700">
+        <h2 className="text-xl font-semibold mb-4">Multi-Token Quote</h2>
+        
+        {/* Path Inputs */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-2">Token Path</label>
+          {paths.map((path, index) => (
+            <div key={`path-${index}`} className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={path}
+                onChange={(e) => handlePathChange(index, e.target.value)}
+                placeholder="Token Address"
+                className="flex-1 p-2 border rounded bg-gray-800 text-white border-gray-600"
+              />
+              {index > 0 && (
+                <button
+                  onClick={() => removePathInput(index)}
+                  className="px-2 py-1 bg-red-500 rounded hover:bg-red-600"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={addPathInput}
+            className="mt-2 px-4 py-2 bg-blue-500 rounded hover:bg-blue-600"
+          >
+            Add Path
+          </button>
+        </div>
+
+        {/* Amount Inputs */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-2">Sell Amounts</label>
+          {amounts.map((amount, index) => (
+            <div key={`amount-${index}`} className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={amount}
+                onChange={(e) => handleAmountChange(index, e.target.value)}
+                placeholder="Amount in ETH"
+                className="flex-1 p-2 border rounded bg-gray-800 text-white border-gray-600"
+              />
+              {index > 0 && (
+                <button
+                  onClick={() => removeAmountInput(index)}
+                  className="px-2 py-1 bg-red-500 rounded hover:bg-red-600"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={addAmountInput}
+            className="mt-2 px-4 py-2 bg-blue-500 rounded hover:bg-blue-600"
+          >
+            Add Amount
+          </button>
+        </div>
+
+        {/* Execute Quote Button */}
+        <button
+          onClick={executeMultiTokenQuote}
+          className="w-full py-2 bg-green-600 rounded hover:bg-green-700"
+        >
+          Get Quote
+        </button>
+
+        {/* Quote Results */}
+        {quoteResult.length > 0 && (
+          <div className="mt-4 p-4 border rounded bg-gray-700">
+            <h3 className="text-lg font-medium mb-2">Quote Results</h3>
+            {quoteResult.map((result, index) => (
+              <div key={`result-${index}`} className="mb-1">
+                Output {index + 1}: {result} {tokenSymbols[index + 1] || 'Unknown'}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Error Display */}
+        {quoteError && (
+          <div className="mt-4 p-2 text-red-400 border border-red-400 rounded">
+            {quoteError}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
