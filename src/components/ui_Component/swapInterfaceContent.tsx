@@ -63,6 +63,7 @@ function SwapInterfaceContent() {
         SPX6900: "0",
         MOG: "0",
     });
+    const [isBalanceSufficient, setIsBalanceSufficient] = useState(true);
     const [allocationRatio, setAllocationRatio] = useState("1:1");
     const [debouncedAllocationRatio, setDebouncedAllocationRatio] = useState("");
     const [sliderValues, setSliderValues] = useState<Record<TokenSymbol, number>>({
@@ -740,6 +741,14 @@ function SwapInterfaceContent() {
     };
     // Handle from amount change
     const handleFromAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const balance = parseFloat(tokenBalances[selectedToken]);
+        const amountToSell = parseFloat(e.target.value);
+
+        if (!isNaN(amountToSell) && amountToSell > balance) {
+            setIsBalanceSufficient(false);
+        } else {
+            setIsBalanceSufficient(true);
+        }
         const value: string = e.target.value;
         if (value.includes('-')) {
             toast.error('Sell amount cannot be negative');
@@ -911,9 +920,17 @@ function SwapInterfaceContent() {
                 <Button
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
                     onClick={needsApproval ? handleApprove : handleSwap}
-                    disabled={!isConnected || isSwapping || (needsApproval && isApproving)}
+                    disabled={!isConnected || isSwapping || (needsApproval && isApproving) || !isBalanceSufficient}
                 >
-                    {!isConnected ? "Connect Wallet" : isSwapping ? "Swapping..." : needsApproval ? "Approve" : "Swap"}
+                    {!isConnected
+                        ? "Connect Wallet"
+                        : !isBalanceSufficient
+                        ? `Insufficient ${selectedToken}`
+                        : needsApproval
+                        ? "Approve"
+                        : isSwapping
+                        ? "Swapping..."
+                        : "Swap"}
                 </Button>
             </div>
 
