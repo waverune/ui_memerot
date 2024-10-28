@@ -1,4 +1,10 @@
 // viem work
+// TODO: import types for tx and use for quoting
+// make quoting robust:
+//      1. Either pass TxType param and/or just past prepped params to quote
+//      2. prep mock params: sellAmounts, path; for all transaction types 
+//      3. implement quoter for all transaction types
+//      4. integrate quoter with swap function  to prep final params and calculate slippage
 
 import { createPublicClient, http, parseAbi, defineChain } from 'viem'
 import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
