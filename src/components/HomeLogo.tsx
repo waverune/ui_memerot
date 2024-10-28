@@ -8,11 +8,13 @@ const HomeLogo: React.FC = () => {
     const sceneRef = useRef<HTMLDivElement>(null);
     const engineRef = useRef(Matter.Engine.create({ enableSleeping: true }));
     const [logos, setLogos] = useState<string[]>([]);
-    
+
     useEffect(() => {
-        const { Engine, Render, World, Bodies, Composite, Mouse, MouseConstraint, Body } = Matter;
-        
-        const render = Render.create({
+        const { Composites, Runner, Engine, Render, World, Bodies, Composite, Mouse, MouseConstraint, Body } = Matter;
+
+
+        const world = engineRef.current.world;
+        var render = Render.create({
             element: sceneRef.current!,
             engine: engineRef.current,
             options: {
@@ -20,12 +22,20 @@ const HomeLogo: React.FC = () => {
                 height: window.innerHeight,
                 wireframes: false,
                 background: 'transparent',
+                showAngleIndicator: false,
             }
         });
-
-        const world = engineRef.current.world;
         world.gravity.y = 0.5; // Reduce gravity further
+        // Add this after creating the engine
+        engineRef.current.world.gravity.y = 0.5;
+        engineRef.current.enableSleeping = false;  // Keep bodies active
+        engineRef.current.timing.timeScale = 1;    // Normal time scale
 
+        // Improve collision resolution
+        engineRef.current.positionIterations = 6;  // Default is 6
+        engineRef.current.velocityIterations = 4;  // Default is 4
+        engineRef.current.constraintIterations = 2;  // Default is 2
+        Render.run(render);
         // Create button and floor
         const buttonWidth = 240; // Make it slightly wider than the visual button
         const buttonHeight = 80; // Make it taller than the visual button
@@ -36,15 +46,18 @@ const HomeLogo: React.FC = () => {
             buttonY,
             buttonWidth - buttonRadius * 2,
             buttonHeight,
-            { 
+            {
                 isStatic: true,
                 render: { visible: false },
                 chamfer: { radius: buttonHeight / 2 },
-                friction: 1,
-                restitution: 0, // Maximum bounce
+                friction: 0.3,         // Moderate friction
+                frictionStatic: 0.5,   // Higher static friction
+                restitution: 0.1,
+                slop: 0.05,
                 collisionFilter: {
                     category: 0x0002,
-                    mask: 0x0001
+                    mask: 0xFFFFFFFF,
+                    group: 0
                 }
             }
         );
@@ -99,9 +112,12 @@ const HomeLogo: React.FC = () => {
 
             const size = 75 + Math.random() * 20;
             const shape = Bodies.rectangle(x, y, size / 2, size / 2, {
-                restitution: 0.5,
-                friction: 0.1,
+                restitution: 0.3,
+                frictionAir: 0.01,     // Reduced air friction
+                friction: 0.3,         // Moderate friction
                 density: 0.001,
+                slop: 0.05,
+                chamfer: { radius: 2 },
                 render: {
                     sprite: {
                         texture: `/logos/${logos[Math.floor(Math.random() * logos.length)]}`,
@@ -111,7 +127,7 @@ const HomeLogo: React.FC = () => {
                 },
                 collisionFilter: {
                     category: 0x0001,
-                    mask: 0x0003
+                    mask: 0xFFFFFFFF,
                 }
             });
 
@@ -126,6 +142,9 @@ const HomeLogo: React.FC = () => {
             constraint: {
                 stiffness: 0.2,
                 render: { visible: false }
+            },
+            collisionFilter: {
+                mask: 0xFFFFFFFF  // Allow mouse interaction with all bodies
             }
         });
         // Enable collision events for mouse constraint
@@ -159,7 +178,7 @@ const HomeLogo: React.FC = () => {
 
         window.addEventListener('resize', handleResize);
 
-       
+
 
         Composite.add(world, [leftWall, rightWall]);
         Matter.Events.on(engineRef.current, 'collisionStart', (event) => {
@@ -181,10 +200,11 @@ const HomeLogo: React.FC = () => {
                 isStatic: true,
                 isSensor: true,
                 render: { visible: false },
-                collisionFilter: {
-                    category: 0x0002,
-                    mask: 0x0001
-                }
+                // collisionFilter: {
+                //     category: 0x0002,    // Category 2
+                //     mask: 0xFFFFFFFF,    // Collide with everything
+                //     group: 0   
+                // }
             }
         );
 
@@ -196,30 +216,34 @@ const HomeLogo: React.FC = () => {
             const buttonLeft = button.position.x - buttonWidth / 2 + buttonRadius;
             const buttonRight = button.position.x + buttonWidth / 2 - buttonRadius;
 
-            let targetY;
-            if (shape.position.x < buttonLeft) {
-                // Left rounded corner
-                const dx = buttonLeft - shape.position.x;
-                targetY = buttonTop - Math.sqrt(Math.max(0, buttonRadius * buttonRadius - dx * dx));
-            } else if (shape.position.x > buttonRight) {
-                // Right rounded corner
-                const dx = shape.position.x - buttonRight;
-                targetY = buttonTop - Math.sqrt(Math.max(0, buttonRadius * buttonRadius - dx * dx));
+            // Check if the shape is within the flat top region
+            if (shape.position.x >= buttonLeft && shape.position.x <= buttonRight) {
+                // Calculate the correct position where the base of the shape touches the flat top
+                const targetY = buttonTop - shapeHeight; // Subtract half height to align base with button top
+                
+                Matter.Body.setVelocity(shape, { x: 0, y: 0 });
+                Matter.Body.setPosition(shape, {
+                    x: shape.position.x,
+                    y: targetY,  // Use targetY instead of buttonTop
+                });
+                Matter.Body.setStatic(shape, true);
             } else {
-                // Flat top
-                targetY = buttonTop;
+                if (!shape.isStatic) {  // Only apply to non-static bodies
+                    const direction = shape.position.x < buttonLeft ? -1 : 1;
+                    
+                    // Apply proper collision response
+                    Matter.Body.setVelocity(shape, {
+                        x: direction * 2, // Increased for better sliding effect
+                        y: Math.min(shape.velocity.y, 0.5) // Limit downward velocity
+                    });
+                    
+                    // Add slight upward force to prevent sinking
+                    Matter.Body.applyForce(shape, shape.position, {
+                        x: 0,
+                        y: -0.001 * shape.mass
+                    });
+                }
             }
-
-            // Adjust targetY so the bottom of the shape touches the button
-            targetY -= shapeHeight;
-
-            // Set the shape's position and stop its movement
-            Matter.Body.setVelocity(shape, { x: 0, y: 0 });
-            Matter.Body.setPosition(shape, {
-                x: shape.position.x,
-                y: targetY
-            });
-            Matter.Body.setStatic(shape, true);
         };
 
         return () => {

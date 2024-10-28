@@ -1,11 +1,12 @@
 "use client";
 import "@rainbow-me/rainbowkit/styles.css";
-import {getDefaultConfig, RainbowKitProvider, Chain,} from "@rainbow-me/rainbowkit";
+import { getDefaultConfig, RainbowKitProvider, Chain, } from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
 import { mainnet, polygon, optimism, arbitrum, base } from "wagmi/chains";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import SwapInterfaceContent from "./ui_Component/swapInterfaceContent";
+import { Link } from "react-router-dom";
 
 const BuildBearChain = {
   id: 21233,
@@ -41,9 +42,8 @@ const config = getDefaultConfig({
 
 const CustomConnectButton = () => {
   return (
-    <button>
-      <ConnectButton />
-    </button>
+    
+      <ConnectButton/>
   );
 };
 
@@ -52,9 +52,16 @@ export function SwapInterface() {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
-          <div className="min-h-screen flex flex-col bg-gray-800">
+          <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-900 via-purple-900 to-black">
             <div className="w-full max-w-7xl mx-auto flex justify-between items-center p-4">
-              <h1 className="text-2xl font-bold">memerot</h1>
+              <Link to="/">
+                <h1
+                  className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-white"
+                  style={{ fontFamily: "'Roboto Mono', monospace" }}
+                >
+                  MemeR0t
+                </h1>
+              </Link>
               <CustomConnectButton />
             </div>
             <div className="flex-grow flex items-center justify-center p-4">
