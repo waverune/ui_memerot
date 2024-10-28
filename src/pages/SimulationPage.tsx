@@ -3,6 +3,12 @@ import { ethers } from 'ethers';
 import { Pair } from '@uniswap/v2-sdk';
 import { getExecutionPrice, fetchUniswapV2Pair, createToken, WETH9 } from '../lib/uniswap-v2-utils';
 
+// note: hardcoded RPCprovider  BuildBear(simulated envirnment for eth mainnet): 
+// Token checker: renders token symbol, name, and decimals also checks if the address is valid checksummed
+// TODOS:
+// Uniswap pair checker: check if the pair exists, and get the liquidity
+// Uniswap simulation: simulate a trade and get the execution price
+
 const SimulationPage: React.FC = () => {
   const [tokenAddress, setTokenAddress] = useState('');
   const [saveToken, setSaveToken] = useState(false);
