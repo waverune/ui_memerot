@@ -1,20 +1,26 @@
 import { ethers } from 'ethers';
 import { ERC20_ABI, SWAP_ABI } from './contracts';
+// TODO: implement DATATYPES FOR Transactions
+// 1. swapEthForMultiTokens when ETH is the input token
+// 2. swapTokenForMultiTokens when WETH is the input token
+// 3. swapUSDForMultiTokens when a token is the input token
 
+//get token balance of user
 export async function getTokenBalance(
   tokenAddress: string,
-  walletAddress: string,
+  userAddress: string,
   provider: ethers.Provider
 ): Promise<string> {
   const tokenContract = new ethers.Contract(
     tokenAddress,
-    ["function balanceOf(address) view returns (uint256)"],
+    ERC20_ABI,
     provider
   );
-  const balance = await tokenContract.balanceOf(walletAddress);
+  const balance = await tokenContract.balanceOf(userAddress);
   return balance.toString(); // Return the raw balance as a string
 }
 
+//approve `amount` of tokens to be spent by `spender`
 export async function approveToken(
   tokenAddress: string,
   spenderAddress: string,
@@ -25,6 +31,7 @@ export async function approveToken(
   return await contract.approve(spenderAddress, ethers.parseUnits(amount, 18));
 }
 
+// does the actual swap/multi-swap tx
 export async function performSwap(
   swapContractAddress: string,
   inputToken: string,
@@ -169,10 +176,7 @@ export async function checkAndApproveToken(
   decimals: number,
   signer: ethers.Signer
 ): Promise<boolean> {
-  const tokenContract = new ethers.Contract(tokenAddress, [
-    "function approve(address spender, uint256 amount) public returns (bool)",
-    "function allowance(address owner, address spender) public view returns (uint256)"
-  ], signer);
+  const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
 
   const signerAddress = await signer.getAddress();
   const currentAllowance = await tokenContract.allowance(signerAddress, spenderAddress);
