@@ -12,7 +12,7 @@ export interface MarketCaps {
     dogecoin: number;
 }
 
-export const fetchCoinData = async (coinId: string) => {
+export const fetchCoinData = async (coinId: string): Promise<CoinData> => {
     console.log(`Fetching data for ${coinId}...`);
     const response = await fetch(`${API_BASE_URL}/coin/${coinId}`);
     if (!response.ok) {
