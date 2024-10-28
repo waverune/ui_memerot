@@ -5,9 +5,13 @@ import { getExecutionPrice, fetchUniswapV2Pair, createToken, WETH9 } from '../li
 
 // note: hardcoded RPCprovider  BuildBear(simulated envirnment for eth mainnet): 
 // Token checker: renders token symbol, name, and decimals also checks if the address is valid checksummed
+// Uniswap pair checker: check if the pair exists, and fetch pool address & liquidity 
 // TODOS:
-// Uniswap pair checker: check if the pair exists, and get the liquidity
-// Uniswap simulation: simulate a trade and get the execution price
+// Uniswap simulation: simulate a trade and get the execution price (ideally prepr params for our transactin and simulate all swaps)
+// 1.
+// 2.
+// 3.
+// Utils:save token functionality >> if tokens metadta doesnt exist in tokens.ts, save it.
 
 const SimulationPage: React.FC = () => {
   const [tokenAddress, setTokenAddress] = useState('');
