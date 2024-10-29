@@ -8,7 +8,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import SwapInterfaceContent from "./ui_Component/swapInterfaceContent";
 import { Link } from "react-router-dom";
 
-const BuildBearChain = {
+export const BuildBearChain = {
   id: 21233,
   name: "BB",
   nativeCurrency: {
