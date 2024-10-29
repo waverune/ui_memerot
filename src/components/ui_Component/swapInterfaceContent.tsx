@@ -99,7 +99,7 @@ function SwapInterfaceContent() {
     // Non-recursive GCD calculation
     const gcd = useCallback((a: number, b: number): number => {
         while (b !== 0) {
-            let t = b;
+            const t = b;
             b = a % b;
             a = t;
         }
