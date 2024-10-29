@@ -63,6 +63,7 @@ function SwapInterfaceContent() {
         SPX6900: "0",
         MOG: "0",
     });
+    const [isBalanceSufficient, setIsBalanceSufficient] = useState(true);
     const [allocationRatio, setAllocationRatio] = useState("1:1");
     const [debouncedAllocationRatio, setDebouncedAllocationRatio] = useState("");
     const [sliderValues, setSliderValues] = useState<Record<TokenSymbol, number>>({
@@ -98,7 +99,7 @@ function SwapInterfaceContent() {
     // Non-recursive GCD calculation
     const gcd = useCallback((a: number, b: number): number => {
         while (b !== 0) {
-            let t = b;
+            const t = b;
             b = a % b;
             a = t;
         }
@@ -647,7 +648,11 @@ function SwapInterfaceContent() {
             if (fromAmount) searchParams.set('amount', fromAmount);
             if (selectedToken) searchParams.set('from', selectedToken as string);
             if (selectedOutputTokens.length > 0) searchParams.set('to', selectedOutputTokens.join('-'));
-            if (formattedAllocationRatio) searchParams.set('ratio', formattedAllocationRatio.replace(/:/g, '-'));
+            if (allocationType === 'ratio') {
+                searchParams.set('ratio', allocationValues.join('-'));
+            } else {
+                searchParams.set('percentage', allocationValues.join('-'));
+            }
             navigate(`?${searchParams.toString()}`, { replace: true });
 
             // Update disabled tokens whenever output tokens change
@@ -658,32 +663,29 @@ function SwapInterfaceContent() {
             // Effect 7: Parse URL parameters (only on mount)
             if (!hasInitialized.current) {
                 const params = new URLSearchParams(location.search);
-                const amount = params.get('amount');
-                const from = params.get('from');
-                const to = params.get('to');
-                const ratio = params.get('ratio');
+                const sellToken = params.get('sellToken');
+                const allocationTypeParam = params.get('allocationType');
+                const allocationValuesParam = params.get('allocationValues');
+                const selectedOutputTokensParam = params.get('selectedOutputTokens');
+                const fromAmountParam = params.get('fromAmount');
 
-                if (amount) setFromAmount(amount);
-                if (from) {
-                    setSelectedToken(from as TokenSymbol);
+                if (sellToken) {
+                    setSelectedToken(sellToken as TokenSymbol);
                     updateDisabledTokens();
                 }
-                if (to) {
-                    // Handle URL parameters for tokens
-                    const tokens = to.split('-') as TokenSymbol[];
-                    setSelectedOutputTokens(tokens);
+                if (allocationTypeParam) {
+                    setAllocationType(allocationTypeParam as 'ratio' | 'percentage');
+                }
+                if (allocationValuesParam) {
+                    setAllocationValues(allocationValuesParam.split(','));
+                }
+                if (selectedOutputTokensParam) {
+                    setSelectedOutputTokens(selectedOutputTokensParam.split(',') as TokenSymbol[]);
                 } else {
-                    // If no URL parameters, start with single empty token slot
                     setSelectedOutputTokens(['']);
                 }
-                if (ratio) {
-                    const formattedRatio = ratio.replace(/-/g, ':');
-                    setAllocationRatio(formattedRatio);
-                    setDebouncedAllocationRatio(formattedRatio);
-                } else {
-                    // If no ratio in URL, default to single token ratio
-                    setAllocationRatio('1');
-                    setDebouncedAllocationRatio('1');
+                if (fromAmountParam) {
+                    setFromAmount(fromAmountParam);
                 }
                 hasInitialized.current = true;
             }
@@ -696,7 +698,7 @@ function SwapInterfaceContent() {
                 }
             }
         };
-
+        updateUrl();
         updateEffects();
     }, [
         isConnected,
@@ -720,6 +722,20 @@ function SwapInterfaceContent() {
         []
     );
 
+    const updateUrl = useCallback(() => {
+        const searchParams = new URLSearchParams();
+        if (fromAmount) searchParams.set('amount', fromAmount);
+        if (selectedToken) searchParams.set('from', selectedToken as string);
+        if (selectedOutputTokens.length > 0) searchParams.set('to', selectedOutputTokens.join('-'));
+        if (allocationType === 'ratio') {
+            searchParams.set('ratio', allocationValues.join('-'));
+        } else {
+            searchParams.set('percentage', allocationValues.join('-'));
+        }
+        navigate(`?${searchParams.toString()}`, { replace: true });
+    }, [fromAmount, selectedToken, selectedOutputTokens, allocationValues, allocationType, navigate]);
+
+
     // Handle allocation ratio input change
     const handleAllocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;
@@ -730,7 +746,19 @@ function SwapInterfaceContent() {
 
     // Add this function to handle sharing the URL
     const handleShareUrl = () => {
-        const currentUrl = window.location.href;
+        // Serialize the relevant state values into a query string
+        const queryParams = new URLSearchParams({
+            sellToken: String(selectedToken),
+            allocationType,
+            allocationValues: allocationValues.join(','),
+            selectedOutputTokens: selectedOutputTokens.join(','),
+            fromAmount,
+        }).toString();
+        console.log("queryParams", queryParams);
+        // Construct the new URL with the query string
+        const currentUrl = window.location.origin + window.location.pathname + '?' + queryParams;
+
+        // Copy the updated URL to the clipboard
         navigator.clipboard.writeText(currentUrl).then(() => {
             showToast("URL copied to clipboard!", "success");
         }).catch((err) => {
@@ -740,6 +768,14 @@ function SwapInterfaceContent() {
     };
     // Handle from amount change
     const handleFromAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const balance = parseFloat(tokenBalances[selectedToken]);
+        const amountToSell = parseFloat(e.target.value);
+
+        if (!isNaN(amountToSell) && amountToSell > balance) {
+            setIsBalanceSufficient(false);
+        } else {
+            setIsBalanceSufficient(true);
+        }
         const value: string = e.target.value;
         if (value.includes('-')) {
             toast.error('Sell amount cannot be negative');
@@ -748,16 +784,6 @@ function SwapInterfaceContent() {
         }
     };
 
-
-    const ratioTemplates = ['1:1', '1:2', '1:1:2', '1:2:2', '1:1:1:1', '1:1:2:2'];
-    const percentageTemplates = ['50:50', '33:33:33', '25:25:25:25', '40:30:30', '50:25:25', '60:20:20'];
-
-    const handleTemplateSelect = (template: string) => {
-        setSelectedTemplate(template);
-        const values = template.split(':');
-        setAllocationValues(values);
-        setSelectedOutputTokens(Array(values.length).fill(''));
-    };
 
     const handleAllocationTypeChange = (value: 'ratio' | 'percentage') => {
         setAllocationType(value);
@@ -771,6 +797,14 @@ function SwapInterfaceContent() {
         setAllocationValues(prev => {
             const newValues = [...prev];
             newValues[index] = value;
+
+            // Check if the new values match any template
+            const newTemplate = newValues.join(':');
+            const isTemplate = ['1', '1:1', '1:2', '1:1:2', '1:2:2', '1:1:1:1'].includes(newTemplate);
+
+            // Only set the selected template if it matches a predefined template
+            setSelectedTemplate(isTemplate ? newTemplate : '');
+
             return newValues;
         });
     };
@@ -911,9 +945,17 @@ function SwapInterfaceContent() {
                 <Button
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
                     onClick={needsApproval ? handleApprove : handleSwap}
-                    disabled={!isConnected || isSwapping || (needsApproval && isApproving)}
+                    disabled={!isConnected || isSwapping || (needsApproval && isApproving) || !isBalanceSufficient}
                 >
-                    {!isConnected ? "Connect Wallet" : isSwapping ? "Swapping..." : needsApproval ? "Approve" : "Swap"}
+                    {!isConnected
+                        ? "Connect Wallet"
+                        : !isBalanceSufficient
+                        ? `Insufficient ${selectedToken}`
+                        : needsApproval
+                        ? "Approve"
+                        : isSwapping
+                        ? "Swapping..."
+                        : "Swap"}
                 </Button>
             </div>
 

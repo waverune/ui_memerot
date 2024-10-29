@@ -14,7 +14,7 @@ const HomeLogo: React.FC = () => {
 
 
         const world = engineRef.current.world;
-        var render = Render.create({
+        const render = Render.create({
             element: sceneRef.current!,
             engine: engineRef.current,
             options: {
@@ -94,7 +94,7 @@ const HomeLogo: React.FC = () => {
             setLogos(module.default);
         });
 
-        let bodies: Matter.Body[] = [];
+        const bodies: Matter.Body[] = [];
         const maxBodies = 100; // Limit the number of bodies
 
 
