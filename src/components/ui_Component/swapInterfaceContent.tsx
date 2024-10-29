@@ -992,7 +992,7 @@ function SwapInterfaceContent() {
 
                         {/* Templates Section with compact oval buttons */}
                         <div className="space-y-3">
-                            <label className="text-sm text-gray-400 font-medium">Templates</label>
+                            <label className="text-sm text-gray-400 font-medium">Multiswap Presets</label>
                             <div className="flex flex-wrap items-center gap-1.5">
                                 {allocationType === 'ratio' ? (
                                     <>
