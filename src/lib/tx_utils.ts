@@ -1,38 +1,6 @@
 import { ethers } from 'ethers';
 import { ERC20_ABI, SWAP_ABI } from './contracts';
-// TODO: implement DATATYPES FOR Transactions
-// 1. swapEthForMultiTokens when ETH is the input token
-// 2. swapTokenForMultiTokens when WETH is the input token
-// 3. swapUSDForMultiTokens when a token is the input token
-
-export interface swapEthForMultiTokensParam {
-  etherValue: bigint;
-  sellAmounts: bigint[];
-  minAmounts: bigint[];
-  path: `0x${string}`[];
-  deadline: number;
-}
-export interface swapTokenForMultiTokensParam {
-  sellAmounts: bigint[];
-  minAmounts: bigint[];
-  path: `0x${string}`[];
-  deadline: number;
-}
-export interface swapUSDForMultiTokensParam {
-  sellToken: `0x${string}`;
-  sellAmount: bigint;
-  sellAmounts: bigint[];
-  minAmounts: bigint[];
-  path: `0x${string}`[];
-  deadline: number;
-}
-
-// Add interface for transaction options
-export interface TxOptions {
-  gasLimit?: number;
-  maxFeePerGas?: bigint;
-  maxPriorityFeePerGas?: bigint;
-}
+import { TxOptions, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from './tx_types';
 
 // Default transaction options
 const defaultTxOptions: TxOptions = {
@@ -92,7 +60,7 @@ export async function performSwap(
       minAmounts,
       path.slice(1),
       deadline,
-      { value: inputAmount, gasLimit: 900000 },
+      { value: inputAmount, gasLimit: 700000 },
     );
   } else if (inputToken === "WETH") {
     return await contract.swapTokenForMultiTokens(
@@ -100,7 +68,7 @@ export async function performSwap(
       minAmounts,
       path.slice(1),
       deadline,
-      { gasLimit: 9000000000 },
+      { gasLimit: 700000 },
 
     );
   } else {
@@ -114,7 +82,7 @@ export async function performSwap(
       minAmounts,
       path.slice(1), // Remove the input token address from the path
       deadline,
-      { gasLimit: 9000000000000 },
+      { gasLimit: 700000 },
     );
   }
 }
