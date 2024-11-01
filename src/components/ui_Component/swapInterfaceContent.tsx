@@ -34,6 +34,21 @@ const MOCK_PRICES = {
     USDC: 1,
     HPOS: 0.309,
 };
+type CoinPriceData = {
+    coin_id: string;
+    price_usd: number;
+    market_cap_usd: number;
+    image: string;
+};
+
+const COINGECKO_IDS: Record<string, string> = {
+    'ETH': 'ethereum',
+    'WETH': 'weth',
+    'SPX6900': 'spx6900',
+    'MOG': 'mog',
+    'USDC': 'usd-coin',
+    'DOGE': 'dogecoin',
+};
 
 type Token = TokenSymbol;
 // Add this mock function at the top of the file, outside of any component
@@ -50,6 +65,21 @@ const mockUniswapOutput = (inputToken: TokenSymbol, inputAmount: number, outputT
 
     return outputAmount;
 };
+const DEFAULT_PRICE_DATA: CoinPriceData = {
+    coin_id: '',
+    price_usd: 0,
+    market_cap_usd: 0,
+    image: '/default-token-icon.png'
+};
+
+const isValidPriceData = (data: any): data is CoinPriceData => {
+    return data 
+        && typeof data.price_usd === 'number' 
+        && data.price_usd > 0 
+        && typeof data.market_cap_usd === 'number'
+        && !isNaN(data.price_usd)
+        && isFinite(data.price_usd);
+};
 
 function SwapInterfaceContent() {
     const { showToast } = useToast();
@@ -63,6 +93,7 @@ function SwapInterfaceContent() {
         SPX6900: "0",
         MOG: "0",
     });
+    const [dogeMarketCap, setDogeMarketCap] = useState(0);
     const [isBalanceSufficient, setIsBalanceSufficient] = useState(true);
     const [allocationRatio, setAllocationRatio] = useState("1:1");
     const [debouncedAllocationRatio, setDebouncedAllocationRatio] = useState("");
@@ -73,11 +104,14 @@ function SwapInterfaceContent() {
     const [allocationType, setAllocationType] = useState<'ratio' | 'percentage'>('ratio');
     const [allocationValues, setAllocationValues] = useState(['1']);
     const [selectedTemplate, setSelectedTemplate] = useState('1');
-
-    const getPrice = async (coinId: string) => {
-        const data = await fetchCoinData(coinId);
-        console.log(data);
+    const [tokenPriceData, setTokenPriceData] = useState<Record<string, CoinPriceData>>({});
+    const getDogeCoinMarketCap = async () => {
+        const data = await fetchCoinData("dogecoin");
+        setDogeMarketCap(data.market_cap_usd);
     };
+    const [failedTokens, setFailedTokens] = useState<Set<string>>(new Set());
+    const retryIntervalRef = useRef<NodeJS.Timeout>();
+    const updateIntervalRef = useRef<NodeJS.Timeout>();
 
     const [isApproving, setIsApproving] = useState(false);
     const [isSwapping, setIsSwapping] = useState(false);
@@ -90,7 +124,60 @@ function SwapInterfaceContent() {
 
     });
 
-
+    const fetchMultiplePriceData = useCallback(async (tokensToFetch?: string[]) => {
+        try {
+            const tokenIds = tokensToFetch || Object.values(COINGECKO_IDS);
+            const pricePromises = tokenIds.map(async coinId => {
+                try {
+                    const result = await fetchCoinData(coinId);
+                    if (!isValidPriceData(result)) {
+                        console.warn(`Invalid price data received for ${coinId}`, result);
+                        setFailedTokens(prev => new Set([...prev, coinId]));
+                        return {
+                            ...DEFAULT_PRICE_DATA,
+                            ...tokenPriceData[coinId],
+                            coin_id: coinId
+                        };
+                    }
+                    setFailedTokens(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(coinId);
+                        return newSet;
+                    });
+                    return result;
+                } catch (error) {
+                    console.error(`Error fetching ${coinId}:`, error);
+                    setFailedTokens(prev => new Set([...prev, coinId]));
+                    return {
+                        ...DEFAULT_PRICE_DATA,
+                        ...tokenPriceData[coinId],
+                        coin_id: coinId
+                    };
+                }
+            });
+            const results = await Promise.all(pricePromises);
+            const newPriceData = results.reduce((acc, result) => {
+                if (result.coin_id) {
+                    acc[result.coin_id] = {
+                        ...DEFAULT_PRICE_DATA,
+                        ...result,
+                        price_usd: Number(result.price_usd) || tokenPriceData[result.coin_id]?.price_usd || 0,
+                        market_cap_usd: Number(result.market_cap_usd) || tokenPriceData[result.coin_id]?.market_cap_usd || 0,
+                    };
+                }
+                return acc;
+            }, {} as Record<string, CoinPriceData>);
+            console.log("newPriceData", newPriceData);
+            setTokenPriceData(prev => ({
+                ...prev,
+                ...newPriceData
+            }));
+            
+        } catch (error) {
+            console.error('Error in fetchMultiplePriceData:', error);
+            toast.error('Some price data may be delayed or unavailable');
+        }
+    }, [tokenPriceData]);
 
     // Simulated token balances (in a real scenario, these would be fetched using ERC20:balanceOf() multicall)
     const [tokenBalances, setTokenBalances] = useState<Record<Token, string>>(MOCK_BALANCES);
@@ -174,7 +261,7 @@ function SwapInterfaceContent() {
     const [marketCaps] = useState({
         mog: 742944760,
         spx6900: 606265150,
-        dogecoin: 18354750059,
+        dogecoin: 23354750059,
         hpos: 322944760,
         WOJAK: 69307369,
         PEIPEI: 54378058,
@@ -438,10 +525,18 @@ function SwapInterfaceContent() {
     // Update the USD value calculation
     const getUsdValue = (amount: string, token: Token) => {
         const numAmount = parseFloat(amount);
-        if (isNaN(numAmount)) return "0.00";
+        if (isNaN(numAmount)) return "$0.00";
 
-        const price = MOCK_PRICES[token as keyof typeof MOCK_PRICES] || 0;
-        return (numAmount * price).toFixed(2);
+        const coinId = COINGECKO_IDS[token as keyof typeof COINGECKO_IDS];
+        const price = tokenPriceData[coinId]?.price_usd || 0;
+        const usdValue = numAmount * price;
+
+        // Simple threshold check
+        if (usdValue > 0 && usdValue < 0.01) {
+            return "< $0.01";
+        }
+
+        return `$${usdValue.toFixed(2)}`;
     };
 
     const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
@@ -498,60 +593,81 @@ function SwapInterfaceContent() {
         }
         closeTokenPopup();
     };
-
+    
     // Add this function to calculate the Doge ratio
-    const calculateDogeRatio = useCallback((token: TokenSymbol) => {
-        const tokenMarketCap = token === 'SPX6900' ? marketCaps.spx6900 :
-            token === 'MOG' ? marketCaps.mog :
-                token === 'HPOS' ? marketCaps.hpos :
-                    token === 'WOJAK' ? marketCaps.WOJAK :
-                        token === 'PEIPEI' ? marketCaps.PEIPEI : 0;
-        const ratio = marketCaps.dogecoin / tokenMarketCap;
-        return isNaN(ratio) || !isFinite(ratio) ? "N/A" : ratio.toFixed(2);
-    }, [marketCaps]);
+    const calculateDogeRatio = (token: TokenSymbol) => {
+        // Get the market cap for the selected token
+        const tokenId = COINGECKO_IDS[token as keyof typeof COINGECKO_IDS];
+        const tokenMarketCap = tokenPriceData[tokenId]?.market_cap_usd || 0;
+        
+        // Get Dogecoin's market cap
+        const dogeMarketCap = marketCaps.dogecoin ;
+        
+        if (tokenMarketCap === 0 || dogeMarketCap === 0) return '0.00';
+        
+        // Calculate the ratio
+        const ratio = dogeMarketCap / tokenMarketCap;
+        
+        // Format the ratio
+        if (ratio > 0 && ratio < 0.01) {
+            return '< 0.01';
+        }
+        
+        return ratio.toFixed(2);
+    };
 
     const [simulatedOutput, setSimulatedOutput] = useState<Record<TokenSymbol, string>>({});
+    const getAllocationForIndex = useCallback((index: number) => {
+        // Convert allocation values to numbers
+        const numericValues = allocationValues.map(v => parseFloat(v) || 0);
+        
+        // Calculate total for percentage normalization
+        const total = numericValues.reduce((sum, val) => sum + val, 0);
+        
+        if (total === 0) return 0;
+
+        // If using percentages, ensure they sum to 100
+        if (allocationType === 'percentage') {
+            return numericValues[index] || 0;
+        }
+        
+        // If using ratios, convert to percentage
+        return (numericValues[index] / total) * 100;
+    }, [allocationValues, allocationType]);
 
     // Simplify dependency management
     const simulateAndLogSwap = useCallback(() => {
-        console.log("Simulating swap");
-        if (!fromAmount || isNaN(parseFloat(fromAmount)) || selectedOutputTokens.length === 0) {
-            console.log("Invalid input or no output tokens selected");
-            setToAmounts({});
-            return;
-        }
+        if (!fromAmount || !selectedToken || selectedOutputTokens.length === 0) return;
 
         const inputAmount = parseFloat(fromAmount);
-        const inputTokenPrice = MOCK_PRICES[selectedToken as keyof typeof MOCK_PRICES];
-        const inputValueInWETH = selectedToken === 'WETH' ? inputAmount : (inputAmount * inputTokenPrice) / MOCK_PRICES.WETH;
+        const inputCoinId = COINGECKO_IDS[selectedToken as keyof typeof COINGECKO_IDS];
+        const inputPrice = tokenPriceData[inputCoinId]?.price_usd || 0;
+        const inputValueUSD = inputAmount * inputPrice;
 
-        console.log(`Input: ${inputAmount} ${selectedToken} (${inputValueInWETH.toFixed(6)} WETH)`);
+        // Calculate output amounts based on allocation ratio
+        const newToAmounts: Record<TokenSymbol, string> = {};
+        
+        selectedOutputTokens.forEach((outputToken, index) => {
+            const outputCoinId = COINGECKO_IDS[outputToken as keyof typeof COINGECKO_IDS];
+            const outputPrice = tokenPriceData[outputCoinId]?.price_usd || 0;
+            
+            if (outputPrice === 0) return;
 
-        const activeOutputTokens = selectedOutputTokens.filter(token => token !== "") as TokenSymbol[];
-        const outputResults: Record<TokenSymbol, string> = {};
-
-        activeOutputTokens.forEach((token) => {
-            let simulatedInput: number;
-            if (activeOutputTokens.length === 1) {
-                simulatedInput = inputValueInWETH;
-            } else {
-                const sliderValue = sliderValues[token] || 100 / activeOutputTokens.length;
-                simulatedInput = inputValueInWETH * (sliderValue / 100);
-            }
-
-            const outputAmount = mockUniswapOutput('WETH', simulatedInput, token);
-
-            if (token === 'USDC') {
-                outputResults[token] = outputAmount.toFixed(6);
-            } else {
-                outputResults[token] = outputAmount.toFixed(9);
-            }
+            // Calculate the portion of input value allocated to this output token
+            const allocation = getAllocationForIndex(index);
+            const outputValueUSD = inputValueUSD * (allocation / 100);
+            
+            // Convert USD value to token amount
+            const outputAmount = outputValueUSD / outputPrice;
+            
+            // Apply swap fee (e.g., 0.3%)
+            const outputAmountAfterFee = outputAmount * 0.997;
+            
+            newToAmounts[outputToken] = outputAmountAfterFee.toString();
         });
 
-        console.log("Simulated Uniswap output:", outputResults);
-        setToAmounts(outputResults);
-        setSimulatedOutput(outputResults);
-    }, [fromAmount, selectedToken, selectedOutputTokens, sliderValues]);
+        setToAmounts(newToAmounts);
+    }, [fromAmount, selectedToken, selectedOutputTokens, tokenPriceData, getAllocationForIndex]);
 
     // Modify the handleAddToken function to preserve existing token selections
     const handleAddToken = useCallback(() => {
@@ -608,11 +724,44 @@ function SwapInterfaceContent() {
 
         recalculateSliders();
     }, [selectedOutputTokens, toAmounts, recalculateSliders]);
+    // First, separate the price fetching useEffect
+useEffect(() => {
+    console.log("Setting up price fetching intervals");
+    if(dogeMarketCap === 0){
+        getDogeCoinMarketCap();
+    }
+    // Initial fetch
+    fetchMultiplePriceData();
+
+    // Set up retry interval for failed tokens (every 10 seconds)
+    retryIntervalRef.current = setInterval(() => {
+        if (failedTokens.size > 0) {
+            console.log("Retrying failed tokens:", Array.from(failedTokens));
+            fetchMultiplePriceData(Array.from(failedTokens));
+        }
+    }, 10000);
+
+    // Set up regular update interval (every 10 minutes)
+    updateIntervalRef.current = setInterval(() => {
+        console.log("Regular price update");
+        fetchMultiplePriceData();
+    }, 600000);
+
+    // Cleanup
+    return () => {
+        if (retryIntervalRef.current) {
+            clearInterval(retryIntervalRef.current);
+            retryIntervalRef.current = undefined;
+        }
+        if (updateIntervalRef.current) {
+            clearInterval(updateIntervalRef.current);
+            updateIntervalRef.current = undefined;
+        }
+    };
+}, []);
 
     // Modify the existing useEffect to handle new token additions
     useEffect(() => {
-
-        getPrice('ethereum');
         const updateEffects = async () => {
             // Effect 1: Fetch balances and update token balances
             if (isConnected && address) {
@@ -698,6 +847,7 @@ function SwapInterfaceContent() {
                 }
             }
         };
+
         updateUrl();
         updateEffects();
     }, [
@@ -710,7 +860,8 @@ function SwapInterfaceContent() {
         formattedAllocationRatio,
         checkApproval,
         location.search,
-        selectedOutputTokens.length // Added this dependency
+        selectedOutputTokens.length, // Added this dependency
+        // failedTokens // Added this dependency
     ]);
 
 
@@ -896,6 +1047,7 @@ function SwapInterfaceContent() {
         }
     };
 
+    
     return (
         <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8">
             <div className="w-full lg:w-1/2 space-y-4">
@@ -913,7 +1065,7 @@ function SwapInterfaceContent() {
                                     className="bg-transparent border-none text-left w-full placeholder-gray-500 focus:outline-none focus:ring-0"
                                 />
                                 <span className="text-xs text-gray-400">
-                                    ${getUsdValue(fromAmount || "0", selectedToken)}
+                                    {getUsdValue(fromAmount || "0", selectedToken)}
                                 </span>
                             </div>
                             <div className="flex flex-col items-end">
@@ -963,7 +1115,7 @@ function SwapInterfaceContent() {
                                             className="bg-transparent border-none text-left w-full focus:outline-none focus:ring-0 text-lg"
                                         />
                                         <div className="text-xs text-gray-400">
-                                            ${getUsdValue(toAmounts[selectedOutputTokens[index]] || "0", selectedOutputTokens[index])}
+                                            {getUsdValue(toAmounts[selectedOutputTokens[index]] || "0", selectedOutputTokens[index])}
                                         </div>
                                     </div>
                                     <div className="flex items-center space-x-2">
@@ -1146,6 +1298,7 @@ function SwapInterfaceContent() {
                 tokens={TOKENS as Record<string, TokenConfig>}
                 balances={tokenBalances}
                 disabledTokens={disabledTokens as string[]}
+                tokenPriceData={tokenPriceData}
             />
         </div>
     );
