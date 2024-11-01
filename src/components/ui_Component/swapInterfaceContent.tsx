@@ -787,10 +787,56 @@ function SwapInterfaceContent() {
 
     const handleAllocationTypeChange = (value: 'ratio' | 'percentage') => {
         setAllocationType(value);
-        // Start with single token allocation
-        setSelectedTemplate(value === 'ratio' ? '1' : '100');
-        setAllocationValues(value === 'ratio' ? ['1'] : ['100']);
-        setSelectedOutputTokens(['']);
+        
+        // Preserve existing tokens
+        const currentOutputTokens = [...selectedOutputTokens];
+        
+        let newValues: string[];
+        if (value === 'ratio') {
+            // Convert percentages to ratio
+            const percentages = allocationValues.map(v => parseFloat(v) || 0);
+            const total = percentages.reduce((sum, v) => sum + v, 0);
+            
+            if (total === 0) {
+                // Handle edge case where all values are 0
+                newValues = Array(percentages.length).fill('1');
+            } else {
+                // Find the smallest percentage to use as base for ratio conversion
+                const smallestPercentage = Math.min(...percentages.filter(p => p > 0));
+                newValues = percentages.map(p => {
+                    const ratio = p / smallestPercentage;
+                    return ratio === 0 ? '1' : Math.round(ratio).toString();
+                });
+            }
+
+            // Check if it matches a template
+            const newTemplate = newValues.join(':');
+            const isTemplate = ['1', '1:1', '1:2', '1:1:2', '1:2:2', '1:1:1:1'].includes(newTemplate);
+            setSelectedTemplate(isTemplate ? newTemplate : '');
+
+        } else {
+            // Convert ratio to percentages
+            const ratios = allocationValues.map(v => parseFloat(v) || 1);
+            const total = ratios.reduce((sum, v) => sum + v, 0);
+            
+            newValues = ratios.map(v => {
+                const percentage = (v / total) * 100;
+                return percentage.toFixed(2);
+            });
+
+            // Check if it matches a template
+            const newTemplate = newValues.join(':');
+            const isTemplate = ['100', '50:50', '33.33:33.33:33.33', '25:25:25:25', '40:30:30', '50:25:25'].includes(newTemplate);
+            setSelectedTemplate(isTemplate ? newTemplate : '');
+        }
+
+        // Update allocation values while preserving tokens
+        setAllocationValues(newValues);
+        
+        // Only reset output tokens if there are none selected
+        if (selectedOutputTokens.length === 0 || (selectedOutputTokens.length === 1 && selectedOutputTokens[0] === '')) {
+            setSelectedOutputTokens(['']);
+        }
     };
 
     const handleAllocationValueChange = (index: number, value: string) => {
@@ -798,12 +844,22 @@ function SwapInterfaceContent() {
             const newValues = [...prev];
             newValues[index] = value;
 
+            if (allocationType === 'percentage') {
+                // Validate percentage total
+                const total = newValues.reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+                if (total > 100) {
+                    toast.error("Total percentage cannot exceed 100%");
+                    return prev;
+                }
+            }
+
             // Check if the new values match any template
             const newTemplate = newValues.join(':');
-            const isTemplate = ['1', '1:1', '1:2', '1:1:2', '1:2:2', '1:1:1:1'].includes(newTemplate);
+            const templates = allocationType === 'ratio' 
+                ? ['1', '1:1', '1:2', '1:1:2', '1:2:2', '1:1:1:1']
+                : ['100', '50:50', '33.33:33.33:33.33', '25:25:25:25', '40:30:30', '50:25:25'];
 
-            // Only set the selected template if it matches a predefined template
-            setSelectedTemplate(isTemplate ? newTemplate : '');
+            setSelectedTemplate(templates.includes(newTemplate) ? newTemplate : '');
 
             return newValues;
         });
@@ -811,9 +867,32 @@ function SwapInterfaceContent() {
 
     const getAllocationString = () => {
         if (allocationType === 'ratio') {
-            return allocationValues.join(':');
+            return allocationValues.join(' : ');
         } else {
-            return allocationValues.map(v => `${v}%`).join(':');
+            // Convert values to numbers and handle invalid inputs
+            const values = allocationValues.map(v => parseFloat(v) || 0);
+            const total = values.reduce((sum, v) => sum + v, 0);
+            
+            // If total is 0, return all zeros
+            if (total === 0) {
+                return values.map(() => '0.00%').join(' : ');
+            }
+
+            // Calculate percentages with extra precision
+            let percentages = values.map(v => (v / total) * 100);
+            
+            // Round to 2 decimal places
+            percentages = percentages.map(v => Math.round(v * 100) / 100);
+            
+            // Adjust last value to ensure total is exactly 100%
+            const currentTotal = percentages.reduce((sum, v) => sum + v, 0);
+            if (currentTotal !== 100 && percentages.length > 0) {
+                const diff = 100 - currentTotal;
+                percentages[percentages.length - 1] += diff;
+            }
+
+            // Format with exactly 2 decimal places and consistent spacing
+            return percentages.map(v => `${v.toFixed(2)}%`).join(' : ');
         }
     };
 
