@@ -1,3 +1,5 @@
+import { TxOptions, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from './tx_types';
+
 // viem work
 // TODO: import types for tx and use for quoting
 // make quoting robust:
@@ -5,6 +7,17 @@
 //      2. prep mock params: sellAmounts, path; for all transaction types 
 //      3. implement quoter for all transaction types
 //      4. integrate quoter with swap function  to prep final params and calculate slippage
+
+// TODO refactor :  single config file for hardcodings 
+// - network: BuildBearChain +.... ()since every netwrok has an id calld chain_id  
+// - addresses : swapContractAddress & quoterAddress 
+// {
+//     chain_id: {
+//         swapContractAddress: "0xfasdfasd...",
+//         swapContractAddress: "0xzxcnbvqw..."
+
+//     }
+// }
 
 import { createPublicClient, http, parseAbi, defineChain } from 'viem'
 import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
@@ -19,8 +32,7 @@ const publicClient = createPublicClient({
 })
 
 export async function quoteTokenForMultiTokens(
-    sellAmounts: bigint[],
-    path: `0x${string}`[]
+    param: swapTokenForMultiTokensParam
 ) {
     try {
         const quoterAddress = '0xc04c8c20a3eCCbef5d1702303Dd419483068fA29' // Replace with your actual quoter address
@@ -28,13 +40,33 @@ export async function quoteTokenForMultiTokens(
         const result = await publicClient.readContract({
             address: quoterAddress,
             abi: MULTISWAP_QUOTER_ABI,
-            functionName: 'quoteTokenForMultiTokens',
-            args: [sellAmounts, path]
+            functionName: 'quoteTokenForMultiTokens', // quoteUSDForMultiTokens /
+            args: [param.sellAmounts, param.path]
         })
 
         return result
     } catch (error) {
         console.error('Error fetching multi-token quote:', error)
+        throw error
+    }
+}
+// swapUSDForMultiTokensParam 
+export async function quoteERC20ForMultiTokens(
+    param: swapUSDForMultiTokensParam
+) {
+    try {
+        const quoterAddress = '0xc04c8c20a3eCCbef5d1702303Dd419483068fA29' // Replace with your actual quoter address
+
+        const result = await publicClient.readContract({
+            address: quoterAddress,
+            abi: MULTISWAP_QUOTER_ABI,
+            functionName: 'quoteUSDForMultiTokens', // quoteUSDForMultiTokens /
+            args: [param.sellToken, param.sellAmount, param.sellAmounts, param.path]
+        })
+
+        return result
+    } catch (error) {
+        console.error('Error fetching usd /erc20 multi-token quote:', error)
         throw error
     }
 }
