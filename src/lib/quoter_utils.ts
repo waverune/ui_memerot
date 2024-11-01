@@ -8,6 +8,17 @@ import { TxOptions, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, sw
 //      3. implement quoter for all transaction types
 //      4. integrate quoter with swap function  to prep final params and calculate slippage
 
+// TODO refactor :  single config file for hardcodings 
+// - network: BuildBearChain +.... ()since every netwrok has an id calld chain_id  
+// - addresses : swapContractAddress & quoterAddress 
+// {
+//     chain_id: {
+//         swapContractAddress: "0xfasdfasd...",
+//         swapContractAddress: "0xzxcnbvqw..."
+
+//     }
+// }
+
 import { createPublicClient, http, parseAbi, defineChain } from 'viem'
 import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
 import { BuildBearChain } from '../components/swap-interface'
