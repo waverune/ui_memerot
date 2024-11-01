@@ -1,9 +1,13 @@
 import { ethers } from 'ethers';
 import { ERC20_ABI, SWAP_ABI } from './contracts';
-// TODO: implement DATATYPES FOR Transactions
-// 1. swapEthForMultiTokens when ETH is the input token
-// 2. swapTokenForMultiTokens when WETH is the input token
-// 3. swapUSDForMultiTokens when a token is the input token
+import { TxOptions, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from './tx_types';
+
+// Default transaction options
+const defaultTxOptions: TxOptions = {
+  gasLimit: 700000, // Reasonable gas limit for most swaps
+  maxFeePerGas: ethers.parseUnits('50', 'gwei'), // Maximum fee willing to pay
+  maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei'), // Tip for miners
+};
 
 //get token balance of user
 export async function getTokenBalance(
@@ -44,13 +48,19 @@ export async function performSwap(
 ): Promise<ethers.TransactionResponse> {
   const contract = new ethers.Contract(swapContractAddress, SWAP_ABI, signer);
 
+  const txOptions = {
+    gasLimit: 700000, // Reasonable gas limit for most swaps
+    maxFeePerGas: ethers.parseUnits('50', 'gwei'), // Maximum fee willing to pay
+    maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei'), // Tip for miners
+  };
+
   if (inputToken === "ETH") {
     return await contract.swapEthForMultiTokens(
       sellAmounts,
       minAmounts,
       path.slice(1),
       deadline,
-      { value: inputAmount, gasLimit: 900000 },
+      { value: inputAmount, gasLimit: 700000 },
     );
   } else if (inputToken === "WETH") {
     return await contract.swapTokenForMultiTokens(
@@ -58,7 +68,7 @@ export async function performSwap(
       minAmounts,
       path.slice(1),
       deadline,
-      { gasLimit: 9000000000 },
+      { gasLimit: 700000 },
 
     );
   } else {
@@ -72,7 +82,7 @@ export async function performSwap(
       minAmounts,
       path.slice(1), // Remove the input token address from the path
       deadline,
-      { gasLimit: 9000000000000 },
+      { gasLimit: 700000 },
     );
   }
 }
@@ -194,4 +204,64 @@ export async function checkAndApproveToken(
   }
 
   return true; // Already approved
+}
+
+export async function swapEthForMultiTokens(
+  params: swapEthForMultiTokensParam,
+  swapContractAddress: string,
+  signer: ethers.Signer,
+  txOptions: TxOptions = defaultTxOptions
+): Promise<ethers.TransactionResponse> {
+  const contract = new ethers.Contract(swapContractAddress, SWAP_ABI, signer);
+
+  return await contract.swapEthForMultiTokens(
+    params.sellAmounts,
+    params.minAmounts,
+    params.path,
+    params.deadline,
+    {
+      value: params.etherValue,
+      ...txOptions
+    }
+  );
+}
+
+export async function swapTokenForMultiTokens(
+  params: swapTokenForMultiTokensParam,
+  swapContractAddress: string,
+  signer: ethers.Signer,
+  txOptions: TxOptions = defaultTxOptions
+): Promise<ethers.TransactionResponse> {
+  const contract = new ethers.Contract(swapContractAddress, SWAP_ABI, signer);
+
+  return await contract.swapTokenForMultiTokens(
+    params.sellAmounts,
+    params.minAmounts,
+    params.path,
+    params.deadline,
+    {
+      ...txOptions
+    }
+  );
+}
+
+export async function swapUSDForMultiTokens(
+  params: swapUSDForMultiTokensParam,
+  swapContractAddress: string,
+  signer: ethers.Signer,
+  txOptions: TxOptions = defaultTxOptions
+): Promise<ethers.TransactionResponse> {
+  const contract = new ethers.Contract(swapContractAddress, SWAP_ABI, signer);
+
+  return await contract.swapUSDForMultiTokens(
+    params.sellToken,
+    params.sellAmount,
+    params.sellAmounts,
+    params.minAmounts,
+    params.path,
+    params.deadline,
+    {
+      ...txOptions
+    }
+  );
 }
