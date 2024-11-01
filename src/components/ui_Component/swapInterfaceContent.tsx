@@ -41,14 +41,6 @@ type CoinPriceData = {
     image: string;
 };
 
-const COINGECKO_IDS: Record<string, string> = {
-    'ETH': 'ethereum',
-    'WETH': 'weth',
-    'SPX6900': 'spx6900',
-    'MOG': 'mog',
-    'USDC': 'usd-coin',
-    'DOGE': 'dogecoin',
-};
 
 type Token = TokenSymbol;
 // Add this mock function at the top of the file, outside of any component
@@ -126,7 +118,17 @@ function SwapInterfaceContent() {
 
     const fetchMultiplePriceData = useCallback(async (tokensToFetch?: string[]) => {
         try {
-            const tokenIds = tokensToFetch || Object.values(COINGECKO_IDS);
+            // Create a mapping of token symbols to their CoinGecko IDs
+            const tokenToCoinGeckoMap = Object.entries(TOKENS).reduce((acc, [symbol, config]) => {
+                if (config.coingeckoId) {
+                    acc[symbol] = config.coingeckoId;
+                }
+                return acc;
+            }, {} as Record<string, string>);
+
+            // Determine which IDs to fetch
+            const tokenIds = tokensToFetch || Object.values(tokenToCoinGeckoMap);
+
             const pricePromises = tokenIds.map(async coinId => {
                 try {
                     const result = await fetchCoinData(coinId);
@@ -155,6 +157,7 @@ function SwapInterfaceContent() {
                     };
                 }
             });
+
             const results = await Promise.all(pricePromises);
             const newPriceData = results.reduce((acc, result) => {
                 if (result.coin_id) {
@@ -167,6 +170,7 @@ function SwapInterfaceContent() {
                 }
                 return acc;
             }, {} as Record<string, CoinPriceData>);
+
             console.log("newPriceData", newPriceData);
             setTokenPriceData(prev => ({
                 ...prev,
@@ -527,10 +531,11 @@ function SwapInterfaceContent() {
         const numAmount = parseFloat(amount);
         if (isNaN(numAmount)) return "$0.00";
 
-        const coinId = COINGECKO_IDS[token as keyof typeof COINGECKO_IDS];
+        const coinId = TOKENS[token]?.coingeckoId;
+        if (!coinId) return "$0.00";
         const price = tokenPriceData[coinId]?.price_usd || 0;
         const usdValue = numAmount * price;
-
+        console.log(numAmount, price, usdValue, "HGAASD");
         // Simple threshold check
         if (usdValue > 0 && usdValue < 0.01) {
             return "< $0.01";
@@ -597,11 +602,8 @@ function SwapInterfaceContent() {
     // Add this function to calculate the Doge ratio
     const calculateDogeRatio = (token: TokenSymbol) => {
         // Get the market cap for the selected token
-        const tokenId = COINGECKO_IDS[token as keyof typeof COINGECKO_IDS];
-        const tokenMarketCap = tokenPriceData[tokenId]?.market_cap_usd || 0;
-        
-        // Get Dogecoin's market cap
-        const dogeMarketCap = marketCaps.dogecoin ;
+        const tokenId = TOKENS[token]?.coingeckoId || '';
+        const tokenMarketCap = tokenId ? (tokenPriceData[tokenId]?.market_cap_usd || 0) : 0;
         
         if (tokenMarketCap === 0 || dogeMarketCap === 0) return '0.00';
         
@@ -640,7 +642,7 @@ function SwapInterfaceContent() {
         if (!fromAmount || !selectedToken || selectedOutputTokens.length === 0) return;
 
         const inputAmount = parseFloat(fromAmount);
-        const inputCoinId = COINGECKO_IDS[selectedToken as keyof typeof COINGECKO_IDS];
+        const inputCoinId = TOKENS[selectedToken]?.coingeckoId || '';
         const inputPrice = tokenPriceData[inputCoinId]?.price_usd || 0;
         const inputValueUSD = inputAmount * inputPrice;
 
@@ -648,7 +650,8 @@ function SwapInterfaceContent() {
         const newToAmounts: Record<TokenSymbol, string> = {};
         
         selectedOutputTokens.forEach((outputToken, index) => {
-            const outputCoinId = COINGECKO_IDS[outputToken as keyof typeof COINGECKO_IDS];
+            if (!outputToken) return;
+            const outputCoinId = TOKENS[outputToken]?.coingeckoId || '';
             const outputPrice = tokenPriceData[outputCoinId]?.price_usd || 0;
             
             if (outputPrice === 0) return;
