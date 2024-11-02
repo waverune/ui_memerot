@@ -1,7 +1,7 @@
 import { X, Search } from "lucide-react";
 import { useMemo, useState, memo } from "react";
 import { TokenConfig, TokenSymbol } from "../../config/tokens";
-
+//TODO: change Price_usd to bigint
 type CoinPriceData = {
   coin_id: string;
   price_usd: number;
