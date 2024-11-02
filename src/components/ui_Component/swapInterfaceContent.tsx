@@ -11,6 +11,7 @@ import { TokenConfig, TOKENS, TokenSymbol } from "../../config/tokens";
 import { getTokenBalance, checkAndApproveToken, performSwap } from "../../lib/tx_utils";
 import { toast } from "react-toastify";
 import { fetchCoinData } from "../../services/coinApi";
+import { swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
 
 
 
@@ -426,13 +427,8 @@ function SwapInterfaceContent() {
         setIsSwapping(true);
         try {
             const signer = await getSigner();
-            if (!signer) {
-                throw new Error("Signer not available");
-            }
-
-            if (!fromAmount || isNaN(parseFloat(fromAmount))) {
-                throw new Error("Invalid input amount");
-            }
+            if (!signer) throw new Error("Signer not available");
+            if (!fromAmount || isNaN(parseFloat(fromAmount))) throw new Error("Invalid input amount");
 
             // Check for approval if the input token is not ETH
             if (selectedToken !== "ETH") {
@@ -451,69 +447,78 @@ function SwapInterfaceContent() {
 
             const inputAmount = ethers.parseUnits(fromAmount, TOKENS[selectedToken].decimals);
             const activeOutputTokens = selectedOutputTokens.filter(token => token !== "");
+            const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes
 
-            // Prepare path
-            const path = [TOKENS[selectedToken].address, TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
-            // Calculate total USD value of input
-            const inputUsdValue = parseFloat(fromAmount) * (MOCK_PRICES[selectedToken as keyof typeof MOCK_PRICES] || 0);
+            // Construct parameters based on input token type
+            let swapParams;
+            
+            if (selectedToken === "ETH") {
+                // Case 1: ETH to Multiple Tokens
+                const path = [
+                    TOKENS["WETH"].address, // First element should be WETH
+                    ...activeOutputTokens.map(token => TOKENS[token].address)
+                ];
+                const sellAmounts = activeOutputTokens.map((token, index) => {
+                    const allocation = sliderValues[token] / 100;
+                    return ethers.parseUnits((parseFloat(fromAmount) * allocation).toFixed(18), 18);
+                });
+                
+                swapParams = {
+                    etherValue: inputAmount, // Total ETH being sold
+                    sellAmounts: [inputAmount, ...sellAmounts], // [totalETH, ETHforToken1, ETHforToken2, ...]
+                    minAmounts: activeOutputTokens.map(() => ethers.parseUnits("1", 0)),
+                    path: path as `0x${string}`[],
+                    deadline
+                } as swapEthForMultiTokensParam;
+            } 
+            else if (selectedToken === "WETH") {
+                // Case 2: WETH to Multiple Tokens
+                const path = [TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
 
-            // Prepare sellAmounts
-            let sellAmounts: bigint[];
-            if (selectedToken === "ETH" || selectedToken === "WETH") {
-                sellAmounts = [inputAmount];
-            } else {
-                // For other tokens, we need to calculate the equivalent WETH amount
-                const wethEquivalent = ethers.parseUnits((inputUsdValue / MOCK_PRICES.WETH).toFixed(18), 18);
-                sellAmounts = [wethEquivalent];
+                const sellAmounts = activeOutputTokens.map((token, index) => {
+                    const allocation = sliderValues[token] / 100;
+                    return ethers.parseUnits((parseFloat(fromAmount) * allocation).toFixed(18), 18);
+                });
+
+                swapParams = {
+                    sellAmounts: [inputAmount, ...sellAmounts], // [totalWETH, WETHforToken1, WETHforToken2, ...]
+                    minAmounts: activeOutputTokens.map(() => ethers.parseUnits("1", 0)),
+                    path: path as `0x${string}`[],
+                    deadline
+                } as swapTokenForMultiTokensParam;
+            } 
+            else {
+                // Case 3: Other ERC20 to Multiple Tokens
+                    const path = [TOKENS[selectedToken].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
+                    const sellAmounts = activeOutputTokens.map((token, index) => {
+                    const allocation = sliderValues[token] / 100;
+                    return ethers.parseUnits((parseFloat(fromAmount) * allocation).toFixed(18), 18);
+                });
+
+                swapParams = {
+                    sellToken: TOKENS[selectedToken].address as `0x${string}`,
+                    sellAmount: inputAmount,
+                    sellAmounts: sellAmounts, // [amountForToken1, amountForToken2, ...]
+                    minAmounts: activeOutputTokens.map(() => ethers.parseUnits("1", 0)),
+                    path: path as `0x${string}`[],
+                    deadline
+                } as swapUSDForMultiTokensParam;
             }
 
-            let totalWethOutput = BigInt(0);
-            for (let i = 0; i < activeOutputTokens.length; i++) {
-                const token = activeOutputTokens[i];
-                const tokenUsdValue = inputUsdValue * (sliderValues[token] / 100);
-                const wethAmount = tokenUsdValue / MOCK_PRICES.WETH;
-
-                if (isNaN(wethAmount) || !isFinite(wethAmount)) {
-                    throw new Error(`Invalid WETH amount calculated for ${token}`);
-                }
-
-                const tokenWethAmount = ethers.parseUnits(wethAmount.toFixed(18), 18);
-                sellAmounts.push(tokenWethAmount);
-                totalWethOutput += tokenWethAmount;
-            }
-
-            // Ensure the first element of sellAmounts is the sum of the rest for non-ETH/WETH inputs
-            if (selectedToken !== "ETH" && selectedToken !== "WETH") {
-                sellAmounts[0] = totalWethOutput;
-            }
-
-            // Prepare minAmounts (you might want to adjust this based on your requirements)
-            const minAmounts = activeOutputTokens.map(() => ethers.parseUnits("1", "wei")); // Set minimum amount to 1 wei
-
-            const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes from now
-
-            console.log("Swap parameters:", {
-                inputToken: selectedToken,
-                inputAmount: inputAmount.toString(),
-                sellAmounts: sellAmounts.map(a => a.toString()),
-                minAmounts: minAmounts.map(a => a.toString()),
-                path,
-                deadline
-            });
+            console.log("Swap parameters:", swapParams);
 
             const swapTx = await performSwap(
                 swapContractAddress,
                 selectedToken as string,
-                inputAmount,
-                sellAmounts,
-                minAmounts,
-                path,
-                deadline,
+                swapParams,
                 signer
             );
-
-            await swapTx.wait();
-            showToast("Swap completed successfully!", "success");
+            const receipt = await swapTx.wait();
+            if (receipt && receipt.status === 1) {
+                showToast("Swap completed successfully!", "success");
+            } else {
+                showToast("Swap failed.", "error");
+            }
 
             // Refresh balances after successful swap
             fetchBalances();
@@ -535,7 +540,6 @@ function SwapInterfaceContent() {
         if (!coinId) return "$0.00";
         const price = tokenPriceData[coinId]?.price_usd || 0;
         const usdValue = numAmount * price;
-        console.log(numAmount, price, usdValue, "HGAASD");
         // Simple threshold check
         if (usdValue > 0 && usdValue < 0.01) {
             return "< $0.01";

@@ -1,17 +1,7 @@
 import { X, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, memo } from "react";
 import { TokenConfig, TokenSymbol } from "../../config/tokens";
-
-const MOCK_PRICES = {
-  ETH: 2579,
-  SPX6900: 0.7075,
-  MOG: 0.000001809,
-  WETH: 2579,
-  USDC: 0.999898,
-  HPOS: 0.2425,
-  WOJAK: 0.0009993,
-  PEIPEI: 0.0000001293,
-};
+//TODO: change Price_usd to bigint
 type CoinPriceData = {
   coin_id: string;
   price_usd: number;
@@ -29,14 +19,7 @@ interface TokenSelectionPopupProps {
   disabledTokens: string[];
   tokenPriceData: Record<string, CoinPriceData>;
 }
-const COINGECKO_IDS: Record<string, string> = {
-  'ETH': 'ethereum',
-  'WETH': 'weth',
-  'SPX6900': 'spx6900',
-  'MOG': 'mog',
-  'USDC': 'usd-coin',
-};
-const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = ({
+const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
   isOpen,
   onClose,
   onSelect,
@@ -56,8 +39,25 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = ({
   }, [tokens, searchTerm, disabledTokens]);
 
   const getTokenPrice = (symbol: TokenSymbol) => {
-    const coinId = COINGECKO_IDS[symbol as keyof typeof COINGECKO_IDS];
-    return tokenPriceData?.[coinId]?.price_usd || 0;
+    const coinId = tokens[symbol]?.coingeckoId;
+    if (!coinId) {
+      console.log(`No coinId found for ${symbol}`);
+      return 0;
+    }
+
+    // Debug logs
+    console.log({
+      symbol,
+      coinId,
+      priceData: tokenPriceData[coinId],
+      allPriceData: tokenPriceData
+    });
+
+    const price = tokenPriceData[coinId]?.price_usd;
+    if (typeof price === 'number' && !isNaN(price)) {
+      return price;
+    }
+
   };
 
   const getTokenBalance = (symbol: string) => {
@@ -122,7 +122,13 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = ({
                   </div>
                   <div className="text-right">
                     <div className="text-sm text-gray-400">
-                      ${getTokenPrice(symbol).toFixed(2)} USD
+                      {(() => {
+                        const price = getTokenPrice(symbol as TokenSymbol);
+                        if (price === 0) {
+                          return 'Price loading...';
+                        }
+                        return `$${price?.toFixed(price < 0.01 ? 8 : 2)} USD`;
+                      })()}
                     </div>
                     <div className="text-xs text-gray-500">
                       {getTokenBalance(symbol).toFixed(4)} {symbol}
@@ -137,6 +143,10 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = ({
       </div>
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  return prevProps.isOpen === nextProps.isOpen &&
+    prevProps.tokenPriceData === nextProps.tokenPriceData &&
+    prevProps.balances === nextProps.balances;
+});
 
 export default TokenSelectionPopup;
