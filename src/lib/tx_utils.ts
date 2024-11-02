@@ -41,7 +41,7 @@ export const performSwap = async (
     inputToken: string,
     params: swapEthForMultiTokensParam | swapTokenForMultiTokensParam | swapUSDForMultiTokensParam,
     signer: ethers.Signer
-): Promise<ethers.ContractTransaction> => {
+): Promise<ethers.TransactionResponse> => {
     const contract = new ethers.Contract(contractAddress, SWAP_ABI, signer);
 
     try {
@@ -201,7 +201,7 @@ export async function swapEthForMultiTokens(
   swapContractAddress: string,
   signer: ethers.Signer,
   txOptions: TxOptions = defaultTxOptions
-): Promise<ethers.ContractTransaction> {
+): Promise<ethers.TransactionResponse> {
   const contract = new ethers.Contract(swapContractAddress, SWAP_ABI, signer);
 
   return await contract.swapEthForMultiTokens(
@@ -221,7 +221,7 @@ export async function swapTokenForMultiTokens(
   swapContractAddress: string,
   signer: ethers.Signer,
   txOptions: TxOptions = defaultTxOptions
-): Promise<ethers.ContractTransaction> {
+): Promise<ethers.TransactionResponse> {
   const contract = new ethers.Contract(swapContractAddress, SWAP_ABI, signer);
 
   return await contract.swapTokenForMultiTokens(
@@ -240,7 +240,7 @@ export async function swapUSDForMultiTokens(
   swapContractAddress: string,
   signer: ethers.Signer,
   txOptions: TxOptions = defaultTxOptions
-): Promise<ethers.ContractTransaction> {
+): Promise<ethers.TransactionResponse> {
   const contract = new ethers.Contract(swapContractAddress, SWAP_ABI, signer);
 
   return await contract.swapUSDForMultiTokens(

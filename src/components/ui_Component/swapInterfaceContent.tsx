@@ -514,10 +514,12 @@ function SwapInterfaceContent() {
                 swapParams,
                 signer
             );
-            const txHash = swapTx.hash;
-            await provider.waitForTransaction(txHash);
-            // await provider.waitForTransaction(swapTx.getHash());
-            showToast("Swap completed successfully!", "success");
+            const receipt = await provider.waitForTransaction(swapTx.hash);
+            if (receipt && receipt.status === 1) {
+                showToast("Swap completed successfully!", "success");
+            } else {
+                showToast("Swap failed.", "error");
+            }
 
             // Refresh balances after successful swap
             fetchBalances();
