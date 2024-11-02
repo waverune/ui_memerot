@@ -427,7 +427,6 @@ function SwapInterfaceContent() {
         setIsSwapping(true);
         try {
             const signer = await getSigner();
-            const provider = getProvider();
             if (!signer) throw new Error("Signer not available");
             if (!fromAmount || isNaN(parseFloat(fromAmount))) throw new Error("Invalid input amount");
 
@@ -514,7 +513,7 @@ function SwapInterfaceContent() {
                 swapParams,
                 signer
             );
-            const receipt = await provider.waitForTransaction(swapTx.hash);
+            const receipt = await swapTx.wait();
             if (receipt && receipt.status === 1) {
                 showToast("Swap completed successfully!", "success");
             } else {
