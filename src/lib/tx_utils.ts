@@ -4,7 +4,7 @@ import { TxOptions, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, sw
 
 // Default transaction options
 const defaultTxOptions: TxOptions = {
-  gasLimit: 700000, // Reasonable gas limit for most swaps
+  gasLimit: 7000000, // Reasonable gas limit for most swaps
   maxFeePerGas: ethers.parseUnits('50', 'gwei'), // Maximum fee willing to pay
   maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei'), // Tip for miners
 };
@@ -36,56 +36,46 @@ export async function approveToken(
 }
 
 // does the actual swap/multi-swap tx
-export async function performSwap(
-  swapContractAddress: string,
-  inputToken: string,
-  inputAmount: bigint,
-  sellAmounts: bigint[],
-  minAmounts: bigint[],
-  path: string[],
-  deadline: number,
-  signer: ethers.Signer
-): Promise<ethers.TransactionResponse> {
-  const contract = new ethers.Contract(swapContractAddress, SWAP_ABI, signer);
+export const performSwap = async (
+    contractAddress: string,
+    inputToken: string,
+    params: swapEthForMultiTokensParam | swapTokenForMultiTokensParam | swapUSDForMultiTokensParam,
+    signer: ethers.Signer
+): Promise<ethers.ContractTransaction> => {
+    const contract = new ethers.Contract(contractAddress, SWAP_ABI, signer);
 
-  const txOptions = {
-    gasLimit: 700000, // Reasonable gas limit for most swaps
-    maxFeePerGas: ethers.parseUnits('50', 'gwei'), // Maximum fee willing to pay
-    maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei'), // Tip for miners
-  };
-
-  if (inputToken === "ETH") {
-    return await contract.swapEthForMultiTokens(
-      sellAmounts,
-      minAmounts,
-      path.slice(1),
-      deadline,
-      { value: inputAmount, gasLimit: 700000 },
-    );
-  } else if (inputToken === "WETH") {
-    return await contract.swapTokenForMultiTokens(
-      sellAmounts,
-      minAmounts,
-      path.slice(1),
-      deadline,
-      { gasLimit: 700000 },
-
-    );
-  } else {
-    // //log params 
-    // const temp = path.slice(1);
-    // console.log('>>>params: ', { path, temp, sellAmounts, minAmounts, deadline });
-    return await contract.swapUSDForMultiTokens(
-      path[0], // sellToken address
-      inputAmount,
-      sellAmounts, // Remove the first element (total token amount)
-      minAmounts,
-      path.slice(1), // Remove the input token address from the path
-      deadline,
-      { gasLimit: 700000 },
-    );
-  }
-}
+    try {
+      if (inputToken === "ETH") {
+        const ethParams = params as swapEthForMultiTokensParam;
+        return await swapEthForMultiTokens(
+            ethParams,                 // Pass the entire params object
+            contractAddress,           // Pass the contract address
+            signer,                    // Pass the signer
+        );
+    }
+        else if (inputToken === "WETH") {
+            const wethParams = params as swapTokenForMultiTokensParam;
+            return await swapTokenForMultiTokens(
+                wethParams,
+                contractAddress,
+                signer,
+                defaultTxOptions
+            );
+        } 
+        else {
+            const usdParams = params as swapUSDForMultiTokensParam;
+            return await swapUSDForMultiTokens(
+                usdParams,
+                contractAddress,
+                signer,
+                defaultTxOptions
+            );
+        }
+    } catch (error) {
+        console.error("Error in performSwap:", error);
+        throw error;
+    }
+};
 
 export async function getExpectedOutputAmount(
   swapContractAddress: string,
@@ -211,7 +201,7 @@ export async function swapEthForMultiTokens(
   swapContractAddress: string,
   signer: ethers.Signer,
   txOptions: TxOptions = defaultTxOptions
-): Promise<ethers.TransactionResponse> {
+): Promise<ethers.ContractTransaction> {
   const contract = new ethers.Contract(swapContractAddress, SWAP_ABI, signer);
 
   return await contract.swapEthForMultiTokens(
@@ -231,7 +221,7 @@ export async function swapTokenForMultiTokens(
   swapContractAddress: string,
   signer: ethers.Signer,
   txOptions: TxOptions = defaultTxOptions
-): Promise<ethers.TransactionResponse> {
+): Promise<ethers.ContractTransaction> {
   const contract = new ethers.Contract(swapContractAddress, SWAP_ABI, signer);
 
   return await contract.swapTokenForMultiTokens(
@@ -250,7 +240,7 @@ export async function swapUSDForMultiTokens(
   swapContractAddress: string,
   signer: ethers.Signer,
   txOptions: TxOptions = defaultTxOptions
-): Promise<ethers.TransactionResponse> {
+): Promise<ethers.ContractTransaction> {
   const contract = new ethers.Contract(swapContractAddress, SWAP_ABI, signer);
 
   return await contract.swapUSDForMultiTokens(
