@@ -19,15 +19,37 @@ import { TxOptions, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, sw
 //     }
 // }
 
-import { createPublicClient, http, parseAbi, defineChain } from 'viem'
+import { createPublicClient, http, parseAbi, defineChain, Chain } from 'viem'
 import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
-import { BuildBearChain } from '../components/swap-interface'
+// import { BuildBearChain } from '../components/swap-interface'
 // Define your custom chain
-const bb_chain = defineChain(BuildBearChain);
+// const bb_chain = ;
+export const BuildBearChain = {
+    id: 21233,
+    name: "BB",
+    nativeCurrency: {
+        name: "BB",
+        symbol: "ETH",
+        decimals: 18,
+    },
+    rpcUrls: {
+        default: {
+            http: ["https://rpc.buildbear.io/relieved-groot-ee2fe6d9"],
+        },
+    },
+    blockExplorers: {
+        default: {
+            name: "BuildBear Explorer",
+            url: "https://explorer.buildbear.io/relieved-groot-ee2fe6d9",
+        },
+    },
+    iconUrl: "https://example.com/avax-icon.png",
+    iconBackground: "#fff",
+} as const satisfies Chain;
 
 // Create the Public Client
 const publicClient = createPublicClient({
-    chain: bb_chain,
+    chain: defineChain(BuildBearChain),
     transport: http()
 })
 
@@ -41,7 +63,7 @@ export async function quoteTokenForMultiTokens(
             address: quoterAddress,
             abi: MULTISWAP_QUOTER_ABI,
             functionName: 'quoteTokenForMultiTokens', // quoteUSDForMultiTokens /
-            args: [param.sellAmounts, param.path]
+            args: [param.sellAmounts.slice(1), param.path]
         })
 
         return result

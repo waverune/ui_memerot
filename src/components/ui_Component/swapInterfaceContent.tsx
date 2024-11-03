@@ -12,7 +12,7 @@ import { getTokenBalance, checkAndApproveToken, performSwap } from "../../lib/tx
 import { toast } from "react-toastify";
 import { fetchCoinData } from "../../services/coinApi";
 import { swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
-
+import { quoteTokenForMultiTokens } from '../../lib/quoter_utils'; // Adjust the path as necessary
 
 
 // Constants and mock data (if they're not already in a separate file)
@@ -486,6 +486,9 @@ function SwapInterfaceContent() {
                     path: path as `0x${string}`[],
                     deadline
                 } as swapTokenForMultiTokensParam;
+                // Integrate quoteTokenForMultiTokens
+                const quoteResult = await quoteTokenForMultiTokens(swapParams);
+                console.log("Quote result for WETH swap:", quoteResult);
             } 
             else {
                 // Case 3: Other ERC20 to Multiple Tokens
