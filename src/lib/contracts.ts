@@ -5,6 +5,7 @@ export const ERC20_ABI = [
   'function decimals() view returns (uint8)',
   'function symbol() view returns (string)',
   'function name() view returns (string)',
+  'function allowance(address owner, address spender) view returns (uint256)',
 
   // Authenticated functions
   'function transfer(address to, uint amount) returns (bool)',
