@@ -52,7 +52,8 @@ const publicClient = createPublicClient({
     chain: defineChain(BuildBearChain),
     transport: http()
 })
-
+// Quoters returns array of token amounts in their respective decimals
+// for human readable amounts, divide by 10^decimals eg decimals: 18 for ETH, divide by 10^18, usdc: 6, divide by 10^6, spx&hpos: 8, divide by 10^8
 export async function quoteTokenForMultiTokens(
     param: swapTokenForMultiTokensParam
 ) {
