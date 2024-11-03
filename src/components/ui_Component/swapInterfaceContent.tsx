@@ -470,6 +470,8 @@ function SwapInterfaceContent() {
                     path: path as `0x${string}`[],
                     deadline
                 } as swapEthForMultiTokensParam;
+                const quoteResult = await quoteTokenForMultiTokens(swapParams);
+                console.log("Quote result for ETH swap:", quoteResult);
             } 
             else if (selectedToken === "WETH") {
                 // Case 2: WETH to Multiple Tokens
