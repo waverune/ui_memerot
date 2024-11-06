@@ -42,7 +42,6 @@ type CoinPriceData = {
     image: string;
 };
 
-
 type Token = TokenSymbol;
 // Add this mock function at the top of the file, outside of any component
 const mockUniswapOutput = (inputToken: TokenSymbol, inputAmount: number, outputToken: TokenSymbol): number => {
@@ -96,6 +95,38 @@ const TOKEN_COLORS = [
     'bg-yellow-600', // Color for the fourth token
     // Add more colors as needed
 ];
+
+// Add this new type near the top with other type definitions
+type SimulatedOutput = {
+    amount: string;
+    usdValue: string;
+    priceImpact?: string;
+    loading?: boolean;
+    error?: string;
+};
+
+// Add this helper function at the top level
+const calculatePriceImpact = (
+    inputAmount: string,
+    outputAmount: string,
+    inputTokenPrice: number,
+    outputTokenPrice: number
+): string => {
+    const inputValue = parseFloat(inputAmount) * inputTokenPrice;
+    const outputValue = parseFloat(outputAmount) * outputTokenPrice;
+    
+    if (inputValue === 0 || isNaN(inputValue) || isNaN(outputValue)) {
+        return '0.00';
+    }
+
+    // Calculate price impact using Uniswap V2 formula
+    // Price impact = (expectedOutput - actualOutput) / expectedOutput * 100
+    const expectedOutput = inputValue; // In perfect conditions, input value = output value
+    const priceImpact = ((expectedOutput - outputValue) / expectedOutput) * 100;
+    
+    // Return absolute value, rounded to 2 decimal places
+    return Math.abs(priceImpact).toFixed(2);
+};
 
 function SwapInterfaceContent() {
     const { showToast } = useToast();
@@ -1086,6 +1117,126 @@ useEffect(() => {
     // Calculate percentages for the allocation values
     const allocationPercentages = calculateAllocationPercentages(allocationValues);
 
+    // Move simulatedOutputs state inside component
+    const [simulatedOutputs, setSimulatedOutputs] = useState<Record<TokenSymbol, SimulatedOutput>>({});
+
+    // Move simulateQuote inside component
+    const simulateQuote = useCallback(async () => {
+        if (!fromAmount || !selectedToken || selectedOutputTokens.length === 0) {
+            setSimulatedOutputs({});
+            return;
+        }
+
+        // Set loading state for all output tokens
+        setSimulatedOutputs(prev => {
+            const newOutputs: Record<TokenSymbol, SimulatedOutput> = {};
+            selectedOutputTokens.forEach(token => {
+                if (token) {
+                    newOutputs[token] = { amount: '0', usdValue: '0', loading: true };
+                }
+            });
+            return newOutputs;
+        });
+
+        try {
+            const inputAmount = ethers.parseUnits(fromAmount, TOKENS[selectedToken].decimals);
+            const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+
+            // Prepare path and amounts based on selected tokens
+            const path = selectedToken === "ETH" 
+                ? [TOKENS["WETH"].address, ...selectedOutputTokens.map(token => TOKENS[token].address)]
+                : [TOKENS[selectedToken].address, ...selectedOutputTokens.map(token => TOKENS[token].address)];
+
+            const sellAmounts = selectedOutputTokens.map((token, index) => {
+                const allocation = getAllocationForIndex(index) / 100;
+                return ethers.parseUnits((parseFloat(fromAmount) * allocation).toString(), TOKENS[selectedToken].decimals);
+            });
+
+            // Construct parameters for quote
+            const quoteParams = {
+                sellAmounts: [inputAmount, ...sellAmounts],
+                minAmounts: selectedOutputTokens.map(() => ethers.parseUnits("1", 0)),
+                path: path as `0x${string}`[],
+                deadline
+            };
+
+            // Get quote
+            const quoteResult = await quoteTokenForMultiTokens(quoteParams);
+            
+            // Process quote results
+            const newSimulatedOutputs: Record<TokenSymbol, SimulatedOutput> = {};
+            selectedOutputTokens.forEach((token, index) => {
+                if (!token) return;
+
+                const amount = ethers.formatUnits(
+                    quoteResult[index] || 0,
+                    TOKENS[token].decimals
+                );
+
+                // Get input token price
+                const inputCoinId = TOKENS[selectedToken].coingeckoId;
+                const inputPrice = inputCoinId && tokenPriceData[inputCoinId] 
+                    ? tokenPriceData[inputCoinId].price_usd 
+                    : 0;
+
+                // Get output token price
+                const outputCoinId = TOKENS[token].coingeckoId;
+                const outputPrice = outputCoinId && tokenPriceData[outputCoinId] 
+                    ? tokenPriceData[outputCoinId].price_usd 
+                    : 0;
+
+                // Calculate allocated input amount based on percentage
+                const allocation = getAllocationForIndex(index) / 100;
+                const allocatedInputAmount = (parseFloat(fromAmount) * allocation).toString();
+
+                // Calculate price impact
+                const priceImpact = calculatePriceImpact(
+                    allocatedInputAmount,
+                    amount,
+                    inputPrice,
+                    outputPrice
+                );
+
+                // Calculate USD value
+                const usdValue = (parseFloat(amount) * outputPrice).toString();
+
+                newSimulatedOutputs[token] = {
+                    amount,
+                    usdValue,
+                    priceImpact: priceImpact + '%',
+                    loading: false
+                };
+            });
+
+            setSimulatedOutputs(newSimulatedOutputs);
+
+        } catch (error) {
+            console.error('Quote simulation failed:', error);
+            // Set error state for all output tokens
+            setSimulatedOutputs(prev => {
+                const newOutputs: Record<TokenSymbol, SimulatedOutput> = {};
+                selectedOutputTokens.forEach(token => {
+                    if (token) {
+                        newOutputs[token] = {
+                            amount: '0',
+                            usdValue: '0',
+                            error: 'Quote failed',
+                            loading: false
+                        };
+                    }
+                });
+                return newOutputs;
+            });
+        }
+    }, [fromAmount, selectedToken, selectedOutputTokens, tokenPriceData, getAllocationForIndex]);
+
+    // Add useEffect for simulation
+    useEffect(() => {
+        if (fromAmount && selectedToken && selectedOutputTokens.length > 0) {
+            simulateQuote();
+        }
+    }, [fromAmount, selectedToken, selectedOutputTokens, simulateQuote]);
+
     return (
         <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8">
             <div className="w-full lg:w-1/2 space-y-4">
@@ -1148,12 +1299,34 @@ useEffect(() => {
                                     <div className="flex-grow">
                                         <input
                                             type="number"
-                                            value={toAmounts[selectedOutputTokens[index]] || "0"}
+                                            value={selectedOutputTokens[index] ? 
+                                                simulatedOutputs[selectedOutputTokens[index]]?.amount || "0" : 
+                                                "0"}
                                             readOnly
                                             className="bg-transparent border-none text-left w-full focus:outline-none focus:ring-0 text-lg"
                                         />
-                                        <div className="text-xs text-gray-400">
-                                            {getUsdValue(toAmounts[selectedOutputTokens[index]] || "0", selectedOutputTokens[index])}
+                                        <div className="flex flex-col space-y-1">
+                                            <span className="text-xs text-gray-400">
+                                                {selectedOutputTokens[index] && simulatedOutputs[selectedOutputTokens[index]]?.loading ? (
+                                                    "Calculating..."
+                                                ) : selectedOutputTokens[index] && simulatedOutputs[selectedOutputTokens[index]]?.error ? (
+                                                    <span className="text-red-400">{simulatedOutputs[selectedOutputTokens[index]]?.error}</span>
+                                                ) : (
+                                                    getUsdValue(
+                                                        simulatedOutputs[selectedOutputTokens[index]]?.amount || "0",
+                                                        selectedOutputTokens[index]
+                                                    )
+                                                )}
+                                            </span>
+                                            {selectedOutputTokens[index] && simulatedOutputs[selectedOutputTokens[index]]?.priceImpact && (
+                                                <span className={`text-xs ${
+                                                    parseFloat(simulatedOutputs[selectedOutputTokens[index]]?.priceImpact || '0') > 5 
+                                                        ? 'text-red-400' 
+                                                        : 'text-green-400'
+                                                }`}>
+                                                    {/* // TODO FIX Price Impact// Price Impact: {simulatedOutputs[selectedOutputTokens[index]]?.priceImpact}  */}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="flex items-center space-x-2">
