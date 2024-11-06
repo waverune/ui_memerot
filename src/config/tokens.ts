@@ -70,6 +70,13 @@ export const TOKENS: { [key: string]: TokenConfig } = {
         symbol: "PEIPEI",
         logo: "/logos/peipei.png",
         coingeckoId: "peipeicoin-vip"
+    },
+    SHIBA: {
+        address: "0x95ad61b0a150d79219d57fb86fe1da4cfd473b10",
+        decimals: 18,
+        symbol: "SHIBA INU",
+        logo: "/logos/shib.png",
+        coingeckoId: "shiba-inu"
     }
 };
 
