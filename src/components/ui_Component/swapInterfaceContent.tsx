@@ -12,7 +12,7 @@ import { getTokenBalance, checkAndApproveToken, performSwap } from "../../lib/tx
 import { toast } from "react-toastify";
 import { fetchCoinData } from "../../services/coinApi";
 import { swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
-import { quoteTokenForMultiTokens } from '../../lib/quoter_utils'; // Adjust the path as necessary
+import { quoteExactInputSingle, quoteTokenForMultiTokens } from '../../lib/quoter_utils'; // Adjust the path as necessary
 
 
 // Constants and mock data (if they're not already in a separate file)
@@ -73,6 +73,29 @@ const isValidPriceData = (data: any): data is CoinPriceData => {
         && !isNaN(data.price_usd)
         && isFinite(data.price_usd);
 };
+
+// Function to calculate total allocation
+const calculateTotalAllocation = (allocations: string[]) => {
+    return allocations.reduce((total, value) => total + (parseFloat(value) || 0), 0);
+};
+
+// Function to calculate percentage for each allocation
+const calculateAllocationPercentages = (allocations: string[]) => {
+    const total = calculateTotalAllocation(allocations);
+    return allocations.map(value => {
+        const numValue = parseFloat(value) || 0;
+        return total > 0 ? (numValue / total) * 100 : 0;
+    });
+};
+
+// Define colors for different tokens
+const TOKEN_COLORS = [
+    'bg-blue-600', // Color for the first token
+    'bg-green-600', // Color for the second token
+    'bg-red-600', // Color for the third token
+    'bg-yellow-600', // Color for the fourth token
+    // Add more colors as needed
+];
 
 function SwapInterfaceContent() {
     const { showToast } = useToast();
@@ -494,12 +517,11 @@ function SwapInterfaceContent() {
             } 
             else {
                 // Case 3: Other ERC20 to Multiple Tokens
-                    const path = [TOKENS[selectedToken].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
+                    const path = [TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
                     const sellAmounts = activeOutputTokens.map((token, index) => {
                     const allocation = sliderValues[token] / 100;
                     return ethers.parseUnits((parseFloat(fromAmount) * allocation).toFixed(18), 18);
                 });
-
                 swapParams = {
                     sellToken: TOKENS[selectedToken].address as `0x${string}`,
                     sellAmount: inputAmount,
@@ -508,6 +530,8 @@ function SwapInterfaceContent() {
                     path: path as `0x${string}`[],
                     deadline
                 } as swapUSDForMultiTokensParam;
+                const netWethQuote = await quoteExactInputSingle(swapParams);
+                console.log('>>> intermediate weth == ', netWethQuote); // 7964363261071064374n
             }
 
             console.log("Swap parameters:", swapParams);
@@ -627,7 +651,7 @@ function SwapInterfaceContent() {
         return ratio.toFixed(2);
     };
 
-    const [simulatedOutput, setSimulatedOutput] = useState<Record<TokenSymbol, string>>({});
+    // const [simulatedOutput, setSimulatedOutput] = useState<Record<TokenSymbol, string>>({});
     const getAllocationForIndex = useCallback((index: number) => {
         // Convert allocation values to numbers
         const numericValues = allocationValues.map(v => parseFloat(v) || 0);
@@ -1059,7 +1083,9 @@ useEffect(() => {
         }
     };
 
-    
+    // Calculate percentages for the allocation values
+    const allocationPercentages = calculateAllocationPercentages(allocationValues);
+
     return (
         <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8">
             <div className="w-full lg:w-1/2 space-y-4">
@@ -1300,6 +1326,39 @@ useEffect(() => {
                         <Copy className="h-4 w-4" />
                         <span>Share Allocation</span>
                     </button>
+
+                    {/* Percentage Bar for Token Allocations */}
+                    <div className="mt-4">
+                        <div className="text-sm text-gray-400">Token Allocations</div>
+                        <div className="relative w-full h-4 bg-gray-700 rounded">
+                            {allocationPercentages.map((percentage, index) => {
+                                const leftPosition = allocationPercentages
+                                    .slice(0, index)
+                                    .reduce((a, b) => a + b, 0); // Calculate left position for the segment
+
+                                return (
+                                    <div
+                                        key={index}
+                                        className={`absolute h-full ${TOKEN_COLORS[index % TOKEN_COLORS.length]} rounded`}
+                                        style={{
+                                            width: `${percentage}%`,
+                                            left: `${leftPosition}%`,
+                                        }}
+                                    />
+                                );
+                            })}
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-400 mt-1">
+                            {allocationValues.map((value, index) => {
+                                const tokenSymbol = TOKENS[selectedOutputTokens[index]]?.symbol; // Safely access symbol
+                                return (
+                                    <span key={index}>
+                                        {`${value} (${allocationPercentages[index].toFixed(2)}%) ${tokenSymbol || 'N/A'}`}
+                                    </span>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
             </div>
 
