@@ -93,3 +93,22 @@ export async function quoteERC20ForMultiTokens(
         throw error
     }
 }
+export async function quoteExactInputSingle(swapParams: swapUSDForMultiTokensParam) {
+    try {
+        const quoterAddress = '0xc04c8c20a3eCCbef5d1702303Dd419483068fA29' // Replace with your actual quoter address
+
+        const result = await publicClient.readContract({
+            address: quoterAddress,
+            abi: MULTISWAP_QUOTER_ABI,
+            functionName: 'quoteExactInputSingle', // quoteUSDForMultiTokens /
+            args: [swapParams.sellToken, swapParams.path[0], swapParams.sellAmount]
+        })
+        return result
+
+    } catch (error) {
+        console.error('Error fetching usd /erc20 multi-token quote:', error)
+        throw error
+    }
+
+
+}
