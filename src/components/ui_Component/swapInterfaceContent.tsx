@@ -89,11 +89,10 @@ const calculateAllocationPercentages = (allocations: string[]) => {
 
 // Define colors for different tokens
 const TOKEN_COLORS = [
-    'bg-blue-600', // Color for the first token
-    'bg-green-600', // Color for the second token
-    'bg-red-600', // Color for the third token
-    'bg-yellow-600', // Color for the fourth token
-    // Add more colors as needed
+    'bg-gradient-to-r from-indigo-200 via-purple-700 to-indigo-600', // Gradient for the first token
+    'bg-gradient-to-r from-teal-200 via-cyan-700 to-teal-600', // Gradient for the second token
+    'bg-gradient-to-r from-orange-200 via-yellow-700 to-orange-600', // Gradient for the third token
+    'bg-gradient-to-r from-lime-200 via-green-700 to-lime-600', // Gradient for the fourth token
 ];
 
 // Add this new type near the top with other type definitions
@@ -316,17 +315,13 @@ function SwapInterfaceContent() {
     }, [address, getProvider]);
 
 
-    // Mock market caps (replace with actual data fetching in production)
-    const [marketCaps] = useState({
-        mog: 742944760,
-        spx6900: 606265150,
-        dogecoin: 23354750059,
-        hpos: 322944760,
-        WOJAK: 69307369,
-        PEIPEI: 54378058,
-    });
-
-
+    useEffect(() => {
+        if (selectedToken && fromAmount) {
+            const balance = parseFloat(tokenBalances[selectedToken] || '0');
+            const amountToSell = parseFloat(fromAmount);
+            setIsBalanceSufficient(amountToSell <= balance);
+        }
+    }, [selectedToken, fromAmount, tokenBalances]);
 
     const recalculateSliders = useCallback(() => {
         const activeTokens = selectedOutputTokens.filter(token => token !== "");
@@ -985,7 +980,7 @@ useEffect(() => {
         });
     };
     // Handle from amount change
-    const handleFromAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFromAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const balance = parseFloat(tokenBalances[selectedToken]);
         const amountToSell = parseFloat(e.target.value);
 
@@ -1000,7 +995,7 @@ useEffect(() => {
         } else {
             setFromAmount(value);
         }
-    };
+    }, [selectedToken, tokenBalances]);
 
 
     const handleAllocationTypeChange = (value: 'ratio' | 'percentage') => {
@@ -1232,7 +1227,7 @@ useEffect(() => {
 
     // Add useEffect for simulation
     useEffect(() => {
-        if (fromAmount && selectedToken && selectedOutputTokens.length > 0) {
+        if (fromAmount && selectedToken && selectedOutputTokens.length > 0 && selectedOutputTokens[0] !== '') {
             simulateQuote();
         }
     }, [fromAmount, selectedToken, selectedOutputTokens, simulateQuote]);
@@ -1501,37 +1496,39 @@ useEffect(() => {
                     </button>
 
                     {/* Percentage Bar for Token Allocations */}
-                    <div className="mt-4">
-                        <div className="text-sm text-gray-400">Token Allocations</div>
-                        <div className="relative w-full h-4 bg-gray-700 rounded">
-                            {allocationPercentages.map((percentage, index) => {
-                                const leftPosition = allocationPercentages
-                                    .slice(0, index)
-                                    .reduce((a, b) => a + b, 0); // Calculate left position for the segment
+                    { selectedOutputTokens.length > 0 && selectedOutputTokens[0] !== '' && (
+                        <div className="mt-4">
+                            <div className="text-sm text-gray-400">Token Allocations</div>
+                            <div className="relative w-full h-4 bg-gray-700 rounded">
+                                {allocationPercentages.map((percentage, index) => {
+                                    const leftPosition = allocationPercentages
+                                        .slice(0, index)
+                                        .reduce((a, b) => a + b, 0); // Calculate left position for the segment
 
-                                return (
-                                    <div
-                                        key={index}
-                                        className={`absolute h-full ${TOKEN_COLORS[index % TOKEN_COLORS.length]} rounded`}
-                                        style={{
-                                            width: `${percentage}%`,
-                                            left: `${leftPosition}%`,
-                                        }}
-                                    />
-                                );
-                            })}
+                                    return (
+                                        <div
+                                            key={index}
+                                            className={`absolute h-full ${TOKEN_COLORS[index % TOKEN_COLORS.length]} rounded`}
+                                            style={{
+                                                width: `${percentage}%`,
+                                                left: `${leftPosition}%`,
+                                            }}
+                                        />
+                                    );
+                                })}
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-400 mt-1">
+                                {allocationValues.map((value, index) => {
+                                    const tokenSymbol = TOKENS[selectedOutputTokens[index]]?.symbol; // Safely access symbol
+                                    return (
+                                        <span key={index}>
+                                            {`${value} (${allocationPercentages[index].toFixed(2)}%) ${tokenSymbol || 'N/A'}`}
+                                        </span>
+                                    );
+                                })}
+                            </div>
                         </div>
-                        <div className="flex justify-between text-xs text-gray-400 mt-1">
-                            {allocationValues.map((value, index) => {
-                                const tokenSymbol = TOKENS[selectedOutputTokens[index]]?.symbol; // Safely access symbol
-                                return (
-                                    <span key={index}>
-                                        {`${value} (${allocationPercentages[index].toFixed(2)}%) ${tokenSymbol || 'N/A'}`}
-                                    </span>
-                                );
-                            })}
-                        </div>
-                    </div>
+                    )}
                 </div>
             </div>
 
