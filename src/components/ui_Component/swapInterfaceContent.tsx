@@ -566,39 +566,35 @@ function SwapInterfaceContent() {
 
 
 
-    const handleTokenSelect = (token: TokenSymbol) => {
+    const handleTokenSelect = (tokens: string[]) => {
         if (activeTokenSelection?.type === 'from') {
-            setSelectedToken(token);
-        } else if (activeTokenSelection?.type === 'output' && activeTokenSelection.index !== undefined) {
-            // Check if token is already selected in any output slot
-            if (selectedOutputTokens.includes(token)) {
-                toast.error("Token already selected");
-                return;
-            }
-
-            // Update the token at the correct index
-            const newSelectedOutputTokens = [...selectedOutputTokens];
-            newSelectedOutputTokens[activeTokenSelection.index] = token;
-            setSelectedOutputTokens(newSelectedOutputTokens);
-
-            // For single token, set allocation to 100%
-            if (newSelectedOutputTokens.length === 1) {
-                if (allocationType === 'percentage') {
-                    setAllocationValues(['100']);
-                    setSelectedTemplate('100');
-                } else {
-                    setAllocationValues(['1']);
-                    setSelectedTemplate('1');
+            setSelectedToken(tokens[0] as TokenSymbol);
+        } else if (activeTokenSelection?.type === 'output') {
+            // Get the index where we want to add the token
+            const insertIndex = activeTokenSelection.index ?? selectedOutputTokens.length;
+            
+            // Create a new array with existing tokens
+            const newTokens = [...selectedOutputTokens];
+            
+            // Insert the new token at the specified index
+            tokens.forEach((token, idx) => {
+                if (insertIndex + idx < 4) {
+                    newTokens[insertIndex + idx] = token as TokenSymbol;
                 }
-            }
+            });
 
-            // Update the corresponding amount
-            setToAmounts(prev => ({
-                ...prev,
-                [token]: "0"
-            }));
+            // Update allocation values based on number of actual tokens
+            const actualTokenCount = newTokens.filter(token => token !== '').length;
+            const newAllocationValues = allocationType === 'percentage'
+                ? Array(actualTokenCount).fill((100 / actualTokenCount).toFixed(0))
+                : Array(actualTokenCount).fill('1');
+            
+            setSelectedOutputTokens(newTokens);
+            setAllocationValues(newAllocationValues);
+            setSelectedTemplate(newAllocationValues.join(':'));
 
-            recalculateSliders();
+            // Update disabled tokens
+            updateDisabledTokens(newTokens);
         }
         closeTokenPopup();
     };
@@ -676,36 +672,21 @@ function SwapInterfaceContent() {
         setToAmounts(newToAmounts);
     }, [fromAmount, selectedToken, selectedOutputTokens, tokenPriceData, getAllocationForIndex]);
 
-    // Modify the handleAddToken function to preserve existing token selections
+    // Modify the handleAddToken function to automatically open the token selection popup when adding a new token slot
     const handleAddToken = useCallback(() => {
-        if (allocationValues.length >= 4) {
+        const currentTokenCount = selectedOutputTokens.filter(token => token !== '').length;
+        
+        if (currentTokenCount >= 4) {
             toast.warning("Maximum 4 tokens allowed");
             return;
         }
 
-        // Preserve existing token selections
-        const existingTokens = [...selectedOutputTokens];
-
-        // Add new allocation value based on allocation type
-        if (allocationType === 'ratio') {
-            setAllocationValues(prev => [...prev, '1']);
-            setSelectedTemplate(prev => `${prev}:1`);
-        } else {
-            const newLength = allocationValues.length + 1;
-            const evenPercentage = (100 / newLength).toFixed(0);
-            const newValues = Array(newLength).fill(evenPercentage);
-            setAllocationValues(newValues);
-            setSelectedTemplate(newValues.join(':'));
-        }
-
-        // Add empty slot while preserving existing selections
-        setSelectedOutputTokens([...existingTokens, '']);
-
-        // Preserve existing amounts
-        setToAmounts(prev => ({ ...prev }));
-
-        toast.success(`Added new ${allocationType} allocation slot`);
-    }, [allocationType, allocationValues.length, selectedOutputTokens]);
+        // Find the next empty slot
+        const nextEmptyIndex = selectedOutputTokens.findIndex(token => token === '');
+        
+        // Open token selection popup with the correct index
+        openTokenPopup('output', nextEmptyIndex >= 0 ? nextEmptyIndex : currentTokenCount);
+    }, [selectedOutputTokens, openTokenPopup]);
 
     // Add a function to handle template/ratio changes
     const handleTemplateChange = useCallback((newTemplate: string) => {
@@ -1054,7 +1035,11 @@ useEffect(() => {
         }
     };
 
-    
+    // First, let's add a helper function to get the actual number of selected tokens
+    const getSelectedTokenCount = () => {
+        return selectedOutputTokens.filter(token => token !== '').length;
+    };
+
     return (
         <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8">
             <div className="w-full lg:w-1/2 space-y-4">
@@ -1147,7 +1132,7 @@ useEffect(() => {
                                         {/* Show remove button based on conditions */}
                                         {(selectedOutputTokens.length > 1 || selectedOutputTokens[index]) && (
                                             <button
-                                                onClick={() => removeOutputToken(selectedOutputTokens[index], index)}
+                                                onClick={() => removeOutputToken(selectedOutputTokens[index] as string, index)}
                                                 className="bg-gray-800 rounded-full p-1 hover:bg-gray-600 transition-colors duration-200"
                                                 title={selectedOutputTokens.length === 1 ? "Clear selection" : "Remove slot"}
                                             >
@@ -1164,7 +1149,7 @@ useEffect(() => {
                             </div>
                         ))}
                         {/* Show Add another token button only if we have less than 4 tokens */}
-                        {allocationValues.length < 4 && (
+                        {getSelectedTokenCount() < 4 && (
                             <button
                                 onClick={handleAddToken}
                                 className="w-full mt-2 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center transition-colors duration-200"
@@ -1172,7 +1157,7 @@ useEffect(() => {
                                 <Plus className="h-4 w-4 mr-2" />
                                 Add another token
                                 <span className="text-xs text-gray-400 ml-2">
-                                    ({4 - allocationValues.length} remaining)
+                                    ({4 - getSelectedTokenCount()} remaining)
                                 </span>
                             </button>
                         )}
@@ -1306,6 +1291,7 @@ useEffect(() => {
                 balances={tokenBalances}
                 disabledTokens={disabledTokens as string[]}
                 tokenPriceData={tokenPriceData}
+                selectedOutputTokens={selectedOutputTokens as string[]}
             />
         </div>
     );
