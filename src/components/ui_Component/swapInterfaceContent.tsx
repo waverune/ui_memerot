@@ -786,6 +786,10 @@ useEffect(() => {
         debouncedSetAllocationRatio(newValue); // Debounce the actual state update
     };
 
+    // Function to get the number of selected output tokens
+    const getSelectedTokenCount = () => {
+        return selectedOutputTokens.filter(token => token !== '').length;
+    };
 
     // Add this function to handle sharing the URL
     const handleShareUrl = () => {
