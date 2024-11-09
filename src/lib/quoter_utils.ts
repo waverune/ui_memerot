@@ -109,5 +109,21 @@ export async function quoteExactInputSingle(swapParams: swapUSDForMultiTokensPar
         throw error
     }
 
+}
 
+export async function altQuoteExactInputSingle(sellToken: `0x${string}`, path: `0x${string}`[], sellAmount: bigint) {
+    try {
+
+        const result = await publicClient.readContract({
+            address: quoterAddress,
+            abi: MULTISWAP_QUOTER_ABI,
+            functionName: 'quoteExactInputSingle', // quoteUSDForMultiTokens /
+            args: [sellToken, path[0], sellAmount]
+        })
+        return result
+
+    } catch (error) {
+        console.error('Error fetching usd /erc20 multi-token quote:', error)
+        throw error
+    }
 }
