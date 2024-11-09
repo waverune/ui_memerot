@@ -52,13 +52,14 @@ const publicClient = createPublicClient({
     chain: defineChain(BuildBearChain),
     transport: http()
 })
+const quoterAddress = '0x7A83412F8B3107d5a17F197df1d6DfcD50683865' // Replace with your actual quoter address
+
 // Quoters returns array of token amounts in their respective decimals
 // for human readable amounts, divide by 10^decimals eg decimals: 18 for ETH, divide by 10^18, usdc: 6, divide by 10^6, spx&hpos: 8, divide by 10^8
 export async function quoteTokenForMultiTokens(
     param: swapTokenForMultiTokensParam
 ) {
     try {
-        const quoterAddress = '0xc04c8c20a3eCCbef5d1702303Dd419483068fA29' // Replace with your actual quoter address
 
         const result = await publicClient.readContract({
             address: quoterAddress,
@@ -78,13 +79,12 @@ export async function quoteERC20ForMultiTokens(
     param: swapUSDForMultiTokensParam
 ) {
     try {
-        const quoterAddress = '0xc04c8c20a3eCCbef5d1702303Dd419483068fA29' // Replace with your actual quoter address
 
         const result = await publicClient.readContract({
             address: quoterAddress,
             abi: MULTISWAP_QUOTER_ABI,
             functionName: 'quoteUSDForMultiTokens', // quoteUSDForMultiTokens /
-            args: [param.sellToken, param.sellAmount, param.sellAmounts, param.path]
+            args: [param.sellToken, param.sellAmount, param.sellAmounts.slice(1), param.path]
         })
 
         return result
@@ -95,7 +95,6 @@ export async function quoteERC20ForMultiTokens(
 }
 export async function quoteExactInputSingle(swapParams: swapUSDForMultiTokensParam) {
     try {
-        const quoterAddress = '0xc04c8c20a3eCCbef5d1702303Dd419483068fA29' // Replace with your actual quoter address
 
         const result = await publicClient.readContract({
             address: quoterAddress,
