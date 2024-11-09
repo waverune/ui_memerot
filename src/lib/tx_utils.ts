@@ -4,9 +4,9 @@ import { TxOptions, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, sw
 
 // Default transaction options
 const defaultTxOptions: TxOptions = {
-  gasLimit: 7000000, // Reasonable gas limit for most swaps
-  maxFeePerGas: ethers.parseUnits('50', 'gwei'), // Maximum fee willing to pay
-  maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei'), // Tip for miners
+  gasLimit: 8000000, // Reasonable gas limit for most swaps
+  // maxFeePerGas: ethers.parseUnits('50', 'gwei'), // Maximum fee willing to pay
+  // maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei'), // Tip for miners
 };
 
 //get token balance of user
@@ -37,44 +37,44 @@ export async function approveToken(
 
 // does the actual swap/multi-swap tx
 export const performSwap = async (
-    contractAddress: string,
-    inputToken: string,
-    params: swapEthForMultiTokensParam | swapTokenForMultiTokensParam | swapUSDForMultiTokensParam,
-    signer: ethers.Signer
+  contractAddress: string,
+  inputToken: string,
+  params: swapEthForMultiTokensParam | swapTokenForMultiTokensParam | swapUSDForMultiTokensParam,
+  signer: ethers.Signer
 ): Promise<ethers.TransactionResponse> => {
-    const contract = new ethers.Contract(contractAddress, SWAP_ABI, signer);
+  // const contract = new ethers.Contract(contractAddress, SWAP_ABI, signer);
 
-    try {
-      if (inputToken === "ETH") {
-        const ethParams = params as swapEthForMultiTokensParam;
-        return await swapEthForMultiTokens(
-            ethParams,                 // Pass the entire params object
-            contractAddress,           // Pass the contract address
-            signer,                    // Pass the signer
-        );
+  try {
+    if (inputToken === "ETH") {
+      const ethParams = params as swapEthForMultiTokensParam;
+      return await swapEthForMultiTokens(
+        ethParams,                 // Pass the entire params object
+        contractAddress,           // Pass the contract address
+        signer,                    // Pass the signer
+      );
     }
-        else if (inputToken === "WETH") {
-            const wethParams = params as swapTokenForMultiTokensParam;
-            return await swapTokenForMultiTokens(
-                wethParams,
-                contractAddress,
-                signer,
-                defaultTxOptions
-            );
-        } 
-        else {
-            const usdParams = params as swapUSDForMultiTokensParam;
-            return await swapUSDForMultiTokens(
-                usdParams,
-                contractAddress,
-                signer,
-                defaultTxOptions
-            );
-        }
-    } catch (error) {
-        console.error("Error in performSwap:", error);
-        throw error;
+    else if (inputToken === "WETH") {
+      const wethParams = params as swapTokenForMultiTokensParam;
+      return await swapTokenForMultiTokens(
+        wethParams,
+        contractAddress,
+        signer,
+        defaultTxOptions
+      );
     }
+    else {
+      const usdParams = params as swapUSDForMultiTokensParam;
+      return await swapUSDForMultiTokens(
+        usdParams,
+        contractAddress,
+        signer,
+        defaultTxOptions
+      );
+    }
+  } catch (error) {
+    console.error("Error in performSwap:", error);
+    throw error;
+  }
 };
 
 export async function getExpectedOutputAmount(

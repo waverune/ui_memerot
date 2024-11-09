@@ -19,18 +19,41 @@ import { TxOptions, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, sw
 //     }
 // }
 
-import { createPublicClient, http, parseAbi, defineChain } from 'viem'
+import { createPublicClient, http, parseAbi, defineChain, Chain } from 'viem'
 import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
-import { BuildBearChain } from '../components/swap-interface'
+// import { BuildBearChain } from '../components/swap-interface'
 // Define your custom chain
-const bb_chain = defineChain(BuildBearChain);
+// const bb_chain = ;
+export const BuildBearChain = {
+    id: 21233,
+    name: "BB",
+    nativeCurrency: {
+        name: "BB",
+        symbol: "ETH",
+        decimals: 18,
+    },
+    rpcUrls: {
+        default: {
+            http: ["https://rpc.buildbear.io/relieved-groot-ee2fe6d9"],
+        },
+    },
+    blockExplorers: {
+        default: {
+            name: "BuildBear Explorer",
+            url: "https://explorer.buildbear.io/relieved-groot-ee2fe6d9",
+        },
+    },
+    iconUrl: "https://example.com/avax-icon.png",
+    iconBackground: "#fff",
+} as const satisfies Chain;
 
 // Create the Public Client
 const publicClient = createPublicClient({
-    chain: bb_chain,
+    chain: defineChain(BuildBearChain),
     transport: http()
 })
-
+// Quoters returns array of token amounts in their respective decimals
+// for human readable amounts, divide by 10^decimals eg decimals: 18 for ETH, divide by 10^18, usdc: 6, divide by 10^6, spx&hpos: 8, divide by 10^8
 export async function quoteTokenForMultiTokens(
     param: swapTokenForMultiTokensParam
 ) {
@@ -41,7 +64,7 @@ export async function quoteTokenForMultiTokens(
             address: quoterAddress,
             abi: MULTISWAP_QUOTER_ABI,
             functionName: 'quoteTokenForMultiTokens', // quoteUSDForMultiTokens /
-            args: [param.sellAmounts, param.path]
+            args: [param.sellAmounts.slice(1), param.path]
         })
 
         return result
@@ -69,4 +92,23 @@ export async function quoteERC20ForMultiTokens(
         console.error('Error fetching usd /erc20 multi-token quote:', error)
         throw error
     }
+}
+export async function quoteExactInputSingle(swapParams: swapUSDForMultiTokensParam) {
+    try {
+        const quoterAddress = '0xc04c8c20a3eCCbef5d1702303Dd419483068fA29' // Replace with your actual quoter address
+
+        const result = await publicClient.readContract({
+            address: quoterAddress,
+            abi: MULTISWAP_QUOTER_ABI,
+            functionName: 'quoteExactInputSingle', // quoteUSDForMultiTokens /
+            args: [swapParams.sellToken, swapParams.path[0], swapParams.sellAmount]
+        })
+        return result
+
+    } catch (error) {
+        console.error('Error fetching usd /erc20 multi-token quote:', error)
+        throw error
+    }
+
+
 }

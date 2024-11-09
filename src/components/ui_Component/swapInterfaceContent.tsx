@@ -7,72 +7,17 @@ import { useAccount, useBalance, usePublicClient, useWalletClient } from "wagmi"
 import TokenSelectionPopup from "./tokenSelectionPopup";
 import { Button } from "../ui/button";
 import { useToast } from "../../hooks/useToast";
-import { TokenConfig, TOKENS, TokenSymbol } from "../../config/tokens";
+import { TOKENS, TokenSymbol } from "../../config/tokens";
 import { getTokenBalance, checkAndApproveToken, performSwap } from "../../lib/tx_utils";
 import { toast } from "react-toastify";
 import { fetchCoinData } from "../../services/coinApi";
 import { swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
+import { quoteExactInputSingle, quoteTokenForMultiTokens } from '../../lib/quoter_utils'; // Adjust the path as necessary
+import { SimulatedOutput, MOCK_BALANCES,CoinPriceData, TokenSelectionType, Token, DEFAULT_PRICE_DATA, TOKEN_COLORS, TokenConfig } from "../../utils/Modal";
+import { getUsdValue, calculateDogeRatio } from '../../utils/helpers/tokenHelper';
+import { isValidPriceData, calculatePriceImpact } from '../../utils/helpers/priceHelper';
+import { calculateAllocationPercentages, gcd } from '../../utils/helpers/allocationHelper';
 
-
-
-// Constants and mock data (if they're not already in a separate file)
-const MOCK_BALANCES: Record<TokenSymbol, string> = {
-    ETH: "0.0",
-    SPX6900: "0",
-    MOG: "0",
-    WETH: "0.0",
-    USDC: "0.0",
-};
-type TokenSelectionType = {
-    type: 'from' | 'output';
-    index?: number;
-} | null;
-const MOCK_PRICES = {
-    ETH: 2600,
-    SPX6900: 0.6344,
-    MOG: 0.000002062,
-    WETH: 2600,
-    USDC: 1,
-    HPOS: 0.309,
-};
-type CoinPriceData = {
-    coin_id: string;
-    price_usd: number;
-    market_cap_usd: number;
-    image: string;
-};
-
-
-type Token = TokenSymbol;
-// Add this mock function at the top of the file, outside of any component
-const mockUniswapOutput = (inputToken: TokenSymbol, inputAmount: number, outputToken: TokenSymbol): number => {
-    const inputPrice = MOCK_PRICES[inputToken as keyof typeof MOCK_PRICES];
-    const outputPrice = MOCK_PRICES[outputToken as keyof typeof MOCK_PRICES];
-    const inputValue = inputAmount * inputPrice;
-    let outputAmount = (inputValue / outputPrice) * 0.997; // 0.3% fee simulation
-
-    if (outputToken === 'USDC') {
-        // Round to 6 decimal places for USDC
-        outputAmount = Math.round(outputAmount * 1e6) / 1e6;
-    }
-
-    return outputAmount;
-};
-const DEFAULT_PRICE_DATA: CoinPriceData = {
-    coin_id: '',
-    price_usd: 0,
-    market_cap_usd: 0,
-    image: '/default-token-icon.png'
-};
-
-const isValidPriceData = (data: any): data is CoinPriceData => {
-    return data 
-        && typeof data.price_usd === 'number' 
-        && data.price_usd > 0 
-        && typeof data.market_cap_usd === 'number'
-        && !isNaN(data.price_usd)
-        && isFinite(data.price_usd);
-};
 
 function SwapInterfaceContent() {
     const { showToast } = useToast();
@@ -86,6 +31,10 @@ function SwapInterfaceContent() {
         SPX6900: "0",
         MOG: "0",
     });
+    const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
+    const [activeTokenSelection, setActiveTokenSelection] = useState<TokenSelectionType>(null);
+    const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
+    const [tokenBalances, setTokenBalances] = useState<Record<Token, string>>(MOCK_BALANCES);
     const [dogeMarketCap, setDogeMarketCap] = useState(0);
     const [isBalanceSufficient, setIsBalanceSufficient] = useState(true);
     const [allocationRatio, setAllocationRatio] = useState("1:1");
@@ -94,6 +43,7 @@ function SwapInterfaceContent() {
         SPX6900: 50,
         MOG: 50,
     });
+    const [simulatedOutputs, setSimulatedOutputs] = useState<Record<TokenSymbol, SimulatedOutput>>({});
     const [allocationType, setAllocationType] = useState<'ratio' | 'percentage'>('ratio');
     const [allocationValues, setAllocationValues] = useState(['1']);
     const [selectedTemplate, setSelectedTemplate] = useState('1');
@@ -105,7 +55,7 @@ function SwapInterfaceContent() {
     const [failedTokens, setFailedTokens] = useState<Set<string>>(new Set());
     const retryIntervalRef = useRef<NodeJS.Timeout>();
     const updateIntervalRef = useRef<NodeJS.Timeout>();
-
+    const [needsApproval, setNeedsApproval] = useState(false);
     const [isApproving, setIsApproving] = useState(false);
     const [isSwapping, setIsSwapping] = useState(false);
     const { address, isConnected } = useAccount();
@@ -184,19 +134,9 @@ function SwapInterfaceContent() {
         }
     }, [tokenPriceData]);
 
-    // Simulated token balances (in a real scenario, these would be fetched using ERC20:balanceOf() multicall)
-    const [tokenBalances, setTokenBalances] = useState<Record<Token, string>>(MOCK_BALANCES);
 
     const swapContractAddress = "0x1664A211D6C2414c88671a412065A15388EFEd5d"; // Replace with your actual swap contract address
-    // Non-recursive GCD calculation
-    const gcd = useCallback((a: number, b: number): number => {
-        while (b !== 0) {
-            const t = b;
-            b = a % b;
-            a = t;
-        }
-        return a;
-    }, []);
+   
     // Validate and format allocation ratio
     const formattedAllocationRatio = useMemo(() => {
         const parts = debouncedAllocationRatio.split(':').map(Number);
@@ -262,17 +202,13 @@ function SwapInterfaceContent() {
     }, [address, getProvider]);
 
 
-    // Mock market caps (replace with actual data fetching in production)
-    const [marketCaps] = useState({
-        mog: 742944760,
-        spx6900: 606265150,
-        dogecoin: 23354750059,
-        hpos: 322944760,
-        WOJAK: 69307369,
-        PEIPEI: 54378058,
-    });
-
-
+    useEffect(() => {
+        if (selectedToken && fromAmount) {
+            const balance = parseFloat(tokenBalances[selectedToken] || '0');
+            const amountToSell = parseFloat(fromAmount);
+            setIsBalanceSufficient(amountToSell <= balance);
+        }
+    }, [selectedToken, fromAmount, tokenBalances]);
 
     const recalculateSliders = useCallback(() => {
         const activeTokens = selectedOutputTokens.filter(token => token !== "");
@@ -346,7 +282,7 @@ function SwapInterfaceContent() {
         recalculateSliders();
     }, [selectedOutputTokens, toAmounts, allocationValues, allocationType, updateDisabledTokens, recalculateSliders]);
 
-    const [needsApproval, setNeedsApproval] = useState(false);
+   
 
     const checkApproval = useCallback(async () => {
         if (isConnected && address && selectedToken !== "ETH" && fromAmount) {
@@ -470,6 +406,8 @@ function SwapInterfaceContent() {
                     path: path as `0x${string}`[],
                     deadline
                 } as swapEthForMultiTokensParam;
+                const quoteResult = await quoteTokenForMultiTokens(swapParams);
+                console.log("Quote result for ETH swap:", quoteResult);
             } 
             else if (selectedToken === "WETH") {
                 // Case 2: WETH to Multiple Tokens
@@ -486,15 +424,17 @@ function SwapInterfaceContent() {
                     path: path as `0x${string}`[],
                     deadline
                 } as swapTokenForMultiTokensParam;
+                // Integrate quoteTokenForMultiTokens
+                const quoteResult = await quoteTokenForMultiTokens(swapParams);
+                console.log("Quote result for WETH swap:", quoteResult);
             } 
             else {
                 // Case 3: Other ERC20 to Multiple Tokens
-                    const path = [TOKENS[selectedToken].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
+                    const path = [TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
                     const sellAmounts = activeOutputTokens.map((token, index) => {
                     const allocation = sliderValues[token] / 100;
                     return ethers.parseUnits((parseFloat(fromAmount) * allocation).toFixed(18), 18);
                 });
-
                 swapParams = {
                     sellToken: TOKENS[selectedToken].address as `0x${string}`,
                     sellAmount: inputAmount,
@@ -503,6 +443,8 @@ function SwapInterfaceContent() {
                     path: path as `0x${string}`[],
                     deadline
                 } as swapUSDForMultiTokensParam;
+                const netWethQuote = await quoteExactInputSingle(swapParams);
+                console.log('>>> intermediate weth == ', netWethQuote); // 7964363261071064374n
             }
 
             console.log("Swap parameters:", swapParams);
@@ -531,27 +473,9 @@ function SwapInterfaceContent() {
         }
     };
 
-    // Update the USD value calculation
-    const getUsdValue = (amount: string, token: Token) => {
-        const numAmount = parseFloat(amount);
-        if (isNaN(numAmount)) return "$0.00";
+  
 
-        const coinId = TOKENS[token]?.coingeckoId;
-        if (!coinId) return "$0.00";
-        const price = tokenPriceData[coinId]?.price_usd || 0;
-        const usdValue = numAmount * price;
-        // Simple threshold check
-        if (usdValue > 0 && usdValue < 0.01) {
-            return "< $0.01";
-        }
-
-        return `$${usdValue.toFixed(2)}`;
-    };
-
-    const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
-    const [activeTokenSelection, setActiveTokenSelection] = useState<TokenSelectionType>(null);
-
-    const openTokenPopup = (type: 'from' | 'output', index?: number) => {
+       const openTokenPopup = (type: 'from' | 'output', index?: number) => {
         setActiveTokenSelection({ type, index });
         setIsTokenPopupOpen(true);
     };
@@ -561,7 +485,7 @@ function SwapInterfaceContent() {
         setActiveTokenSelection(null);
     };
 
-    const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
+   
 
 
 
@@ -599,26 +523,6 @@ function SwapInterfaceContent() {
         closeTokenPopup();
     };
     
-    // Add this function to calculate the Doge ratio
-    const calculateDogeRatio = (token: TokenSymbol) => {
-        // Get the market cap for the selected token
-        const tokenId = TOKENS[token]?.coingeckoId || '';
-        const tokenMarketCap = tokenId ? (tokenPriceData[tokenId]?.market_cap_usd || 0) : 0;
-        
-        if (tokenMarketCap === 0 || dogeMarketCap === 0) return '0.00';
-        
-        // Calculate the ratio
-        const ratio = dogeMarketCap / tokenMarketCap;
-        
-        // Format the ratio
-        if (ratio > 0 && ratio < 0.01) {
-            return '< 0.01';
-        }
-        
-        return ratio.toFixed(2);
-    };
-
-    const [simulatedOutput, setSimulatedOutput] = useState<Record<TokenSymbol, string>>({});
     const getAllocationForIndex = useCallback((index: number) => {
         // Convert allocation values to numbers
         const numericValues = allocationValues.map(v => parseFloat(v) || 0);
@@ -906,7 +810,7 @@ useEffect(() => {
         });
     };
     // Handle from amount change
-    const handleFromAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFromAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const balance = parseFloat(tokenBalances[selectedToken]);
         const amountToSell = parseFloat(e.target.value);
 
@@ -921,14 +825,11 @@ useEffect(() => {
         } else {
             setFromAmount(value);
         }
-    };
+    }, [selectedToken, tokenBalances]);
 
 
     const handleAllocationTypeChange = (value: 'ratio' | 'percentage') => {
         setAllocationType(value);
-        
-        // Preserve existing tokens
-        const currentOutputTokens = [...selectedOutputTokens];
         
         let newValues: string[];
         if (value === 'ratio') {
@@ -1035,10 +936,127 @@ useEffect(() => {
         }
     };
 
-    // First, let's add a helper function to get the actual number of selected tokens
-    const getSelectedTokenCount = () => {
-        return selectedOutputTokens.filter(token => token !== '').length;
-    };
+    // Calculate percentages for the allocation values
+    const allocationPercentages = calculateAllocationPercentages(allocationValues);
+
+    
+    // Move simulateQuote inside component
+    const simulateQuote = useCallback(async () => {
+        if (!fromAmount || !selectedToken || selectedOutputTokens.length === 0) {
+            setSimulatedOutputs({});
+            return;
+        }
+
+        // Set loading state for all output tokens
+        setSimulatedOutputs(prev => {
+            const newOutputs: Record<TokenSymbol, SimulatedOutput> = {};
+            selectedOutputTokens.forEach(token => {
+                if (token) {
+                    newOutputs[token] = { amount: '0', usdValue: '0', loading: true };
+                }
+            });
+            return newOutputs;
+        });
+
+        try {
+            const inputAmount = ethers.parseUnits(fromAmount, TOKENS[selectedToken].decimals);
+            const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+
+            // Prepare path and amounts based on selected tokens
+            const path = selectedToken === "ETH" 
+                ? [TOKENS["WETH"].address, ...selectedOutputTokens.map(token => TOKENS[token].address)]
+                : [TOKENS[selectedToken].address, ...selectedOutputTokens.map(token => TOKENS[token].address)];
+
+            const sellAmounts = selectedOutputTokens.map((token, index) => {
+                const allocation = getAllocationForIndex(index) / 100;
+                return ethers.parseUnits((parseFloat(fromAmount) * allocation).toString(), TOKENS[selectedToken].decimals);
+            });
+
+            // Construct parameters for quote
+            const quoteParams = {
+                sellAmounts: [inputAmount, ...sellAmounts],
+                minAmounts: selectedOutputTokens.map(() => ethers.parseUnits("1", 0)),
+                path: path as `0x${string}`[],
+                deadline
+            };
+
+            // Get quote
+            const quoteResult = await quoteTokenForMultiTokens(quoteParams);
+            
+            // Process quote results
+            const newSimulatedOutputs: Record<TokenSymbol, SimulatedOutput> = {};
+            selectedOutputTokens.forEach((token, index) => {
+                if (!token) return;
+
+                const amount = ethers.formatUnits(
+                    quoteResult[index] || 0,
+                    TOKENS[token].decimals
+                );
+
+                // Get input token price
+                const inputCoinId = TOKENS[selectedToken].coingeckoId;
+                const inputPrice = inputCoinId && tokenPriceData[inputCoinId] 
+                    ? tokenPriceData[inputCoinId].price_usd 
+                    : 0;
+
+                // Get output token price
+                const outputCoinId = TOKENS[token].coingeckoId;
+                const outputPrice = outputCoinId && tokenPriceData[outputCoinId] 
+                    ? tokenPriceData[outputCoinId].price_usd 
+                    : 0;
+
+                // Calculate allocated input amount based on percentage
+                const allocation = getAllocationForIndex(index) / 100;
+                const allocatedInputAmount = (parseFloat(fromAmount) * allocation).toString();
+
+                // Calculate price impact
+                const priceImpact = calculatePriceImpact(
+                    allocatedInputAmount,
+                    amount,
+                    inputPrice,
+                    outputPrice
+                );
+
+                // Calculate USD value
+                const usdValue = (parseFloat(amount) * outputPrice).toString();
+
+                newSimulatedOutputs[token] = {
+                    amount,
+                    usdValue,
+                    priceImpact: priceImpact + '%',
+                    loading: false
+                };
+            });
+
+            setSimulatedOutputs(newSimulatedOutputs);
+
+        } catch (error) {
+            console.error('Quote simulation failed:', error);
+            // Set error state for all output tokens
+            setSimulatedOutputs(prev => {
+                const newOutputs: Record<TokenSymbol, SimulatedOutput> = {};
+                selectedOutputTokens.forEach(token => {
+                    if (token) {
+                        newOutputs[token] = {
+                            amount: '0',
+                            usdValue: '0',
+                            error: 'Quote failed',
+                            loading: false
+                        };
+                    }
+                });
+                return newOutputs;
+            });
+        }
+    }, [fromAmount, selectedToken, selectedOutputTokens, tokenPriceData, getAllocationForIndex]);
+
+    // Add useEffect for simulation
+    useEffect(() => {
+        if (fromAmount && selectedToken && selectedOutputTokens.length > 0 && selectedOutputTokens[0] !== '') {
+            simulateQuote();
+        }
+    }, [fromAmount, selectedToken, selectedOutputTokens, simulateQuote]);
+
 
     return (
         <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8">
@@ -1057,7 +1075,7 @@ useEffect(() => {
                                     className="bg-transparent border-none text-left w-full placeholder-gray-500 focus:outline-none focus:ring-0"
                                 />
                                 <span className="text-xs text-gray-400">
-                                    {getUsdValue(fromAmount || "0", selectedToken)}
+                                    {getUsdValue(fromAmount || "0", selectedToken, tokenPriceData)}
                                 </span>
                             </div>
                             <div className="flex flex-col items-end">
@@ -1102,12 +1120,35 @@ useEffect(() => {
                                     <div className="flex-grow">
                                         <input
                                             type="number"
-                                            value={toAmounts[selectedOutputTokens[index]] || "0"}
+                                            value={selectedOutputTokens[index] ? 
+                                                simulatedOutputs[selectedOutputTokens[index]]?.amount || "0" : 
+                                                "0"}
                                             readOnly
                                             className="bg-transparent border-none text-left w-full focus:outline-none focus:ring-0 text-lg"
                                         />
-                                        <div className="text-xs text-gray-400">
-                                            {getUsdValue(toAmounts[selectedOutputTokens[index]] || "0", selectedOutputTokens[index])}
+                                        <div className="flex flex-col space-y-1">
+                                            <span className="text-xs text-gray-400">
+                                                {selectedOutputTokens[index] && simulatedOutputs[selectedOutputTokens[index]]?.loading ? (
+                                                    "Calculating..."
+                                                ) : selectedOutputTokens[index] && simulatedOutputs[selectedOutputTokens[index]]?.error ? (
+                                                    <span className="text-red-400">{simulatedOutputs[selectedOutputTokens[index]]?.error}</span>
+                                                ) : (
+                                                    getUsdValue(
+                                                        simulatedOutputs[selectedOutputTokens[index]]?.amount || "0",
+                                                        selectedOutputTokens[index],
+                                                        tokenPriceData
+                                                    )
+                                                )}
+                                            </span>
+                                            {selectedOutputTokens[index] && simulatedOutputs[selectedOutputTokens[index]]?.priceImpact && (
+                                                <span className={`text-xs ${
+                                                    parseFloat(simulatedOutputs[selectedOutputTokens[index]]?.priceImpact || '0') > 5 
+                                                        ? 'text-red-400' 
+                                                        : 'text-green-400'
+                                                }`}>
+                                                    {/* // TODO FIX Price Impact// Price Impact: {simulatedOutputs[selectedOutputTokens[index]]?.priceImpact}  */}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="flex items-center space-x-2">
@@ -1143,7 +1184,7 @@ useEffect(() => {
                                 </div>
                                 {selectedOutputTokens[index] && selectedOutputTokens[index] !== '' && (
                                     <div className="text-xs text-gray-400 mt-1 text-right">
-                                        Doge ratio: {calculateDogeRatio(selectedOutputTokens[index])}x Balance: {parseFloat(tokenBalances[selectedOutputTokens[index]]).toFixed(2)}
+                                        Doge ratio: {calculateDogeRatio(selectedOutputTokens[index], tokenPriceData, dogeMarketCap)}x Balance: {parseFloat(tokenBalances[selectedOutputTokens[index]]).toFixed(2)}
                                     </div>
                                 )}
                             </div>
@@ -1280,6 +1321,41 @@ useEffect(() => {
                         <Copy className="h-4 w-4" />
                         <span>Share Allocation</span>
                     </button>
+
+                    {/* Percentage Bar for Token Allocations */}
+                    { selectedOutputTokens.length > 0 && selectedOutputTokens[0] !== '' && (
+                        <div className="mt-4">
+                            <div className="text-sm text-gray-400">Token Allocations</div>
+                            <div className="relative w-full h-4 bg-gray-700 rounded">
+                                {allocationPercentages.map((percentage, index) => {
+                                    const leftPosition = allocationPercentages
+                                        .slice(0, index)
+                                        .reduce((a, b) => a + b, 0); // Calculate left position for the segment
+
+                                    return (
+                                        <div
+                                            key={index}
+                                            className={`absolute h-full ${TOKEN_COLORS[index % TOKEN_COLORS.length]} rounded`}
+                                            style={{
+                                                width: `${percentage}%`,
+                                                left: `${leftPosition}%`,
+                                            }}
+                                        />
+                                    );
+                                })}
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-400 mt-1">
+                                {allocationValues.map((value, index) => {
+                                    const tokenSymbol = TOKENS[selectedOutputTokens[index]]?.symbol; // Safely access symbol
+                                    return (
+                                        <span key={index}>
+                                            {`${value} (${allocationPercentages[index].toFixed(2)}%) ${tokenSymbol || 'N/A'}`}
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 

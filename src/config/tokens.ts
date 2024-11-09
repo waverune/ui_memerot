@@ -1,18 +1,4 @@
-// import ethLogo from '/logos/ETH.png';
-// import wethLogo from '/logos/WETH.png';
-// import usdcLogo from '/logos/USDC.png';
-// import spx6900Logo from '/logos/spx6900.png';
-// import mogLogo from '/logos/MOG.png';
-// import hposLogo from '/logos/HPOS.png';
-
-export interface TokenConfig {
-    name?: string;
-    address: string;
-    decimals: number;
-    symbol: string;
-    logo: string;
-    coingeckoId?: string;
-}
+import { TokenConfig } from "../utils/Modal";
 
 export const TOKENS: { [key: string]: TokenConfig } = {
     ETH: {
@@ -70,6 +56,13 @@ export const TOKENS: { [key: string]: TokenConfig } = {
         symbol: "PEIPEI",
         logo: "/logos/peipei.png",
         coingeckoId: "peipeicoin-vip"
+    },
+    SHIBA: {
+        address: "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce",
+        decimals: 18,
+        symbol: "SHIBA INU",
+        logo: "/logos/shib.png",
+        coingeckoId: "shiba-inu"
     }
 };
 
