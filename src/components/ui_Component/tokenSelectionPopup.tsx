@@ -2,6 +2,7 @@ import { X, Search } from "lucide-react";
 import { useMemo, useState, memo } from "react";
 import { TokenSymbol } from "../../config/tokens";
 import {TokenSelectionPopupProps} from "../../utils/Modal";
+import { toast } from "react-toastify";
 
 
 

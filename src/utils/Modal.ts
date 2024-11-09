@@ -74,9 +74,11 @@ export type SimulatedOutput = {
 export interface TokenSelectionPopupProps {
     isOpen: boolean;                                    // Controls modal visibility
     onClose: () => void;                               // Handler for closing the modal
-    onSelect: (symbol: string) => void;                // Handler for token selection
+    onSelect: (symbol: string[]) => void;                // Handler for token selection
     tokens: Record<string, TokenConfig>;               // Available tokens configuration
     balances: Record<string, string>;                  // User's token balances
     disabledTokens: string[];                         // Tokens that cannot be selected
     tokenPriceData: Record<string, CoinPriceData>;    // Price data for all tokens
+    maxSelections?: number;                          // Maximum number of tokens that can be selected
+    selectedOutputTokens?: string[];                  // Currently selected output tokens
 }
