@@ -12,10 +12,10 @@ function App() {
     <Router>
       <div  className="app-container text-white">
         <Routes>
-          <Route path="/" element={<HomeLogo />} />
-          <Route path="/swap" element={<SwapInterface />} />
-          <Route path="/status" element={<Status />} />
-          <Route path="/sims" element={<SimulationPage />} />
+        <Route path="/" element={<HomeLogo key="home" />} />
+          <Route path="/swap" element={<SwapInterface key="swap" />} />
+          <Route path="/status" element={<Status key="status" />} />
+          <Route path="/sims" element={<SimulationPage key="sims" />} />
         </Routes>
         <ToastContainer position="bottom-right" autoClose={5000} />
       </div>

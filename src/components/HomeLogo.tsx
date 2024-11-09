@@ -1,266 +1,350 @@
-import React, { useEffect, useRef, useState } from 'react';
-import * as Matter from 'matter-js';
-import './HomeLogo.css';
-import { Link } from 'react-router-dom';
-import { Events } from 'matter-js';
+import Matter from "matter-js";
+import { useRef, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 const HomeLogo: React.FC = () => {
     const sceneRef = useRef<HTMLDivElement>(null);
-    const engineRef = useRef(Matter.Engine.create({ enableSleeping: true }));
+    const engineRef = useRef(Matter.Engine.create());
     const [logos, setLogos] = useState<string[]>([]);
+    const [isSpacebarPressed, setIsSpacebarPressed] = useState(false);
 
     useEffect(() => {
-        const { Composites, Runner, Engine, Render, World, Bodies, Composite, Mouse, MouseConstraint, Body } = Matter;
+        import('./logoList.ts').then(module => {
+            setLogos(module.default);
+        });
+    }, []);
 
+    // First useEffect for physics setup (runs once)
+    useEffect(() => {
+        if (logos.length === 0) return;
+        
+        const 
+            Render = Matter.Render,
+            Runner = Matter.Runner,
+            Body = Matter.Body,
+            Events = Matter.Events,
+            Composite = Matter.Composite,
+            Composites = Matter.Composites,
+            Common = Matter.Common,
+            MouseConstraint = Matter.MouseConstraint,
+            Mouse = Matter.Mouse,
+            Bodies = Matter.Bodies;
 
-        const world = engineRef.current.world;
+        const engine = engineRef.current;
+        const world = engine.world;
+
+        // create renderer
         const render = Render.create({
             element: sceneRef.current!,
-            engine: engineRef.current,
+            engine: engine,
             options: {
                 width: window.innerWidth,
                 height: window.innerHeight,
                 wireframes: false,
-                background: 'transparent',
                 showAngleIndicator: false,
             }
         });
-        world.gravity.y = 0.5; // Reduce gravity further
-        // Add this after creating the engine
-        engineRef.current.world.gravity.y = 0.5;
-        engineRef.current.enableSleeping = false;  // Keep bodies active
-        engineRef.current.timing.timeScale = 1;    // Normal time scale
 
-        // Improve collision resolution
-        engineRef.current.positionIterations = 6;  // Default is 6
-        engineRef.current.velocityIterations = 4;  // Default is 4
-        engineRef.current.constraintIterations = 2;  // Default is 2
         Render.run(render);
-        // Create button and floor
-        const buttonWidth = 240; // Make it slightly wider than the visual button
-        const buttonHeight = 80; // Make it taller than the visual button
-        const buttonY = window.innerHeight * 0.75;
-        const buttonRadius = buttonHeight / 2;
-        const button = Bodies.rectangle(
-            window.innerWidth / 2,
-            buttonY,
-            buttonWidth - buttonRadius * 2,
-            buttonHeight,
-            {
-                isStatic: true,
-                render: { visible: false },
-                chamfer: { radius: buttonHeight / 2 },
-                friction: 0.3,         // Moderate friction
-                frictionStatic: 0.5,   // Higher static friction
-                restitution: 0.1,
-                slop: 0.05,
-                collisionFilter: {
-                    category: 0x0002,
-                    mask: 0xFFFFFFFF,
-                    group: 0
+
+        // create runner
+        const runner = Runner.create();
+        Runner.run(runner, engine);
+
+        // add bodies
+      // add bodies (invisible walls)
+Composite.add(world, [
+    // Top wall
+    Bodies.rectangle(window.innerWidth / 2, -10, window.innerWidth, 20, { 
+        isStatic: true,
+        render: { visible: false },
+        friction: 1,
+        restitution: 0.5,
+        slop: 0,
+        density: 1
+    }),
+    // Bottom wall
+    Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 10, window.innerWidth, 20, { 
+        isStatic: true,
+        render: { visible: false },
+        friction: 1,
+        restitution: 0.5,
+        slop: 0,
+        density: 1
+    }),
+    // Right wall
+    Bodies.rectangle(window.innerWidth + 10, window.innerHeight / 2, 20, window.innerHeight, { 
+        isStatic: true,
+        render: { visible: false },
+        friction: 1,
+        restitution: 0.5,
+        slop: 0,
+        density: 1
+    }),
+    // Left wall
+    Bodies.rectangle(-10, window.innerHeight / 2, 20, window.innerHeight, { 
+        isStatic: true,
+        render: { visible: false },
+        friction: 1,
+        restitution: 0.5,
+        slop: 0,
+        density: 1
+    })
+]);
+engine.world.gravity.y = 0.5;
+engine.constraintIterations = 6;
+engine.positionIterations = 8;
+engine.velocityIterations = 8;
+
+        const explosion = function(engine: Matter.Engine, delta: number) {
+            const timeScale = (1000 / 60) / delta;
+            const bodies = Composite.allBodies(engine.world);
+
+            for (let i = 0; i < bodies.length; i++) {
+                const body = bodies[i];
+
+                if (!body.isStatic && body.position.y >= 500) {
+                    const forceMagnitude = (0.02 * body.mass) * timeScale;
+
+                    Body.applyForce(body, body.position, {
+                        x: (forceMagnitude + Common.random() * forceMagnitude) * Common.choose([1, -1]), 
+                        y: -forceMagnitude + Common.random() * -forceMagnitude
+                    });
                 }
             }
-        );
-
-        const floor = Bodies.rectangle(
-            window.innerWidth / 2,
-            window.innerHeight,
-            window.innerWidth,
-            20,
-            { isStatic: true, render: { fillStyle: '#2a2a2a' } }
-        );
-
-        const composite = Composite.create();
-        const wallThickness = 50;
-        const leftWall = Bodies.rectangle(
-            -wallThickness / 2,
-            window.innerHeight / 2,
-            wallThickness,
-            window.innerHeight,
-            { isStatic: true, render: { visible: false } }
-        );
-        const rightWall = Bodies.rectangle(
-            window.innerWidth + wallThickness / 2,
-            window.innerHeight / 2,
-            wallThickness,
-            window.innerHeight,
-            { isStatic: true, render: { visible: false } }
-        );
-        Composite.add(composite, [floor, button, leftWall, rightWall]);
-        World.add(world, composite);
-
-        // Lazy load logos
-        import('./logoList.ts').then(module => {
-            setLogos(module.default);
-        });
-
-        const bodies: Matter.Body[] = [];
-        const maxBodies = 100; // Limit the number of bodies
-
-
-        const createShape = () => {
-            if (bodies.length >= maxBodies) {
-                const removedBody = bodies.shift();
-                if (removedBody) {
-                    World.remove(world, removedBody);
-                }
-            }
-
-            const margin = window.innerWidth * 0.1;
-            const x = margin + Math.random() * (window.innerWidth - 2 * margin);
-            const y = -50; // Start above the screen
-
-            const size = 75 + Math.random() * 20;
-            const shape = Bodies.rectangle(x, y, size / 2, size / 2, {
-                restitution: 0.3,
-                frictionAir: 0.01,     // Reduced air friction
-                friction: 0.3,         // Moderate friction
-                density: 0.001,
-                slop: 0.05,
-                chamfer: { radius: 2 },
-                render: {
-                    sprite: {
-                        texture: `/logos/${logos[Math.floor(Math.random() * logos.length)]}`,
-                        xScale: size / 128,
-                        yScale: size / 128
-                    }
-                },
-                collisionFilter: {
-                    category: 0x0001,
-                    mask: 0xFFFFFFFF,
-                }
-            });
-
-            bodies.push(shape);
-            Composite.add(world, shape);
         };
 
-        // Add mouse control
+        let timeScaleTarget = 1;
+        let lastTime = Common.now();
+
+        Events.on(engine, 'afterUpdate', function(event) {
+            const timeScale = (event.delta || (1000 / 60)) / 1000;
+
+            // engine.timing.timeScale += (timeScaleTarget - engine.timing.timeScale) * 12 * timeScale;
+
+            if (Common.now() - lastTime >= 2000) {
+                timeScaleTarget = timeScaleTarget < 1 ? 1 : 0;
+                explosion(engine, event.delta);
+                lastTime = Common.now();
+            }
+        });
+
+        const bodyOptions = {
+            frictionAir: 0.001  ,
+            friction: 0.2,
+            restitution: 0.5,
+            density: 0.001,
+            render: {
+                sprite: {
+                    texture: logos.length > 0 ? `/logos/${logos[Math.floor(Math.random() * logos.length)]}` : '',
+                    xScale: 0.5,
+                    yScale: 0.5
+                }
+            }
+        };
+        
+        Composite.add(world, Composites.stack(window.innerWidth/4, 100, 20, 5   , 20, 40, function(x: number, y: number ) {
+            const scale = Common.random(0.4, 0.8);
+            return Bodies.circle(x, y, Common.random(10, 20), {
+                ...bodyOptions,
+                render: {
+                    sprite: {
+                        texture: logos.length > 0 ? `/logos/${logos[Math.floor(Math.random() * logos.length)]}` : '',
+                        xScale: scale,
+                        yScale: scale,
+                    }
+                }
+            });
+        }));
+
+        Composite.add(world, Composites.stack(50, 50, 12, 4, 0, 0, function(x: number, y: number ) {
+            switch (Math.round(Common.random(0, 1))) {
+                case 0:
+                    if (Common.random() < 0.8) {
+                        return Bodies.rectangle(x, y, Common.random(20, 50), Common.random(20, 50), {
+                            ...bodyOptions,
+                            render:{
+                                sprite:{
+                                    texture: logos.length > 0 ? `/logos/${logos[Math.floor(Math.random() * logos.length)]}` : '',
+                                    xScale: 0.5,
+                                    yScale: 0.5
+                                }
+                            }
+                        });
+                    } else {
+                        return Bodies.rectangle(x, y, Common.random(80, 120), Common.random(20, 30), {
+                            ...bodyOptions,
+                            render:{
+                                sprite:{
+                                    texture: logos.length > 0 ? `/logos/${logos[Math.floor(Math.random() * logos.length)]}` : '',
+                                    xScale: 0.5,
+                                    yScale: 0.5 
+                                }
+                            }
+                        });
+                    }
+                case 1:
+                    return Bodies.polygon(x, y, Math.round(Common.random(4, 8)), Common.random(20, 50), {
+                        ...bodyOptions,
+                        render:{
+                            sprite:{
+                                texture: logos.length > 0 ? `/logos/${logos[Math.floor(Math.random() * logos.length)]}` : '',
+                                xScale: 0.5,
+                                yScale: 0.5
+                            }
+                        }
+                    });
+                default:
+                    return Bodies.circle(x, y, Common.random(10, 20), {
+                        ...bodyOptions,
+                        render:{
+                            sprite:{
+                                texture: logos.length > 0 ? `/logos/${logos[Math.floor(Math.random() * logos.length)]}` : '',
+                                xScale: 0.5,
+                                yScale: 0.5
+                            }
+                        }
+                    });
+            }
+        }));
+
+        // add mouse control
         const mouse = Mouse.create(render.canvas);
-        const mouseConstraint = MouseConstraint.create(engineRef.current, {
+        const mouseConstraint = MouseConstraint.create(engine, {
             mouse: mouse,
             constraint: {
                 stiffness: 0.2,
-                render: { visible: false }
-            },
-            collisionFilter: {
-                mask: 0xFFFFFFFF  // Allow mouse interaction with all bodies
+                render: {
+                    visible: false
+                }
             }
         });
-        // Enable collision events for mouse constraint
-        mouseConstraint.collisionFilter.mask = 0xFFFFFFFF;
 
         Composite.add(world, mouseConstraint);
         render.mouse = mouse;
 
-        // Use requestAnimationFrame for smoother animation
-        let lastTime = 0;
-        const animate = (time: number) => {
-            const delta = time - lastTime;
-            lastTime = time;
-
-            Engine.update(engineRef.current, delta, 1);
-            Render.world(render);
-            requestAnimationFrame(animate);
-        };
-
-        requestAnimationFrame(animate);
-
-        // Create shapes at intervals
-        const interval = setInterval(createShape, 1000);
-
-        // Resize handler
-        const handleResize = () => {
-            render.canvas.width = window.innerWidth;
-            render.canvas.height = window.innerHeight;
-            Render.setPixelRatio(render, window.devicePixelRatio);
-        };
-
-        window.addEventListener('resize', handleResize);
-
-
-
-        Composite.add(world, [leftWall, rightWall]);
-        Matter.Events.on(engineRef.current, 'collisionStart', (event) => {
-            event.pairs.forEach((pair) => {
-                const { bodyA, bodyB } = pair;
-                if (bodyA === button || bodyB === button || bodyA === buttonSensor || bodyB === buttonSensor) {
-                    const shape = bodyA === button || bodyA === buttonSensor ? bodyB : bodyA;
-                    handleCollision(shape);
-                }
-            });
+        // fit the render viewport to the scene
+        Render.lookAt(render, {
+            min: { x: 0, y: 0 },
+            max: { x: window.innerWidth, y: window.innerHeight }
         });
 
-        const buttonSensor = Bodies.rectangle(
-            window.innerWidth / 2,
-            buttonY - buttonHeight / 2 - 2,
-            buttonWidth,
-            4,
-            {
-                isStatic: true,
-                isSensor: true,
-                render: { visible: false },
-                // collisionFilter: {
-                //     category: 0x0002,    // Category 2
-                //     mask: 0xFFFFFFFF,    // Collide with everything
-                //     group: 0   
-                // }
-            }
-        );
+        // Add this after creating the engine and world, but before the cleanup function
+        const handleKeyPress = (event: KeyboardEvent) => {
+            const bodies = Composite.allBodies(world);
+            const force = 0.03;
 
-        Composite.add(world, buttonSensor);
+            if (event.repeat) return; // Prevent key repeat events
 
-        const handleCollision = (shape: Matter.Body) => {
-            const shapeHeight = shape.bounds.max.y - shape.bounds.min.y;
-            const buttonTop = buttonY - buttonHeight / 2;
-            const buttonLeft = button.position.x - buttonWidth / 2 + buttonRadius;
-            const buttonRight = button.position.x + buttonWidth / 2 - buttonRadius;
-
-            // Check if the shape is within the flat top region
-            if (shape.position.x >= buttonLeft && shape.position.x <= buttonRight) {
-                // Calculate the correct position where the base of the shape touches the flat top
-                const targetY = buttonTop - shapeHeight; // Subtract half height to align base with button top
-                
-                Matter.Body.setVelocity(shape, { x: 0, y: 0 });
-                Matter.Body.setPosition(shape, {
-                    x: shape.position.x,
-                    y: targetY,  // Use targetY instead of buttonTop
-                });
-                Matter.Body.setStatic(shape, true);
-            } else {
-                if (!shape.isStatic) {  // Only apply to non-static bodies
-                    const direction = shape.position.x < buttonLeft ? -1 : 1;
-                    
-                    // Apply proper collision response
-                    Matter.Body.setVelocity(shape, {
-                        x: direction * 2, // Increased for better sliding effect
-                        y: Math.min(shape.velocity.y, 0.5) // Limit downward velocity
-                    });
-                    
-                    // Add slight upward force to prevent sinking
-                    Matter.Body.applyForce(shape, shape.position, {
-                        x: 0,
-                        y: -0.001 * shape.mass
-                    });
+            bodies.forEach(body => {
+                if (!body.isStatic) {
+                    switch(event.key) {
+                        case 'ArrowUp':
+                            Body.applyForce(body, body.position, { x: 0, y: -force });
+                            break;
+                        case 'ArrowDown':
+                            Body.applyForce(body, body.position, { x: 0, y: force });
+                            break;
+                        case 'ArrowLeft':
+                            Body.applyForce(body, body.position, { x: -force, y: 0 });
+                            break;
+                        case 'ArrowRight':
+                            Body.applyForce(body, body.position, { x: force, y: 0 });
+                            break;
+                        case ' ': // Spacebar
+                            setIsSpacebarPressed(true);
+                            break;
+                    }
                 }
+            });
+        };
+
+        const handleKeyUp = (event: KeyboardEvent) => {
+            if (event.key === ' ') {
+                setIsSpacebarPressed(false);
             }
         };
 
+        // Add a blur event handler to reset spacebar state when window loses focus
+        const handleBlur = () => {
+            setIsSpacebarPressed(false);
+        };
+
+        // Add all event listeners
+        window.addEventListener('keydown', handleKeyPress);
+        window.addEventListener('keyup', handleKeyUp);
+        window.addEventListener('blur', handleBlur);
+
+        // Cleanup function
         return () => {
-            clearInterval(interval);
-            Render.stop(render);
-            World.clear(world, true);
-            Engine.clear(engineRef.current);
+            window.removeEventListener('keydown', handleKeyPress);
+            window.removeEventListener('keyup', handleKeyUp);
+            window.removeEventListener('blur', handleBlur);
+            Matter.Render.stop(render);
+            Matter.Runner.stop(runner);
+            Matter.Engine.clear(engine);
             render.canvas.remove();
-            window.removeEventListener('resize', handleResize);
-            if (render.mouse) {
-                Mouse.clearSourceEvents(render.mouse);
+            if (render.canvas) {
+                render.canvas.remove();
             }
         };
-    }, [logos]);
+    }, [logos]); // Remove isSpacebarPressed from dependencies
 
+    // Second useEffect for handling spacebar state
+    useEffect(() => {
+        if (logos.length === 0) return;
+        
+        const engine = engineRef.current;
+        const world = engine.world;
+
+        // Add attraction force when spacebar is pressed
+        const attractionUpdate = () => {
+            if (isSpacebarPressed) {
+                const bodies = Matter.Composite.allBodies(world);
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                const attractionForce = 0.003;
+
+                bodies.forEach(body => {
+                    if (!body.isStatic) {
+                        const dx = centerX - body.position.x;
+                        const dy = centerY - body.position.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance > 1) {
+                            const force = {
+                                x: (dx / distance) * attractionForce * body.mass,
+                                y: (dy / distance) * attractionForce * body.mass
+                            };
+                            Matter.Body.applyForce(body, body.position, force);
+                        }
+                    }
+                });
+            }
+        };
+
+        // Add the update function to the engine
+        Matter.Events.on(engine, 'beforeUpdate', attractionUpdate);
+
+        // Cleanup
+        return () => {
+            Matter.Events.off(engine, 'beforeUpdate', attractionUpdate);
+        };
+    }, [isSpacebarPressed, logos]);
+
+    // Return the container div for the Matter.js scene
     return (
-        <div ref={sceneRef} className="scene-container">
+        <div 
+            ref={sceneRef} 
+            className="scene-container"
+            style={{ 
+                width: '100vw',
+                height: '100vh',
+                position: 'absolute',
+                top: 0,
+                left: 0
+            }}
+        >
             <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center z-10 w-full max-w-4xl px-4">
                 <h1 className="text-8xl font-extrabold mb-12 tracking-widest leading-tight" style={{ fontFamily: "'Roboto Mono', monospace" }}>
                     <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-white">
