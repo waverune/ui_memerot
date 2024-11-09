@@ -12,7 +12,7 @@ import { getTokenBalance, checkAndApproveToken, performSwap } from "../../lib/tx
 import { toast } from "react-toastify";
 import { fetchCoinData } from "../../services/coinApi";
 import { swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
-import { quoteExactInputSingle, quoteTokenForMultiTokens } from '../../lib/quoter_utils'; // Adjust the path as necessary
+import { quoteExactInputSingle, quoteTokenForMultiTokens, quoteERC20ForMultiTokens, altQuoteExactInputSingle } from '../../lib/quoter_utils'; // Adjust the path as necessary
 import { SimulatedOutput, MOCK_BALANCES,CoinPriceData, TokenSelectionType, Token, DEFAULT_PRICE_DATA, TOKEN_COLORS, TokenConfig } from "../../utils/Modal";
 import { getUsdValue, calculateDogeRatio } from '../../utils/helpers/tokenHelper';
 import { isValidPriceData, calculatePriceImpact } from '../../utils/helpers/priceHelper';
@@ -431,10 +431,7 @@ function SwapInterfaceContent() {
             else {
                 // Case 3: Other ERC20 to Multiple Tokens
                     const path = [TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
-                    const sellAmounts = activeOutputTokens.map((token, index) => {
-                    const allocation = sliderValues[token] / 100;
-                    return ethers.parseUnits((parseFloat(fromAmount) * allocation).toFixed(18), 18);
-                });
+                let sellAmounts: bigint[] = [];
                 swapParams = {
                     sellToken: TOKENS[selectedToken].address as `0x${string}`,
                     sellAmount: inputAmount,
@@ -445,6 +442,15 @@ function SwapInterfaceContent() {
                 } as swapUSDForMultiTokensParam;
                 const netWethQuote = await quoteExactInputSingle(swapParams);
                 console.log('>>> intermediate weth == ', netWethQuote); // 7964363261071064374n
+                
+                sellAmounts = activeOutputTokens.map((token, index) => {
+                    const allocation = sliderValues[token] / 100;
+                    return (netWethQuote * (BigInt(allocation * 10000)))/BigInt(10000); // Allocate from netWethQuote
+                });
+                swapParams.sellAmounts = [netWethQuote, ...sellAmounts];
+                const usdQuote = await quoteERC20ForMultiTokens(swapParams);
+                console.log('>>> intermediate USD quote == ', usdQuote);
+                console.log('>>sellAMoounts', sellAmounts);
             }
 
             console.log("Swap parameters:", swapParams);
@@ -486,7 +492,6 @@ function SwapInterfaceContent() {
     };
 
    
-
 
 
 
@@ -965,27 +970,62 @@ useEffect(() => {
         try {
             const inputAmount = ethers.parseUnits(fromAmount, TOKENS[selectedToken].decimals);
             const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
-
+            let quoteResult: bigint[];
             // Prepare path and amounts based on selected tokens
-            const path = selectedToken === "ETH" 
-                ? [TOKENS["WETH"].address, ...selectedOutputTokens.map(token => TOKENS[token].address)]
-                : [TOKENS[selectedToken].address, ...selectedOutputTokens.map(token => TOKENS[token].address)];
+            const path = [TOKENS["WETH"].address, ...selectedOutputTokens.map(token => TOKENS[token].address)];
 
-            const sellAmounts = selectedOutputTokens.map((token, index) => {
-                const allocation = getAllocationForIndex(index) / 100;
-                return ethers.parseUnits((parseFloat(fromAmount) * allocation).toString(), TOKENS[selectedToken].decimals);
-            });
-
-            // Construct parameters for quote
-            const quoteParams = {
-                sellAmounts: [inputAmount, ...sellAmounts],
-                minAmounts: selectedOutputTokens.map(() => ethers.parseUnits("1", 0)),
-                path: path as `0x${string}`[],
-                deadline
-            };
-
-            // Get quote
-            const quoteResult = await quoteTokenForMultiTokens(quoteParams);
+            if (selectedToken === "ETH" || selectedToken === "WETH") {
+                // Directly use the sell amounts for ETH/WETH
+                const sellAmounts = selectedOutputTokens.map((token, index) => {
+                    const allocation = getAllocationForIndex(index) / 100;
+                    return ethers.parseUnits((parseFloat(fromAmount) * allocation).toString(), TOKENS[selectedToken].decimals);
+                });
+            
+                // Construct parameters for quote
+                const quoteParams = {
+                    sellAmounts: [inputAmount, ...sellAmounts],
+                    minAmounts: selectedOutputTokens.map(() => ethers.parseUnits("1", 0)),
+                    path: path as `0x${string}`[],
+                    deadline
+                };
+            
+                // Get quote for ETH/WETH
+                quoteResult = await quoteTokenForMultiTokens(quoteParams);
+            } else {
+                console.log('>>>>>> USDC CASE');
+                console.log('>> selectedToken', selectedToken);
+                console.log('>> inputAmount', inputAmount);
+                console.log('>> path', path);
+                // If the selected input token is not ETH/WETH, use the other quoter
+                const netWethQuote = await altQuoteExactInputSingle(
+                    TOKENS[selectedToken].address as `0x${string}`,
+                     [path[0]] as `0x${string}`[],
+                     inputAmount
+                );
+                console.log('>>> intermediate weth == ', netWethQuote); // Log the intermediate WETH quote
+            
+                // Calculate sell amounts based on netWethQuote
+                const sellAmounts = selectedOutputTokens.map((token, index) => {
+                    const allocation = sliderValues[token] / 100;
+                    return (netWethQuote * BigInt(allocation * 10000)) / BigInt(10000); // Allocate from netWethQuote
+                });
+            
+                // Update swapParams with the calculated sell amounts
+                // swapParams.sellAmounts = [netWethQuote, ...sellAmounts];
+                const quoteParams = {
+                    sellToken:  TOKENS[selectedToken].address as `0x${string}`,
+                    sellAmount: inputAmount,
+                    sellAmounts: [netWethQuote, ...sellAmounts],
+                    minAmounts: selectedOutputTokens.map(() => ethers.parseUnits("1", 0)),
+                    path: path as `0x${string}`[],
+                    deadline
+                };
+            
+                // Get quote for ERC20 tokens
+                quoteResult = await quoteERC20ForMultiTokens(quoteParams);
+                console.log('>>> intermediate USD quote == ', quoteResult);
+                console.log('>> sellAmounts', sellAmounts);
+            }
             
             // Process quote results
             const newSimulatedOutputs: Record<TokenSymbol, SimulatedOutput> = {};
