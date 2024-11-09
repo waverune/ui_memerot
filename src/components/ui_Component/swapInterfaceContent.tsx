@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ethers } from "ethers";
-import { debounce } from "lodash";
 import { ArrowDownUp, ChevronDown, Plus, Copy, X } from "lucide-react";
 import { useAccount, useBalance, usePublicClient, useWalletClient } from "wagmi";
 import TokenSelectionPopup from "./tokenSelectionPopup";
@@ -12,7 +11,7 @@ import { getTokenBalance, checkAndApproveToken, performSwap } from "../../lib/tx
 import { toast } from "react-toastify";
 import { fetchCoinData } from "../../services/coinApi";
 import { swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
-import { quoteExactInputSingle, quoteTokenForMultiTokens } from '../../lib/quoter_utils'; // Adjust the path as necessary
+import { quoteExactInputSingle, quoteTokenForMultiTokens } from '../../lib/quoter_utils';
 import { SimulatedOutput, MOCK_BALANCES,CoinPriceData, TokenSelectionType, Token, DEFAULT_PRICE_DATA, TOKEN_COLORS, TokenConfig } from "../../utils/Modal";
 import { getUsdValue, calculateDogeRatio } from '../../utils/helpers/tokenHelper';
 import { isValidPriceData, calculatePriceImpact } from '../../utils/helpers/priceHelper';
@@ -37,8 +36,7 @@ function SwapInterfaceContent() {
     const [tokenBalances, setTokenBalances] = useState<Record<Token, string>>(MOCK_BALANCES);
     const [dogeMarketCap, setDogeMarketCap] = useState(0);
     const [isBalanceSufficient, setIsBalanceSufficient] = useState(true);
-    const [allocationRatio, setAllocationRatio] = useState("1:1");
-    const [debouncedAllocationRatio, setDebouncedAllocationRatio] = useState("");
+    const [debouncedAllocationRatio, ] = useState("");
     const [sliderValues, setSliderValues] = useState<Record<TokenSymbol, number>>({
         SPX6900: 50,
         MOG: 50,
@@ -52,6 +50,7 @@ function SwapInterfaceContent() {
         const data = await fetchCoinData("dogecoin");
         setDogeMarketCap(data.market_cap_usd);
     };
+    const mounted = useRef(true);
     const [failedTokens, setFailedTokens] = useState<Set<string>>(new Set());
     const retryIntervalRef = useRef<NodeJS.Timeout>();
     const updateIntervalRef = useRef<NodeJS.Timeout>();
@@ -227,14 +226,6 @@ function SwapInterfaceContent() {
         setDisabledTokens(disabled);
     }, [selectedToken]);
 
-    const handleOutputTokenSelect = (newToken: TokenSymbol | "") => {
-        if (newToken && newToken !== selectedToken && !selectedOutputTokens.includes(newToken)) {
-            setSelectedOutputTokens(prev => [...prev, newToken]);
-            setToAmounts(prev => ({ ...prev, [newToken]: "0" }));
-            updateDisabledTokens([...selectedOutputTokens, newToken]);
-        }
-    };
-
     // Modify the removeOutputToken function to handle empty slots
     const removeOutputToken = useCallback((tokenToRemove: TokenSymbol | '', index: number) => {
         // If this is the only slot, just clear the selection instead of removing it
@@ -394,7 +385,7 @@ function SwapInterfaceContent() {
                     TOKENS["WETH"].address, // First element should be WETH
                     ...activeOutputTokens.map(token => TOKENS[token].address)
                 ];
-                const sellAmounts = activeOutputTokens.map((token, index) => {
+                const sellAmounts = activeOutputTokens.map((token) => {
                     const allocation = sliderValues[token] / 100;
                     return ethers.parseUnits((parseFloat(fromAmount) * allocation).toFixed(18), 18);
                 });
@@ -413,7 +404,7 @@ function SwapInterfaceContent() {
                 // Case 2: WETH to Multiple Tokens
                 const path = [TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
 
-                const sellAmounts = activeOutputTokens.map((token, index) => {
+                const sellAmounts = activeOutputTokens.map((token) => {
                     const allocation = sliderValues[token] / 100;
                     return ethers.parseUnits((parseFloat(fromAmount) * allocation).toFixed(18), 18);
                 });
@@ -431,7 +422,7 @@ function SwapInterfaceContent() {
             else {
                 // Case 3: Other ERC20 to Multiple Tokens
                     const path = [TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
-                    const sellAmounts = activeOutputTokens.map((token, index) => {
+                    const sellAmounts = activeOutputTokens.map((token) => {
                     const allocation = sliderValues[token] / 100;
                     return ethers.parseUnits((parseFloat(fromAmount) * allocation).toFixed(18), 18);
                 });
@@ -655,92 +646,97 @@ useEffect(() => {
     // Modify the existing useEffect to handle new token additions
     useEffect(() => {
         const updateEffects = async () => {
-            // Effect 1: Fetch balances and update token balances
-            if (isConnected && address) {
-                await fetchBalances();
-                await refetchEthBalance();
-            } else {
-                setTokenBalances(MOCK_BALANCES);
+            // Only proceed if still mounted and on swap page
+            if (!mounted.current || location.pathname !== '/swap') {
+                return;
             }
 
-            // Effect 2: Update ETH balance in token balances
-            if (ethBalanceData) {
-                setTokenBalances((prev) => ({
-                    ...prev,
-                    ETH: ethers.formatUnits(ethBalanceData.value, 18),
-                }));
-            }
-
-            // Effect 3: Recalculate sliders
-            recalculateSliders();
-
-            // Effect 4: Simulate swap
-            if (fromAmount && selectedToken && selectedOutputTokens.length > 0) {
-                simulateAndLogSwap();
-            }
-
-            // Effect 5: Check approval status
-            if (isConnected && address && selectedToken !== "ETH" && fromAmount) {
-                await checkApproval();
-            }
-
-            // Effect 6: Update URL
-            const searchParams = new URLSearchParams();
-            if (fromAmount) searchParams.set('amount', fromAmount);
-            if (selectedToken) searchParams.set('from', selectedToken as string);
-            if (selectedOutputTokens.length > 0) searchParams.set('to', selectedOutputTokens.join('-'));
-            if (allocationType === 'ratio') {
-                searchParams.set('ratio', allocationValues.join('-'));
-            } else {
-                searchParams.set('percentage', allocationValues.join('-'));
-            }
-            navigate(`?${searchParams.toString()}`, { replace: true });
-
-            // Update disabled tokens whenever output tokens change
-            if (selectedToken) {
-                updateDisabledTokens();
-            }
-
-            // Effect 7: Parse URL parameters (only on mount)
-            if (!hasInitialized.current) {
-                const params = new URLSearchParams(location.search);
-                const sellToken = params.get('sellToken');
-                const allocationTypeParam = params.get('allocationType');
-                const allocationValuesParam = params.get('allocationValues');
-                const selectedOutputTokensParam = params.get('selectedOutputTokens');
-                const fromAmountParam = params.get('fromAmount');
-
-                if (sellToken) {
-                    setSelectedToken(sellToken as TokenSymbol);
-                    updateDisabledTokens();
-                }
-                if (allocationTypeParam) {
-                    setAllocationType(allocationTypeParam as 'ratio' | 'percentage');
-                }
-                if (allocationValuesParam) {
-                    setAllocationValues(allocationValuesParam.split(','));
-                }
-                if (selectedOutputTokensParam) {
-                    setSelectedOutputTokens(selectedOutputTokensParam.split(',') as TokenSymbol[]);
+            try {
+                // Effect 1: Fetch balances and update token balances
+                if (isConnected && address) {
+                    await fetchBalances();
+                    await refetchEthBalance();
                 } else {
-                    setSelectedOutputTokens(['']);
+                    setTokenBalances(MOCK_BALANCES);
                 }
-                if (fromAmountParam) {
-                    setFromAmount(fromAmountParam);
-                }
-                hasInitialized.current = true;
-            }
 
-            // Effect 8: Handle allocation updates after adding new token
-            if (selectedOutputTokens.length > 0) {
-                updateDisabledTokens();
-                if (fromAmount && selectedToken) {
+                // Effect 2: Update ETH balance in token balances
+                if (ethBalanceData) {
+                    setTokenBalances((prev) => ({
+                        ...prev,
+                        ETH: ethers.formatUnits(ethBalanceData.value, 18),
+                    }));
+                }
+
+                // Effect 3: Recalculate sliders
+                recalculateSliders();
+
+                // Effect 4: Simulate swap
+                if (fromAmount && selectedToken && selectedOutputTokens.length > 0) {
                     simulateAndLogSwap();
                 }
+
+                // Effect 5: Check approval status
+                if (isConnected && address && selectedToken !== "ETH" && fromAmount) {
+                    await checkApproval();
+                }
+
+                // Effect 6: Update URL - Only if we're still on swap page
+                if (mounted.current && location.pathname === '/swap') {
+                    const searchParams = new URLSearchParams();
+                    if (fromAmount) searchParams.set('amount', fromAmount);
+                    if (selectedToken) searchParams.set('from', selectedToken as string);
+                    if (selectedOutputTokens.length > 0) searchParams.set('to', selectedOutputTokens.join('-'));
+                    if (allocationType === 'ratio') {
+                        searchParams.set('ratio', allocationValues.join('-'));
+                    } else {
+                        searchParams.set('percentage', allocationValues.join('-'));
+                    }
+                    navigate(`?${searchParams.toString()}`, { replace: true });
+                }
+
+                // Effect 7: Parse URL parameters (only on mount)
+                if (!hasInitialized.current && mounted.current) {
+                    const params = new URLSearchParams(location.search);
+                    const sellToken = params.get('sellToken');
+                    const allocationTypeParam = params.get('allocationType');
+                    const allocationValuesParam = params.get('allocationValues');
+                    const selectedOutputTokensParam = params.get('selectedOutputTokens');
+                    const fromAmountParam = params.get('fromAmount');
+
+                    if (sellToken) {
+                        setSelectedToken(sellToken as TokenSymbol);
+                        updateDisabledTokens();
+                    }
+                    if (allocationTypeParam) {
+                        setAllocationType(allocationTypeParam as 'ratio' | 'percentage');
+                    }
+                    if (allocationValuesParam) {
+                        setAllocationValues(allocationValuesParam.split(','));
+                    }
+                    if (selectedOutputTokensParam) {
+                        setSelectedOutputTokens(selectedOutputTokensParam.split(',') as TokenSymbol[]);
+                    } else {
+                        setSelectedOutputTokens(['']);
+                    }
+                    if (fromAmountParam) {
+                        setFromAmount(fromAmountParam);
+                    }
+                    hasInitialized.current = true;
+                }
+
+                // Effect 8: Handle allocation updates after adding new token
+                if (selectedOutputTokens.length > 0) {
+                    updateDisabledTokens();
+                    if (fromAmount && selectedToken) {
+                        simulateAndLogSwap();
+                    }
+                }
+            } catch (error) {
+                console.error('Error in updateEffects:', error);
             }
         };
 
-        updateUrl();
         updateEffects();
     }, [
         isConnected,
@@ -752,39 +748,22 @@ useEffect(() => {
         formattedAllocationRatio,
         checkApproval,
         location.search,
-        selectedOutputTokens.length, // Added this dependency
-        // failedTokens // Added this dependency
+        selectedOutputTokens.length,
     ]);
 
-
-    // Increase debounce time to 700ms )
-    const debouncedSetAllocationRatio = useCallback(
-        debounce((value: string) => {
-            setDebouncedAllocationRatio(value);
-        }, 700),
-        []
-    );
-
-    const updateUrl = useCallback(() => {
-        const searchParams = new URLSearchParams();
-        if (fromAmount) searchParams.set('amount', fromAmount);
-        if (selectedToken) searchParams.set('from', selectedToken as string);
-        if (selectedOutputTokens.length > 0) searchParams.set('to', selectedOutputTokens.join('-'));
-        if (allocationType === 'ratio') {
-            searchParams.set('ratio', allocationValues.join('-'));
-        } else {
-            searchParams.set('percentage', allocationValues.join('-'));
-        }
-        navigate(`?${searchParams.toString()}`, { replace: true });
-    }, [fromAmount, selectedToken, selectedOutputTokens, allocationValues, allocationType, navigate]);
-
-
-    // Handle allocation ratio input change
-    const handleAllocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = e.target.value;
-        setAllocationRatio(newValue); // Update the input value immediately
-        debouncedSetAllocationRatio(newValue); // Debounce the actual state update
-    };
+    // Add cleanup in a separate useEffect
+    useEffect(() => {
+        return () => {
+            mounted.current = false;
+            // Clear any pending updates
+            if (retryIntervalRef.current) {
+                clearInterval(retryIntervalRef.current);
+            }
+            if (updateIntervalRef.current) {
+                clearInterval(updateIntervalRef.current);
+            }
+        };
+    }, []);
 
     // Function to get the number of selected output tokens
     const getSelectedTokenCount = () => {
@@ -952,7 +931,7 @@ useEffect(() => {
         }
 
         // Set loading state for all output tokens
-        setSimulatedOutputs(prev => {
+        setSimulatedOutputs(() => {
             const newOutputs: Record<TokenSymbol, SimulatedOutput> = {};
             selectedOutputTokens.forEach(token => {
                 if (token) {
@@ -971,8 +950,8 @@ useEffect(() => {
                 ? [TOKENS["WETH"].address, ...selectedOutputTokens.map(token => TOKENS[token].address)]
                 : [TOKENS[selectedToken].address, ...selectedOutputTokens.map(token => TOKENS[token].address)];
 
-            const sellAmounts = selectedOutputTokens.map((token, index) => {
-                const allocation = getAllocationForIndex(index) / 100;
+            const sellAmounts = selectedOutputTokens.map((index) => {
+                const allocation = getAllocationForIndex(index as number) / 100;
                 return ethers.parseUnits((parseFloat(fromAmount) * allocation).toString(), TOKENS[selectedToken].decimals);
             });
 
@@ -1037,7 +1016,7 @@ useEffect(() => {
         } catch (error) {
             console.error('Quote simulation failed:', error);
             // Set error state for all output tokens
-            setSimulatedOutputs(prev => {
+            setSimulatedOutputs(() => {
                 const newOutputs: Record<TokenSymbol, SimulatedOutput> = {};
                 selectedOutputTokens.forEach(token => {
                     if (token) {
