@@ -133,7 +133,6 @@ function SwapInterfaceContent() {
         }
     }, [tokenPriceData]);
 
-
     const swapContractAddress = "0x1664A211D6C2414c88671a412065A15388EFEd5d"; // Replace with your actual swap contract address
    
     // Validate and format allocation ratio
@@ -1006,7 +1005,7 @@ useEffect(() => {
                 console.log('>>> intermediate USD quote == ', quoteResult);
                 console.log('>> sellAmounts', sellAmounts);
             }
-            
+            console.log('>> quoteResult', quoteResult);
             // Process quote results
             const newSimulatedOutputs: Record<TokenSymbol, SimulatedOutput> = {};
             selectedOutputTokens.forEach((token, index) => {

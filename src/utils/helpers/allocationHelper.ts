@@ -1,6 +1,3 @@
-import { useCallback } from "react";
-
-
 // Function to calculate total allocation
 export const calculateTotalAllocation = (allocations: string[]) => {
     return allocations.reduce((total, value) => total + (parseFloat(value) || 0), 0);

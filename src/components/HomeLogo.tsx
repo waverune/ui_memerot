@@ -352,7 +352,10 @@ engine.velocityIterations = 8;
                     </span>
                 </h1>
                 <p className="text-white mb-12 text-lg max-w-2xl mx-auto">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam in dui mauris. Vivamus hendrerit arcu sed erat molestie vehicula. Sed auctor neque eu tellus rhoncus ut eleifend nibh porttitor.
+                User-friendly multi-swap router built for easy token diversification. With just one click, you can convert assets like Ethereum into a custom mix of tokens—like a 50:50 split between SPX and HPOS. Our platform offers a simple way to manage risk and diversify portfolios through customizable, shareable token presets.
+                <br />
+                <br />
+                Our goal is to help you reduce risk, avoid impulsive investments, and grow smarter with your assets. Share your allocations and contribute to a network where diversification happens naturally.
                 </p>
                 <Link to="/swap">
                     <button className="px-8 py-4 text-xl bg-pink-600 bg-opacity-80 text-white rounded-full cursor-pointer transition-all duration-300 ease-in-out hover:bg-pink-700 hover:bg-opacity-100 hover:shadow-lg hover:shadow-pink-600/50 w-64 text-center">
