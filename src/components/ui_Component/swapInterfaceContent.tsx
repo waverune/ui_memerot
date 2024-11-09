@@ -133,7 +133,7 @@ function SwapInterfaceContent() {
         }
     }, [tokenPriceData]);
 
-    const swapContractAddress = "0x1664A211D6C2414c88671a412065A15388EFEd5d"; // Replace with your actual swap contract address
+    const swapContractAddress = "0x71618D8BBa10c21ffd42bB409D2aBfEED8A8F997"; // Replace with your actual swap contract address
    
     // Validate and format allocation ratio
     const formattedAllocationRatio = useMemo(() => {
@@ -156,7 +156,7 @@ function SwapInterfaceContent() {
         }
         // Fallback to a default provider if wallet is not connected
         return new ethers.JsonRpcProvider(
-            "https://rpc.buildbear.io/relieved-groot-ee2fe6d9"
+            "https://rpc.buildbear.io/global-thanos-495faead"
         );
     }, [publicClient]);
 
