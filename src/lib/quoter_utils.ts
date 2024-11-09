@@ -25,7 +25,7 @@ import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
 // Define your custom chain
 // const bb_chain = ;
 export const BuildBearChain = {
-    id: 21233,
+    id: 21598,
     name: "BB",
     nativeCurrency: {
         name: "BB",
@@ -34,13 +34,13 @@ export const BuildBearChain = {
     },
     rpcUrls: {
         default: {
-            http: ["https://rpc.buildbear.io/relieved-groot-ee2fe6d9"],
+            http: ["https://rpc.buildbear.io/global-thanos-495faead"],
         },
     },
     blockExplorers: {
         default: {
             name: "BuildBear Explorer",
-            url: "https://explorer.buildbear.io/relieved-groot-ee2fe6d9",
+            url: "https://explorer.buildbear.io/global-thanos-495faead",
         },
     },
     iconUrl: "https://example.com/avax-icon.png",
