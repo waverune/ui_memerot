@@ -1,24 +1,14 @@
 import { X, Search } from "lucide-react";
 import { useMemo, useState, memo } from "react";
-import { TokenConfig, TokenSymbol } from "../../config/tokens";
+import { TokenSymbol } from "../../config/tokens";
+import {TokenSelectionPopupProps} from "../../utils/Modal";
+
+
 //TODO: change Price_usd to bigint
-type CoinPriceData = {
-  coin_id: string;
-  price_usd: number;
-  market_cap_usd: number;
-  image: string;
-};
 
 
-interface TokenSelectionPopupProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSelect: (symbol: string) => void;
-  tokens: Record<string, TokenConfig>;
-  balances: Record<string, string>;
-  disabledTokens: string[];
-  tokenPriceData: Record<string, CoinPriceData>;
-}
+
+
 const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
   isOpen,
   onClose,

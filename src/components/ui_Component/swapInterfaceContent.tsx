@@ -7,125 +7,17 @@ import { useAccount, useBalance, usePublicClient, useWalletClient } from "wagmi"
 import TokenSelectionPopup from "./tokenSelectionPopup";
 import { Button } from "../ui/button";
 import { useToast } from "../../hooks/useToast";
-import { TokenConfig, TOKENS, TokenSymbol } from "../../config/tokens";
+import { TOKENS, TokenSymbol } from "../../config/tokens";
 import { getTokenBalance, checkAndApproveToken, performSwap } from "../../lib/tx_utils";
 import { toast } from "react-toastify";
 import { fetchCoinData } from "../../services/coinApi";
 import { swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
 import { quoteExactInputSingle, quoteTokenForMultiTokens } from '../../lib/quoter_utils'; // Adjust the path as necessary
+import { SimulatedOutput, MOCK_BALANCES,CoinPriceData, TokenSelectionType, Token, DEFAULT_PRICE_DATA, TOKEN_COLORS, TokenConfig } from "../../utils/Modal";
+import { getUsdValue, calculateDogeRatio } from '../../utils/helpers/tokenHelper';
+import { isValidPriceData, calculatePriceImpact } from '../../utils/helpers/priceHelper';
+import { calculateAllocationPercentages, gcd } from '../../utils/helpers/allocationHelper';
 
-
-// Constants and mock data (if they're not already in a separate file)
-const MOCK_BALANCES: Record<TokenSymbol, string> = {
-    ETH: "0.0",
-    SPX6900: "0",
-    MOG: "0",
-    WETH: "0.0",
-    USDC: "0.0",
-};
-type TokenSelectionType = {
-    type: 'from' | 'output';
-    index?: number;
-} | null;
-const MOCK_PRICES = {
-    ETH: 2600,
-    SPX6900: 0.6344,
-    MOG: 0.000002062,
-    WETH: 2600,
-    USDC: 1,
-    HPOS: 0.309,
-};
-type CoinPriceData = {
-    coin_id: string;
-    price_usd: number;
-    market_cap_usd: number;
-    image: string;
-};
-
-type Token = TokenSymbol;
-// Add this mock function at the top of the file, outside of any component
-const mockUniswapOutput = (inputToken: TokenSymbol, inputAmount: number, outputToken: TokenSymbol): number => {
-    const inputPrice = MOCK_PRICES[inputToken as keyof typeof MOCK_PRICES];
-    const outputPrice = MOCK_PRICES[outputToken as keyof typeof MOCK_PRICES];
-    const inputValue = inputAmount * inputPrice;
-    let outputAmount = (inputValue / outputPrice) * 0.997; // 0.3% fee simulation
-
-    if (outputToken === 'USDC') {
-        // Round to 6 decimal places for USDC
-        outputAmount = Math.round(outputAmount * 1e6) / 1e6;
-    }
-
-    return outputAmount;
-};
-const DEFAULT_PRICE_DATA: CoinPriceData = {
-    coin_id: '',
-    price_usd: 0,
-    market_cap_usd: 0,
-    image: '/default-token-icon.png'
-};
-
-const isValidPriceData = (data: any): data is CoinPriceData => {
-    return data 
-        && typeof data.price_usd === 'number' 
-        && data.price_usd > 0 
-        && typeof data.market_cap_usd === 'number'
-        && !isNaN(data.price_usd)
-        && isFinite(data.price_usd);
-};
-
-// Function to calculate total allocation
-const calculateTotalAllocation = (allocations: string[]) => {
-    return allocations.reduce((total, value) => total + (parseFloat(value) || 0), 0);
-};
-
-// Function to calculate percentage for each allocation
-const calculateAllocationPercentages = (allocations: string[]) => {
-    const total = calculateTotalAllocation(allocations);
-    return allocations.map(value => {
-        const numValue = parseFloat(value) || 0;
-        return total > 0 ? (numValue / total) * 100 : 0;
-    });
-};
-
-// Define colors for different tokens
-const TOKEN_COLORS = [
-    'bg-gradient-to-r from-indigo-200 via-purple-700 to-indigo-600', // Gradient for the first token
-    'bg-gradient-to-r from-teal-200 via-cyan-700 to-teal-600', // Gradient for the second token
-    'bg-gradient-to-r from-orange-200 via-yellow-700 to-orange-600', // Gradient for the third token
-    'bg-gradient-to-r from-lime-200 via-green-700 to-lime-600', // Gradient for the fourth token
-];
-
-// Add this new type near the top with other type definitions
-type SimulatedOutput = {
-    amount: string;
-    usdValue: string;
-    priceImpact?: string;
-    loading?: boolean;
-    error?: string;
-};
-
-// Add this helper function at the top level
-const calculatePriceImpact = (
-    inputAmount: string,
-    outputAmount: string,
-    inputTokenPrice: number,
-    outputTokenPrice: number
-): string => {
-    const inputValue = parseFloat(inputAmount) * inputTokenPrice;
-    const outputValue = parseFloat(outputAmount) * outputTokenPrice;
-    
-    if (inputValue === 0 || isNaN(inputValue) || isNaN(outputValue)) {
-        return '0.00';
-    }
-
-    // Calculate price impact using Uniswap V2 formula
-    // Price impact = (expectedOutput - actualOutput) / expectedOutput * 100
-    const expectedOutput = inputValue; // In perfect conditions, input value = output value
-    const priceImpact = ((expectedOutput - outputValue) / expectedOutput) * 100;
-    
-    // Return absolute value, rounded to 2 decimal places
-    return Math.abs(priceImpact).toFixed(2);
-};
 
 function SwapInterfaceContent() {
     const { showToast } = useToast();
@@ -139,6 +31,10 @@ function SwapInterfaceContent() {
         SPX6900: "0",
         MOG: "0",
     });
+    const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
+    const [activeTokenSelection, setActiveTokenSelection] = useState<TokenSelectionType>(null);
+    const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
+    const [tokenBalances, setTokenBalances] = useState<Record<Token, string>>(MOCK_BALANCES);
     const [dogeMarketCap, setDogeMarketCap] = useState(0);
     const [isBalanceSufficient, setIsBalanceSufficient] = useState(true);
     const [allocationRatio, setAllocationRatio] = useState("1:1");
@@ -147,6 +43,7 @@ function SwapInterfaceContent() {
         SPX6900: 50,
         MOG: 50,
     });
+    const [simulatedOutputs, setSimulatedOutputs] = useState<Record<TokenSymbol, SimulatedOutput>>({});
     const [allocationType, setAllocationType] = useState<'ratio' | 'percentage'>('ratio');
     const [allocationValues, setAllocationValues] = useState(['1']);
     const [selectedTemplate, setSelectedTemplate] = useState('1');
@@ -158,7 +55,7 @@ function SwapInterfaceContent() {
     const [failedTokens, setFailedTokens] = useState<Set<string>>(new Set());
     const retryIntervalRef = useRef<NodeJS.Timeout>();
     const updateIntervalRef = useRef<NodeJS.Timeout>();
-
+    const [needsApproval, setNeedsApproval] = useState(false);
     const [isApproving, setIsApproving] = useState(false);
     const [isSwapping, setIsSwapping] = useState(false);
     const { address, isConnected } = useAccount();
@@ -237,19 +134,9 @@ function SwapInterfaceContent() {
         }
     }, [tokenPriceData]);
 
-    // Simulated token balances (in a real scenario, these would be fetched using ERC20:balanceOf() multicall)
-    const [tokenBalances, setTokenBalances] = useState<Record<Token, string>>(MOCK_BALANCES);
 
     const swapContractAddress = "0x1664A211D6C2414c88671a412065A15388EFEd5d"; // Replace with your actual swap contract address
-    // Non-recursive GCD calculation
-    const gcd = useCallback((a: number, b: number): number => {
-        while (b !== 0) {
-            const t = b;
-            b = a % b;
-            a = t;
-        }
-        return a;
-    }, []);
+   
     // Validate and format allocation ratio
     const formattedAllocationRatio = useMemo(() => {
         const parts = debouncedAllocationRatio.split(':').map(Number);
@@ -395,7 +282,7 @@ function SwapInterfaceContent() {
         recalculateSliders();
     }, [selectedOutputTokens, toAmounts, allocationValues, allocationType, updateDisabledTokens, recalculateSliders]);
 
-    const [needsApproval, setNeedsApproval] = useState(false);
+   
 
     const checkApproval = useCallback(async () => {
         if (isConnected && address && selectedToken !== "ETH" && fromAmount) {
@@ -586,27 +473,9 @@ function SwapInterfaceContent() {
         }
     };
 
-    // Update the USD value calculation
-    const getUsdValue = (amount: string, token: Token) => {
-        const numAmount = parseFloat(amount);
-        if (isNaN(numAmount)) return "$0.00";
+  
 
-        const coinId = TOKENS[token]?.coingeckoId;
-        if (!coinId) return "$0.00";
-        const price = tokenPriceData[coinId]?.price_usd || 0;
-        const usdValue = numAmount * price;
-        // Simple threshold check
-        if (usdValue > 0 && usdValue < 0.01) {
-            return "< $0.01";
-        }
-
-        return `$${usdValue.toFixed(2)}`;
-    };
-
-    const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
-    const [activeTokenSelection, setActiveTokenSelection] = useState<TokenSelectionType>(null);
-
-    const openTokenPopup = (type: 'from' | 'output', index?: number) => {
+       const openTokenPopup = (type: 'from' | 'output', index?: number) => {
         setActiveTokenSelection({ type, index });
         setIsTokenPopupOpen(true);
     };
@@ -616,7 +485,7 @@ function SwapInterfaceContent() {
         setActiveTokenSelection(null);
     };
 
-    const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
+   
 
 
 
@@ -658,26 +527,6 @@ function SwapInterfaceContent() {
         closeTokenPopup();
     };
     
-    // Add this function to calculate the Doge ratio
-    const calculateDogeRatio = (token: TokenSymbol) => {
-        // Get the market cap for the selected token
-        const tokenId = TOKENS[token]?.coingeckoId || '';
-        const tokenMarketCap = tokenId ? (tokenPriceData[tokenId]?.market_cap_usd || 0) : 0;
-        
-        if (tokenMarketCap === 0 || dogeMarketCap === 0) return '0.00';
-        
-        // Calculate the ratio
-        const ratio = dogeMarketCap / tokenMarketCap;
-        
-        // Format the ratio
-        if (ratio > 0 && ratio < 0.01) {
-            return '< 0.01';
-        }
-        
-        return ratio.toFixed(2);
-    };
-
-    // const [simulatedOutput, setSimulatedOutput] = useState<Record<TokenSymbol, string>>({});
     const getAllocationForIndex = useCallback((index: number) => {
         // Convert allocation values to numbers
         const numericValues = allocationValues.map(v => parseFloat(v) || 0);
@@ -1001,9 +850,6 @@ useEffect(() => {
     const handleAllocationTypeChange = (value: 'ratio' | 'percentage') => {
         setAllocationType(value);
         
-        // Preserve existing tokens
-        const currentOutputTokens = [...selectedOutputTokens];
-        
         let newValues: string[];
         if (value === 'ratio') {
             // Convert percentages to ratio
@@ -1112,9 +958,7 @@ useEffect(() => {
     // Calculate percentages for the allocation values
     const allocationPercentages = calculateAllocationPercentages(allocationValues);
 
-    // Move simulatedOutputs state inside component
-    const [simulatedOutputs, setSimulatedOutputs] = useState<Record<TokenSymbol, SimulatedOutput>>({});
-
+    
     // Move simulateQuote inside component
     const simulateQuote = useCallback(async () => {
         if (!fromAmount || !selectedToken || selectedOutputTokens.length === 0) {
@@ -1249,7 +1093,7 @@ useEffect(() => {
                                     className="bg-transparent border-none text-left w-full placeholder-gray-500 focus:outline-none focus:ring-0"
                                 />
                                 <span className="text-xs text-gray-400">
-                                    {getUsdValue(fromAmount || "0", selectedToken)}
+                                    {getUsdValue(fromAmount || "0", selectedToken, tokenPriceData)}
                                 </span>
                             </div>
                             <div className="flex flex-col items-end">
@@ -1309,7 +1153,8 @@ useEffect(() => {
                                                 ) : (
                                                     getUsdValue(
                                                         simulatedOutputs[selectedOutputTokens[index]]?.amount || "0",
-                                                        selectedOutputTokens[index]
+                                                        selectedOutputTokens[index],
+                                                        tokenPriceData
                                                     )
                                                 )}
                                             </span>
@@ -1357,7 +1202,7 @@ useEffect(() => {
                                 </div>
                                 {selectedOutputTokens[index] && selectedOutputTokens[index] !== '' && (
                                     <div className="text-xs text-gray-400 mt-1 text-right">
-                                        Doge ratio: {calculateDogeRatio(selectedOutputTokens[index])}x Balance: {parseFloat(tokenBalances[selectedOutputTokens[index]]).toFixed(2)}
+                                        Doge ratio: {calculateDogeRatio(selectedOutputTokens[index], tokenPriceData, dogeMarketCap)}x Balance: {parseFloat(tokenBalances[selectedOutputTokens[index]]).toFixed(2)}
                                     </div>
                                 )}
                             </div>
