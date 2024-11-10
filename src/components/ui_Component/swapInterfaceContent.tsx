@@ -7,15 +7,98 @@ import TokenSelectionPopup from "./tokenSelectionPopup";
 import { Button } from "../ui/button";
 import { useToast } from "../../hooks/useToast";
 import { TOKENS } from "../../config/tokens";
-import { multicallTokenBalances,checkAndApproveToken, performSwap } from "../../lib/tx_utils";
+import { multicallTokenBalances, checkAndApproveToken, performSwap } from "../../lib/tx_utils";
 import { toast } from "react-toastify";
 import { fetchCoinData } from "../../services/coinApi";
-import { swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
-import { quoteExactInputSingle, quoteTokenForMultiTokens, quoteERC20ForMultiTokens, altQuoteExactInputSingle } from '../../lib/quoter_utils'; // Adjust the path as necessary
-import { SimulatedOutput, MOCK_BALANCES,CoinPriceData, TokenSelectionType, Token, DEFAULT_PRICE_DATA, TOKEN_COLORS, TokenConfig, TokenSymbol, TokenBalances } from "../../utils/Modal";
+import { BaseTransactionParam, UnifiedSwapParams,swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
+import { quoteTokenForMultiTokens, quoteERC20ForMultiTokens, altQuoteExactInputSingle } from '../../lib/quoter_utils'; // Adjust the path as necessary
+import { SimulatedOutput, MOCK_BALANCES, CoinPriceData, TokenSelectionType, Token, DEFAULT_PRICE_DATA, TOKEN_COLORS, TokenConfig, TokenSymbol, TokenBalances } from "../../utils/Modal";
 import { getUsdValue, calculateDogeRatio } from '../../utils/helpers/tokenHelper';
 import { isValidPriceData, calculatePriceImpact } from '../../utils/helpers/priceHelper';
 import { calculateAllocationPercentages, gcd } from '../../utils/helpers/allocationHelper';
+
+const SLIPPAGE_TOLERANCE = 0.01;
+
+
+const constructSwapParams = async (
+    selectedToken: TokenSymbol,
+    fromAmount: string,
+    activeOutputTokens: TokenSymbol[],
+    sliderValues: Record<string, number>,
+    isQuote: boolean,
+    quoteResult?: readonly bigint[],
+    netWethQuote?: bigint  // Add netWethQuote as a parameter
+): Promise<UnifiedSwapParams> => {
+    if (!fromAmount || isNaN(parseFloat(fromAmount))) {
+        throw new Error("Invalid input amount");
+    }
+
+    const inputAmount = ethers.parseUnits(fromAmount, TOKENS[selectedToken].decimals);
+    const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+    const path = [TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
+
+    // Calculate sellAmounts based on allocations
+    const sellAmounts = activeOutputTokens.map(token => {
+        const allocation = sliderValues[token] / 100;
+        return ethers.parseUnits(
+            (parseFloat(fromAmount) * allocation).toFixed(18),
+            18
+        );
+    });
+
+    // Set minAmounts based on whether this is for quote or swap
+    const minAmounts = isQuote
+        ? activeOutputTokens.map(() => ethers.parseUnits("1", 0))
+        : quoteResult!.map(amount => 
+            (amount * BigInt(Math.floor((1 - SLIPPAGE_TOLERANCE) * 10000))) / BigInt(10000)
+          );
+
+    // Return appropriate params based on token type
+    if (selectedToken === "ETH" || selectedToken === "WETH") {
+        const baseParams = {
+            sellAmounts: [inputAmount, ...sellAmounts],
+            minAmounts,
+            path: path as `0x${string}`[],
+            deadline,
+            ...(selectedToken === "ETH" && { etherValue: inputAmount })
+        };
+
+        return {
+            type: selectedToken === "ETH" ? 'ETH' : 'WETH',
+            params: baseParams as (swapEthForMultiTokensParam | swapTokenForMultiTokensParam)
+        };
+    }  else {
+        if (!netWethQuote && !isQuote) {
+            throw new Error("netWethQuote is required for ERC20 swap params");
+        }
+
+        return {
+            type: 'ERC20',
+            params: {
+                sellToken: TOKENS[selectedToken].address as `0x${string}`,
+                sellAmount: inputAmount,
+                sellAmounts: [netWethQuote!, ...sellAmounts],
+                minAmounts,
+                path: path as `0x${string}`[],
+                deadline
+            } as swapUSDForMultiTokensParam
+        };
+    }
+};
+const getSwapQuote = async (params: UnifiedSwapParams): Promise<readonly bigint[]> => {
+    if (params.type === 'ETH' || params.type === 'WETH') {
+        const quoteParams: BaseTransactionParam | swapEthForMultiTokensParam = {
+            ...params.params,
+            ...(params.type === 'ETH' && { 
+                etherValue: (params.params as swapEthForMultiTokensParam).etherValue 
+            })
+        };
+        return await quoteTokenForMultiTokens(quoteParams);
+    } else {
+        const erc20Params = params.params as swapUSDForMultiTokensParam;
+        return await quoteERC20ForMultiTokens(erc20Params);
+    }
+};
 
 
 function SwapInterfaceContent() {
@@ -36,7 +119,7 @@ function SwapInterfaceContent() {
     const [tokenBalances, setTokenBalances] = useState<TokenBalances>(MOCK_BALANCES);
     const [dogeMarketCap, setDogeMarketCap] = useState(0);
     const [isBalanceSufficient, setIsBalanceSufficient] = useState(true);
-    const [debouncedAllocationRatio, ] = useState("");
+    const [debouncedAllocationRatio,] = useState("");
     const [sliderValues, setSliderValues] = useState<Record<TokenSymbol, number>>({
         SPX6900: 50,
         MOG: 50,
@@ -126,7 +209,7 @@ function SwapInterfaceContent() {
                 ...prev,
                 ...newPriceData
             }));
-            
+
         } catch (error) {
             console.error('Error in fetchMultiplePriceData:', error);
             toast.error('Some price data may be delayed or unavailable');
@@ -134,7 +217,7 @@ function SwapInterfaceContent() {
     }, [tokenPriceData]);
 
     const swapContractAddress = "0x71618D8BBa10c21ffd42bB409D2aBfEED8A8F997"; // Replace with your actual swap contract address
-   
+
     // Validate and format allocation ratio
     const formattedAllocationRatio = useMemo(() => {
         const parts = debouncedAllocationRatio.split(':').map(Number);
@@ -199,7 +282,7 @@ function SwapInterfaceContent() {
             } catch (error) {
                 console.error("Error fetching token balances:", error);
                 toast.error("Failed to fetch token balances. Please try again.");
-                
+
                 // Set all balances to 0 in case of error
                 const zeroBalances = Object.fromEntries(
                     Object.keys(TOKENS)
@@ -287,7 +370,7 @@ function SwapInterfaceContent() {
         recalculateSliders();
     }, [selectedOutputTokens, toAmounts, allocationValues, allocationType, updateDisabledTokens, recalculateSliders]);
 
-   
+
 
     const checkApproval = useCallback(async () => {
         if (isConnected && address && selectedToken !== "ETH" && fromAmount) {
@@ -368,98 +451,61 @@ function SwapInterfaceContent() {
             const signer = await getSigner();
             if (!signer) throw new Error("Signer not available");
             if (!fromAmount || isNaN(parseFloat(fromAmount))) throw new Error("Invalid input amount");
-
-            const inputAmount = ethers.parseUnits(fromAmount, TOKENS[selectedToken].decimals);
             const activeOutputTokens = selectedOutputTokens.filter(token => token !== "");
-            const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes
+            // 1. First get quote params
+            const quoteParams = await constructSwapParams(
+                selectedToken,
+                fromAmount,
+                activeOutputTokens,
+                sliderValues,
+                true  // isQuote = true
+            );
 
-            // Construct parameters based on input token type
-            let swapParams;
-            
-            if (selectedToken === "ETH") {
-                // Case 1: ETH to Multiple Tokens
-                const path = [
-                    TOKENS["WETH"].address, // First element should be WETH
-                    ...activeOutputTokens.map(token => TOKENS[token].address)
-                ];
-                const sellAmounts = activeOutputTokens.map((token) => {
-                    const allocation = sliderValues[token] / 100;
-                    return ethers.parseUnits((parseFloat(fromAmount) * allocation).toFixed(18), 18);
-                });
-                
-                swapParams = {
-                    etherValue: inputAmount, // Total ETH being sold
-                    sellAmounts: [inputAmount, ...sellAmounts], // [totalETH, ETHforToken1, ETHforToken2, ...]
-                    minAmounts: activeOutputTokens.map(() => ethers.parseUnits("1", 0)),
-                    path: path as `0x${string}`[],
-                    deadline
-                } as swapEthForMultiTokensParam;
-                const quoteResult = await quoteTokenForMultiTokens(swapParams);
-                console.log("Quote result for ETH swap:", quoteResult);
-            } 
-            else if (selectedToken === "WETH") {
-                // Case 2: WETH to Multiple Tokens
-                const path = [TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
-
-                const sellAmounts = activeOutputTokens.map((token) => {
-                    const allocation = sliderValues[token] / 100;
-                    return ethers.parseUnits((parseFloat(fromAmount) * allocation).toFixed(18), 18);
-                });
-
-                swapParams = {
-                    sellAmounts: [inputAmount, ...sellAmounts], // [totalWETH, WETHforToken1, WETHforToken2, ...]
-                    minAmounts: activeOutputTokens.map(() => ethers.parseUnits("1", 0)),
-                    path: path as `0x${string}`[],
-                    deadline
-                } as swapTokenForMultiTokensParam;
-                // Integrate quoteTokenForMultiTokens
-                const quoteResult = await quoteTokenForMultiTokens(swapParams);
-                console.log("Quote result for WETH swap:", quoteResult);
-            } 
-            else {
-                // Case 3: Other ERC20 to Multiple Tokens
-                    const path = [TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
-
-                let sellAmounts: bigint[] = [];
-                swapParams = {
-                    sellToken: TOKENS[selectedToken].address as `0x${string}`,
-                    sellAmount: inputAmount,
-                    sellAmounts: sellAmounts, // [amountForToken1, amountForToken2, ...]
-                    minAmounts: activeOutputTokens.map(() => ethers.parseUnits("1", 0)),
-                    path: path as `0x${string}`[],
-                    deadline
-                } as swapUSDForMultiTokensParam;
-                const netWethQuote = await quoteExactInputSingle(swapParams);
-                console.log('>>> intermediate weth == ', netWethQuote); // 7964363261071064374n
-                
-                sellAmounts = activeOutputTokens.map((token, index) => {
-                    const allocation = sliderValues[token] / 100;
-                    return (netWethQuote * (BigInt(allocation * 10000)))/BigInt(10000); // Allocate from netWethQuote
-                });
-                swapParams.sellAmounts = [netWethQuote, ...sellAmounts];
-                const usdQuote = await quoteERC20ForMultiTokens(swapParams);
-                console.log('>>> intermediate USD quote == ', usdQuote);
-                console.log('>>sellAMoounts', sellAmounts);
+            // 2. Get netWethQuote for ERC20 tokens
+            let netWethQuote: bigint | undefined;
+            if (selectedToken !== "ETH" && selectedToken !== "WETH") {
+                const inputAmount = ethers.parseUnits(fromAmount, TOKENS[selectedToken].decimals);
+                netWethQuote = await altQuoteExactInputSingle(
+                    TOKENS[selectedToken].address as `0x${string}`,
+                    [TOKENS["WETH"].address] as `0x${string}`[],
+                    inputAmount
+                );
+                console.log('Intermediate WETH quote:', netWethQuote);
             }
 
-            console.log("Swap parameters:", swapParams);
+            // 3. Get quote result
+            const quoteResult = await getSwapQuote(quoteParams);
+            console.log("Quote result:", quoteResult);
 
+            // 4. Construct final swap params with quote results
+            const swapParams = await constructSwapParams(
+                selectedToken,
+                fromAmount,
+                activeOutputTokens,
+                sliderValues,
+                false,  // isQuote = false
+                quoteResult,
+                netWethQuote
+            );
+
+            console.log("Final swap parameters:", swapParams);
+
+            // 5. Execute the swap
             const swapTx = await performSwap(
                 swapContractAddress,
                 selectedToken as string,
-                swapParams,
+                swapParams.params,
                 signer
             );
+
             const receipt = await swapTx.wait();
             if (receipt && receipt.status === 1) {
                 showToast("Swap completed successfully!", "success");
+                fetchBalances();
+                refetchEthBalance();
             } else {
                 showToast("Swap failed.", "error");
             }
-
-            // Refresh balances after successful swap
-            fetchBalances();
-            refetchEthBalance();
         } catch (error) {
             console.error("Swap failed:", error);
             showToast(`Swap failed: ${(error as Error).message}`, "error");
@@ -468,9 +514,9 @@ function SwapInterfaceContent() {
         }
     };
 
-  
 
-       const openTokenPopup = (type: 'from' | 'output', index?: number) => {
+
+    const openTokenPopup = (type: 'from' | 'output', index?: number) => {
         setActiveTokenSelection({ type, index });
         setIsTokenPopupOpen(true);
     };
@@ -480,7 +526,7 @@ function SwapInterfaceContent() {
         setActiveTokenSelection(null);
     };
 
-   
+
 
 
 
@@ -498,22 +544,22 @@ function SwapInterfaceContent() {
 
             // Create new array with existing tokens
             const newTokens = [...currentTokens];
-            
+
             // Add only the new unique tokens
-            newUniqueTokens.forEach((token, idx) => {
+            newUniqueTokens.forEach((token) => {
                 if (newTokens.length < 4) {
                     newTokens.push(token as TokenSymbol);
                 }
             });
 
             console.log('>>> final tokens array:', newTokens);
-            
+
             // Update allocation values based on number of actual tokens
             const actualTokenCount = newTokens.filter(token => token !== '').length;
             const newAllocationValues = allocationType === 'percentage'
                 ? Array(actualTokenCount).fill((100 / actualTokenCount).toFixed(0))
                 : Array(actualTokenCount).fill('1');
-            
+
             setSelectedOutputTokens(newTokens);
             setAllocationValues(newAllocationValues);
             setSelectedTemplate(newAllocationValues.join(':'));
@@ -521,21 +567,21 @@ function SwapInterfaceContent() {
         }
         closeTokenPopup();
     };
-    
+
     const getAllocationForIndex = useCallback((index: number) => {
         // Convert allocation values to numbers
         const numericValues = allocationValues.map(v => parseFloat(v) || 0);
-        
+
         // Calculate total for percentage normalization
         const total = numericValues.reduce((sum, val) => sum + val, 0);
-        
+
         if (total === 0) return 0;
 
         // If using percentages, ensure they sum to 100
         if (allocationType === 'percentage') {
             return numericValues[index] || 0;
         }
-        
+
         // If using ratios, convert to percentage
         return (numericValues[index] / total) * 100;
     }, [allocationValues, allocationType]);
@@ -551,24 +597,24 @@ function SwapInterfaceContent() {
 
         // Calculate output amounts based on allocation ratio
         const newToAmounts: Record<TokenSymbol, string> = {};
-        
+
         selectedOutputTokens.forEach((outputToken, index) => {
             if (!outputToken) return;
             const outputCoinId = TOKENS[outputToken]?.coingeckoId || '';
             const outputPrice = tokenPriceData[outputCoinId]?.price_usd || 0;
-            
+
             if (outputPrice === 0) return;
 
             // Calculate the portion of input value allocated to this output token
             const allocation = getAllocationForIndex(index);
             const outputValueUSD = inputValueUSD * (allocation / 100);
-            
+
             // Convert USD value to token amount
             const outputAmount = outputValueUSD / outputPrice;
-            
+
             // Apply swap fee (e.g., 0.3%)
             const outputAmountAfterFee = outputAmount * 0.997;
-            
+
             newToAmounts[outputToken] = outputAmountAfterFee.toString();
         });
 
@@ -578,7 +624,7 @@ function SwapInterfaceContent() {
     // Modify the handleAddToken function to automatically open the token selection popup when adding a new token slot
     const handleAddToken = useCallback(() => {
         const currentTokenCount = selectedOutputTokens.filter(token => token !== '').length;
-        
+
         if (currentTokenCount >= 4) {
             toast.warning("Maximum 4 tokens allowed");
             return;
@@ -586,7 +632,7 @@ function SwapInterfaceContent() {
 
         // Find the next empty slot
         const nextEmptyIndex = selectedOutputTokens.findIndex(token => token === '');
-        
+
         // Open token selection popup with the correct index
         openTokenPopup('output', nextEmptyIndex >= 0 ? nextEmptyIndex : currentTokenCount);
     }, [selectedOutputTokens, openTokenPopup]);
@@ -616,51 +662,51 @@ function SwapInterfaceContent() {
         recalculateSliders();
     }, [selectedOutputTokens, toAmounts, recalculateSliders]);
     // First, separate the price fetching useEffect
-useEffect(() => {
-    console.log("Setting up price fetching intervals");
-    if(dogeMarketCap === 0){
-        getDogeCoinMarketCap();
-    }
-    // Initial fetch
-    fetchMultiplePriceData();
-
-    // Set up retry interval for failed tokens (every 10 seconds)
-    retryIntervalRef.current = setInterval(() => {
-        if (failedTokens.size > 0) {
-            console.log("Retrying failed tokens:", Array.from(failedTokens));
-            fetchMultiplePriceData(Array.from(failedTokens));
+    useEffect(() => {
+        console.log("Setting up price fetching intervals");
+        if (dogeMarketCap === 0) {
+            getDogeCoinMarketCap();
         }
-    }, 10000);
-
-    // Set up regular update interval (every 10 minutes)
-    updateIntervalRef.current = setInterval(() => {
-        console.log("Regular price update");
+        // Initial fetch
         fetchMultiplePriceData();
-    }, 600000);
 
-    // Cleanup
-    return () => {
-        if (retryIntervalRef.current) {
-            clearInterval(retryIntervalRef.current);
-            retryIntervalRef.current = undefined;
-        }
-        if (updateIntervalRef.current) {
-            clearInterval(updateIntervalRef.current);
-            updateIntervalRef.current = undefined;
-        }
-    };
-}, []);
+        // Set up retry interval for failed tokens (every 10 seconds)
+        retryIntervalRef.current = setInterval(() => {
+            if (failedTokens.size > 0) {
+                console.log("Retrying failed tokens:", Array.from(failedTokens));
+                fetchMultiplePriceData(Array.from(failedTokens));
+            }
+        }, 10000);
+
+        // Set up regular update interval (every 10 minutes)
+        updateIntervalRef.current = setInterval(() => {
+            console.log("Regular price update");
+            fetchMultiplePriceData();
+        }, 600000);
+
+        // Cleanup
+        return () => {
+            if (retryIntervalRef.current) {
+                clearInterval(retryIntervalRef.current);
+                retryIntervalRef.current = undefined;
+            }
+            if (updateIntervalRef.current) {
+                clearInterval(updateIntervalRef.current);
+                updateIntervalRef.current = undefined;
+            }
+        };
+    }, []);
 
     // Modify the existing useEffect to handle new token additions
     useEffect(() => {
         const updateEffects = async () => {
             // Only proceed if still mounted and on swap page
-             // Check only the base path
-             if (!mounted.current) {
+            // Check only the base path
+            if (!mounted.current) {
                 console.log("4a. Not mounted, returning");
                 return;
             }
-    
+
             if (!location.pathname.startsWith('/swap')) {
                 console.log("4b. Not on swap page, returning");
                 return;
@@ -775,7 +821,7 @@ useEffect(() => {
         console.log("1. Mount effect starting, current value:", mounted.current);
         mounted.current = true;
         console.log("2. Set mounted to true:", mounted.current);
-    
+
         return () => {
             console.log("Cleanup: Setting mounted to false");
             mounted.current = false;
@@ -811,7 +857,7 @@ useEffect(() => {
     };
     // Handle from amount change
     const handleFromAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const balance = parseFloat(tokenBalances[selectedToken]);
+        const balance = parseFloat(tokenBalances[selectedToken as string] || '0');
         const amountToSell = parseFloat(e.target.value);
 
         if (!isNaN(amountToSell) && amountToSell > balance) {
@@ -830,13 +876,13 @@ useEffect(() => {
 
     const handleAllocationTypeChange = (value: 'ratio' | 'percentage') => {
         setAllocationType(value);
-        
+
         let newValues: string[];
         if (value === 'ratio') {
             // Convert percentages to ratio
             const percentages = allocationValues.map(v => parseFloat(v) || 0);
             const total = percentages.reduce((sum, v) => sum + v, 0);
-            
+
             if (total === 0) {
                 // Handle edge case where all values are 0
                 newValues = Array(percentages.length).fill('1');
@@ -858,7 +904,7 @@ useEffect(() => {
             // Convert ratio to percentages
             const ratios = allocationValues.map(v => parseFloat(v) || 1);
             const total = ratios.reduce((sum, v) => sum + v, 0);
-            
+
             newValues = ratios.map(v => {
                 const percentage = (v / total) * 100;
                 return percentage.toFixed(2);
@@ -872,7 +918,7 @@ useEffect(() => {
 
         // Update allocation values while preserving tokens
         setAllocationValues(newValues);
-        
+
         // Only reset output tokens if there are none selected
         if (selectedOutputTokens.length === 0 || (selectedOutputTokens.length === 1 && selectedOutputTokens[0] === '')) {
             setSelectedOutputTokens(['']);
@@ -895,7 +941,7 @@ useEffect(() => {
 
             // Check if the new values match any template
             const newTemplate = newValues.join(':');
-            const templates = allocationType === 'ratio' 
+            const templates = allocationType === 'ratio'
                 ? ['1', '1:1', '1:2', '1:1:2', '1:2:2', '1:1:1:1']
                 : ['100', '50:50', '33.33:33.33:33.33', '25:25:25:25', '40:30:30', '50:25:25'];
 
@@ -912,7 +958,7 @@ useEffect(() => {
             // Convert values to numbers and handle invalid inputs
             const values = allocationValues.map(v => parseFloat(v) || 0);
             const total = values.reduce((sum, v) => sum + v, 0);
-            
+
             // If total is 0, return all zeros
             if (total === 0) {
                 return values.map(() => '0.00%').join(' : ');
@@ -920,10 +966,10 @@ useEffect(() => {
 
             // Calculate percentages with extra precision
             let percentages = values.map(v => (v / total) * 100);
-            
+
             // Round to 2 decimal places
             percentages = percentages.map(v => Math.round(v * 100) / 100);
-            
+
             // Adjust last value to ensure total is exactly 100%
             const currentTotal = percentages.reduce((sum, v) => sum + v, 0);
             if (currentTotal !== 100 && percentages.length > 0) {
@@ -939,7 +985,7 @@ useEffect(() => {
     // Calculate percentages for the allocation values
     const allocationPercentages = calculateAllocationPercentages(allocationValues);
 
-    
+
     // Move simulateQuote inside component
     const simulateQuote = useCallback(async () => {
         if (!fromAmount || !selectedToken || selectedOutputTokens.length === 0) {
@@ -961,17 +1007,17 @@ useEffect(() => {
         try {
             const inputAmount = ethers.parseUnits(fromAmount, TOKENS[selectedToken].decimals);
             const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
-            let quoteResult: bigint[];
+            let quoteResult:  readonly bigint[];
             // Prepare path and amounts based on selected tokens
             const path = [TOKENS["WETH"].address, ...selectedOutputTokens.map(token => TOKENS[token].address)];
 
             if (selectedToken === "ETH" || selectedToken === "WETH") {
                 // Directly use the sell amounts for ETH/WETH
-                const sellAmounts = selectedOutputTokens.map((token, index) => {
-                    const allocation = getAllocationForIndex(index) / 100;
+                const sellAmounts = selectedOutputTokens.map((index) => {
+                    const allocation = getAllocationForIndex(index as number) / 100;
                     return ethers.parseUnits((parseFloat(fromAmount) * allocation).toString(), TOKENS[selectedToken].decimals);
                 });
-            
+
                 // Construct parameters for quote
                 const quoteParams = {
                     sellAmounts: [inputAmount, ...sellAmounts],
@@ -979,7 +1025,7 @@ useEffect(() => {
                     path: path as `0x${string}`[],
                     deadline
                 };
-            
+
                 // Get quote for ETH/WETH
                 quoteResult = await quoteTokenForMultiTokens(quoteParams);
             } else {
@@ -990,28 +1036,28 @@ useEffect(() => {
                 // If the selected input token is not ETH/WETH, use the other quoter
                 const netWethQuote = await altQuoteExactInputSingle(
                     TOKENS[selectedToken].address as `0x${string}`,
-                     [path[0]] as `0x${string}`[],
-                     inputAmount
+                    [path[0]] as `0x${string}`[],
+                    inputAmount
                 );
                 console.log('>>> intermediate weth == ', netWethQuote); // Log the intermediate WETH quote
-            
+
                 // Calculate sell amounts based on netWethQuote
-                const sellAmounts = selectedOutputTokens.map((token, index) => {
+                const sellAmounts = selectedOutputTokens.map((token) => {
                     const allocation = sliderValues[token] / 100;
                     return (netWethQuote * BigInt(allocation * 10000)) / BigInt(10000); // Allocate from netWethQuote
                 });
-            
+
                 // Update swapParams with the calculated sell amounts
                 // swapParams.sellAmounts = [netWethQuote, ...sellAmounts];
                 const quoteParams = {
-                    sellToken:  TOKENS[selectedToken].address as `0x${string}`,
+                    sellToken: TOKENS[selectedToken].address as `0x${string}`,
                     sellAmount: inputAmount,
                     sellAmounts: [netWethQuote, ...sellAmounts],
                     minAmounts: selectedOutputTokens.map(() => ethers.parseUnits("1", 0)),
                     path: path as `0x${string}`[],
                     deadline
                 };
-            
+
                 // Get quote for ERC20 tokens
                 quoteResult = await quoteERC20ForMultiTokens(quoteParams);
                 console.log('>>> intermediate USD quote == ', quoteResult);
@@ -1030,14 +1076,14 @@ useEffect(() => {
 
                 // Get input token price
                 const inputCoinId = TOKENS[selectedToken].coingeckoId;
-                const inputPrice = inputCoinId && tokenPriceData[inputCoinId] 
-                    ? tokenPriceData[inputCoinId].price_usd 
+                const inputPrice = inputCoinId && tokenPriceData[inputCoinId]
+                    ? tokenPriceData[inputCoinId].price_usd
                     : 0;
 
                 // Get output token price
                 const outputCoinId = TOKENS[token].coingeckoId;
-                const outputPrice = outputCoinId && tokenPriceData[outputCoinId] 
-                    ? tokenPriceData[outputCoinId].price_usd 
+                const outputPrice = outputCoinId && tokenPriceData[outputCoinId]
+                    ? tokenPriceData[outputCoinId].price_usd
                     : 0;
 
                 // Calculate allocated input amount based on percentage
@@ -1133,7 +1179,7 @@ useEffect(() => {
                                     <ChevronDown className="h-4 w-4" />
                                 </button>
                                 <span className="text-xs text-gray-400 mt-1">
-                                    Balance: {parseFloat(tokenBalances[selectedToken]).toFixed(4)} {selectedToken}
+                                    Balance: {parseFloat(tokenBalances[selectedToken as string] || '0').toFixed(4)} {selectedToken}
                                 </span>
                             </div>
                         </div>
@@ -1155,8 +1201,8 @@ useEffect(() => {
                                     <div className="flex-grow">
                                         <input
                                             type="number"
-                                            value={selectedOutputTokens[index] ? 
-                                                simulatedOutputs[selectedOutputTokens[index]]?.amount || "0" : 
+                                            value={selectedOutputTokens[index] ?
+                                                simulatedOutputs[selectedOutputTokens[index]]?.amount || "0" :
                                                 "0"}
                                             readOnly
                                             className="bg-transparent border-none text-left w-full focus:outline-none focus:ring-0 text-lg"
@@ -1176,11 +1222,10 @@ useEffect(() => {
                                                 )}
                                             </span>
                                             {selectedOutputTokens[index] && simulatedOutputs[selectedOutputTokens[index]]?.priceImpact && (
-                                                <span className={`text-xs ${
-                                                    parseFloat(simulatedOutputs[selectedOutputTokens[index]]?.priceImpact || '0') > 5 
-                                                        ? 'text-red-400' 
+                                                <span className={`text-xs ${parseFloat(simulatedOutputs[selectedOutputTokens[index]]?.priceImpact || '0') > 5
+                                                        ? 'text-red-400'
                                                         : 'text-green-400'
-                                                }`}>
+                                                    }`}>
                                                     {/* // TODO FIX Price Impact// Price Impact: {simulatedOutputs[selectedOutputTokens[index]]?.priceImpact}  */}
                                                 </span>
                                             )}
@@ -1219,7 +1264,7 @@ useEffect(() => {
                                 </div>
                                 {selectedOutputTokens[index] && selectedOutputTokens[index] !== '' && (
                                     <div className="text-xs text-gray-400 mt-1 text-right">
-                                        Doge ratio: {calculateDogeRatio(selectedOutputTokens[index], tokenPriceData, dogeMarketCap)}x Balance: {parseFloat(tokenBalances[selectedOutputTokens[index]]).toFixed(2)}
+                                        Doge ratio: {calculateDogeRatio(selectedOutputTokens[index], tokenPriceData, dogeMarketCap)}x Balance: {parseFloat(tokenBalances[selectedOutputTokens[index] as string] || '0').toFixed(2)}
                                     </div>
                                 )}
                             </div>
@@ -1249,12 +1294,12 @@ useEffect(() => {
                     {!isConnected
                         ? "Connect Wallet"
                         : !isBalanceSufficient
-                        ? `Insufficient ${selectedToken}`
-                        : needsApproval
-                        ? "Approve"
-                        : isSwapping
-                        ? "Swapping..."
-                        : "Swap"}
+                            ? `Insufficient ${selectedToken}`
+                            : needsApproval
+                                ? "Approve"
+                                : isSwapping
+                                    ? "Swapping..."
+                                    : "Swap"}
                 </Button>
             </div>
 
@@ -1300,8 +1345,8 @@ useEffect(() => {
                                                 key={template}
                                                 onClick={() => handleTemplateChange(template)}
                                                 className={`px-2.5 py-0.5 text-xs rounded-full transition-all duration-200 whitespace-nowrap ${selectedTemplate === template
-                                                        ? 'bg-blue-600 text-white ring-2 ring-blue-400 ring-opacity-50'
-                                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+                                                    ? 'bg-blue-600 text-white ring-2 ring-blue-400 ring-opacity-50'
+                                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
                                                     }`}
                                             >
                                                 {template}
@@ -1315,8 +1360,8 @@ useEffect(() => {
                                                 key={template}
                                                 onClick={() => handleTemplateChange(template)}
                                                 className={`px-2.5 py-0.5 text-xs rounded-full transition-all duration-200 whitespace-nowrap ${selectedTemplate === template
-                                                        ? 'bg-blue-600 text-white ring-2 ring-blue-400 ring-opacity-50'
-                                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+                                                    ? 'bg-blue-600 text-white ring-2 ring-blue-400 ring-opacity-50'
+                                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
                                                     }`}
                                             >
                                                 {template}
@@ -1358,7 +1403,7 @@ useEffect(() => {
                     </button>
 
                     {/* Percentage Bar for Token Allocations */}
-                    { selectedOutputTokens.length > 0 && selectedOutputTokens[0] !== '' && (
+                    {selectedOutputTokens.length > 0 && selectedOutputTokens[0] !== '' && (
                         <div className="mt-4">
                             <div className="text-sm text-gray-400">Token Allocations</div>
                             <div className="relative w-full h-4 bg-gray-700 rounded">

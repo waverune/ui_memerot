@@ -118,13 +118,11 @@ engine.velocityIterations = 8;
         let lastTime = Common.now();
 
         Events.on(engine, 'afterUpdate', function(event) {
-            const timeScale = (event.delta || (1000 / 60)) / 1000;
-
             // engine.timing.timeScale += (timeScaleTarget - engine.timing.timeScale) * 12 * timeScale;
 
             if (Common.now() - lastTime >= 2000) {
                 timeScaleTarget = timeScaleTarget < 1 ? 1 : 0;
-                explosion(engine, event.delta);
+                explosion(engine, event.timestamp);
                 lastTime = Common.now();
             }
         });

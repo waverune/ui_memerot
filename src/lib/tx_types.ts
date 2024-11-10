@@ -5,27 +5,29 @@
 
 
 // Base transaction interface that all types share
-interface BaseTransactionParam {
+export type BaseTransactionParam = {
+    sellAmounts: bigint[];
     minAmounts: bigint[];
     path: `0x${string}`[];
     deadline: number;
 }
 
 
-export interface swapEthForMultiTokensParam extends BaseTransactionParam {
+export type swapEthForMultiTokensParam = BaseTransactionParam & {
     etherValue: bigint;
-    sellAmounts: bigint[];
-}
+};
 
-export interface swapTokenForMultiTokensParam extends BaseTransactionParam {
-    sellAmounts: bigint[];
-}
+export type swapTokenForMultiTokensParam = BaseTransactionParam
 
-export interface swapUSDForMultiTokensParam extends BaseTransactionParam {
+export type swapUSDForMultiTokensParam = BaseTransactionParam & {
     sellToken: `0x${string}`;
     sellAmount: bigint;
-    sellAmounts: bigint[];
-}
+};
+// Unified type for all swap parameters
+export type UnifiedSwapParams = {
+    type: 'ETH' | 'WETH' | 'ERC20';
+    params: swapEthForMultiTokensParam | swapTokenForMultiTokensParam | swapUSDForMultiTokensParam;
+};
 
 // Transaction options interface
 export interface TxOptions {
