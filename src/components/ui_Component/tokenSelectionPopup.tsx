@@ -1,6 +1,6 @@
 import { X, Search } from "lucide-react";
-import { useMemo, useState, memo } from "react";
-import { TokenSymbol } from "../../config/tokens";
+import { useMemo, useState, memo, useEffect, useCallback } from "react";
+import { TokenSymbol } from "../../utils/Modal";
 import {TokenSelectionPopupProps} from "../../utils/Modal";
 import { toast } from "react-toastify";
 
@@ -17,18 +17,89 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
   disabledTokens,
   tokenPriceData,
   maxSelections = 4,
-  selectedOutputTokens = []
-}) => {
+  selectedOutputTokens = [],
+  allowMultiSelect = false
+}: TokenSelectionPopupProps) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [selectedTokens, setSelectedTokens] = useState<Set<string>>(new Set());
+  const [newSelections, setNewSelections] = useState<Set<string>>(new Set());
+
+  // Reset selections when popup opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('Resetting new selections');
+      setNewSelections(new Set());
+      setSearchTerm("");
+    }
+  }, [isOpen]);
+
+  const currentOutputTokens = useMemo(() => 
+    selectedOutputTokens.filter(token => token !== ''),
+    [selectedOutputTokens]
+  );
+
+  // Helper function to check if a token is selected
+  const isTokenSelected = useCallback((symbol: string) => {
+    return currentOutputTokens.includes(symbol) || newSelections.has(symbol);
+  }, [currentOutputTokens, newSelections]);
+
+  const handleTokenClick = useCallback((symbol: string) => {
+    if (allowMultiSelect) {
+      const isAlreadySelected = currentOutputTokens.includes(symbol);
+      const isNewlySelected = newSelections.has(symbol);
+
+      if (isAlreadySelected) {
+        toast.warning(`${symbol} is already in your output tokens`, {
+          toastId: `already-selected-${symbol}`,
+        });
+        return;
+      }
+
+      setNewSelections(prev => {
+        const updated = new Set(prev);
+        if (isNewlySelected) {
+          updated.delete(symbol);
+        } else if (updated.size >= (maxSelections - currentOutputTokens.length)) {
+          toast.warning(`Maximum ${maxSelections - currentOutputTokens.length} more token${maxSelections - currentOutputTokens.length === 1 ? '' : 's'} can be selected`, {
+            toastId: `Maximum-Slots-Used-${symbol}`,
+          });
+        } else {
+          updated.add(symbol);
+        }
+        return updated;
+      });
+    } else {
+      onSelect([symbol]);
+      onClose();
+    }
+  }, [currentOutputTokens, maxSelections, allowMultiSelect, onSelect, onClose]);
+
+  const handleConfirmSelection = useCallback(() => {
+    const updatedTokens = [...currentOutputTokens];
+    Array.from(newSelections).forEach(token => {
+      if (updatedTokens.length < maxSelections) {
+        updatedTokens.push(token);
+      }
+    });
+    
+    onSelect(updatedTokens);
+    setNewSelections(new Set());
+    onClose();
+  }, [currentOutputTokens, newSelections, maxSelections, onSelect, onClose]);
 
   const filteredTokens = useMemo(() => {
-    return Object.entries(tokens).filter(([symbol, config]) =>
-      !disabledTokens.includes(symbol) &&
-      (symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        config.name?.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  }, [tokens, searchTerm, disabledTokens]);
+    return Object.entries(tokens).filter(([symbol, config]) => {
+      const matchesSearch = symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        config.name?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      if (allowMultiSelect) {
+        // For buy section: disable tokens that are already selected in sell section
+        return matchesSearch && !disabledTokens.includes(symbol);
+      } else {
+        // For sell section: don't disable tokens that are selected in buy section
+        return matchesSearch && !selectedOutputTokens.includes(symbol);
+      }
+    });
+  }, [tokens, searchTerm, disabledTokens, allowMultiSelect, selectedOutputTokens]);
 
   const getTokenPrice = (symbol: TokenSymbol) => {
     const coinId = tokens[symbol]?.coingeckoId;
@@ -56,43 +127,13 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
     return parseFloat(balances[symbol] || "0");
   };
 
-  // Calculate remaining slots
-  const currentTokenCount = selectedOutputTokens.filter(t => t !== '').length;
-  const remainingSlots = maxSelections - currentTokenCount;
-
-  const handleTokenClick = (symbol: string) => {
-    setSelectedTokens(prev => {
-      const newSelection = new Set(prev);
-      if (newSelection.has(symbol)) {
-        newSelection.delete(symbol);
-      } else if (newSelection.size >= remainingSlots) {
-        toast.warning(`Maximum ${remainingSlots} more token${remainingSlots === 1 ? '' : 's'} can be selected`, {
-          toastId: `Maxiumum-Slots-Used-${symbol}`,
-        });
-      } else if (disabledTokens.includes(symbol)) {
-        toast.warning(`${symbol} cannot be selected`);
-      } else {
-        const isAlreadySelected = selectedOutputTokens?.includes(symbol);
-        if (!isAlreadySelected) {
-          newSelection.add(symbol);
-        } else {
-          toast.warning(`${symbol} is already selected in your output tokens`, {
-            toastId: `duplicate-token-${symbol}`,
-          });
-        }
-      }
-      return newSelection;
-    });
-  };
-
-  const handleConfirmSelection = () => {
-    const selectedArray = Array.from(selectedTokens);
-    if (selectedArray.length > 0) {
-      onSelect(selectedArray);
-      setSelectedTokens(new Set());
-      onClose();
-    }
-  };
+  // Add cleanup when component unmounts
+  useEffect(() => {
+    return () => {
+      setNewSelections(new Set());
+      setSearchTerm("");
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -103,8 +144,8 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
           <div className="flex flex-col">
             <h2 className="text-xl font-bold">Select tokens</h2>
             <span className="text-sm text-gray-400">
-              {remainingSlots > 0 
-                ? `Select up to ${remainingSlots} more token${remainingSlots === 1 ? '' : 's'}`
+              {maxSelections - currentOutputTokens.length > 0 
+                ? `Select up to ${maxSelections - currentOutputTokens.length} more token${maxSelections - currentOutputTokens.length === 1 ? '' : 's'}`
                 : 'Maximum tokens selected'}
             </span>
           </div>
@@ -129,7 +170,7 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
                 <button
                   key={symbol}
                   className={`bg-gray-800 rounded-full px-3 py-1 text-sm ${
-                    selectedTokens.has(symbol) ? 'ring-2 ring-blue-500' : ''
+                    newSelections.has(symbol) ? 'ring-2 ring-blue-500' : ''
                   }`}
                   onClick={() => handleTokenClick(symbol)}
                   disabled={disabledTokens.includes(symbol)}
@@ -147,7 +188,7 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
                   <button
                     key={symbol}
                     className={`flex items-center justify-between w-full px-3 py-2 hover:bg-gray-800 rounded-lg ${
-                      selectedTokens.has(symbol) ? 'bg-gray-800 ring-2 ring-blue-500' : ''
+                      isTokenSelected(symbol) ? 'bg-gray-800 ring-2 ring-blue-500' : ''
                     }`}
                     onClick={() => handleTokenClick(symbol)}
                     disabled={disabledTokens.includes(symbol)}
@@ -187,16 +228,16 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
             </div>
           </div>
         </div>
-        {selectedTokens.size > 0 && (
+        {allowMultiSelect && newSelections.size > 0 && (
           <div className="p-4 border-t border-gray-800 bg-gray-900">
             <div className="text-sm text-gray-400 mb-2">
-              Selected: {Array.from(selectedTokens).join(', ')}
+              New selections: {Array.from(newSelections).join(', ')}
             </div>
             <button
               onClick={handleConfirmSelection}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded transition-colors duration-200"
             >
-              Confirm Selection ({selectedTokens.size}/{remainingSlots})
+              Confirm Selection ({currentOutputTokens.length + newSelections.size}/{maxSelections})
             </button>
           </div>
         )}

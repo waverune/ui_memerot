@@ -485,22 +485,29 @@ function SwapInterfaceContent() {
 
 
     const handleTokenSelect = (tokens: string[]) => {
+        console.log('>>> tokens received:', tokens);
         if (activeTokenSelection?.type === 'from') {
             setSelectedToken(tokens[0] as TokenSymbol);
         } else if (activeTokenSelection?.type === 'output') {
-            // Get the index where we want to add the token
-            const insertIndex = activeTokenSelection.index ?? selectedOutputTokens.length;
+            const currentTokens = selectedOutputTokens.filter(token => token !== '');
+            console.log('>>> current tokens:', currentTokens);
+
+            // Filter out tokens that are already selected
+            const newUniqueTokens = tokens.filter(token => !currentTokens.includes(token));
+            console.log('>>> new unique tokens:', newUniqueTokens);
+
+            // Create new array with existing tokens
+            const newTokens = [...currentTokens];
             
-            // Create a new array with existing tokens
-            const newTokens = [...selectedOutputTokens];
-            
-            // Insert the new token at the specified index
-            tokens.forEach((token, idx) => {
-                if (insertIndex + idx < 4) {
-                    newTokens[insertIndex + idx] = token as TokenSymbol;
+            // Add only the new unique tokens
+            newUniqueTokens.forEach((token, idx) => {
+                if (newTokens.length < 4) {
+                    newTokens.push(token as TokenSymbol);
                 }
             });
 
+            console.log('>>> final tokens array:', newTokens);
+            
             // Update allocation values based on number of actual tokens
             const actualTokenCount = newTokens.filter(token => token !== '').length;
             const newAllocationValues = allocationType === 'percentage'
@@ -510,8 +517,6 @@ function SwapInterfaceContent() {
             setSelectedOutputTokens(newTokens);
             setAllocationValues(newAllocationValues);
             setSelectedTemplate(newAllocationValues.join(':'));
-
-            // Update disabled tokens
             updateDisabledTokens(newTokens);
         }
         closeTokenPopup();
@@ -1398,6 +1403,7 @@ useEffect(() => {
                 disabledTokens={disabledTokens as string[]}
                 tokenPriceData={tokenPriceData}
                 selectedOutputTokens={selectedOutputTokens as string[]}
+                allowMultiSelect={activeTokenSelection?.type === 'output'}
             />
         </div>
     );
