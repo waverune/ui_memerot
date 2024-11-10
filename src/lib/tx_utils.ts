@@ -145,8 +145,6 @@ export async function performHardcodedSwap(
   wethAddress: string,
   spxAddress: string,
   mogAddress: string,
-  spx6900Amount: string,
-  mogAmount: string,
   signer: ethers.Signer
 ): Promise<ethers.TransactionResponse> {
   const contract = new ethers.Contract(swapContractAddress, [

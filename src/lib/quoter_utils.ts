@@ -1,4 +1,4 @@
-import { TxOptions, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from './tx_types';
+import { swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from './tx_types';
 
 // viem work
 // TODO: import types for tx and use for quoting
@@ -19,7 +19,7 @@ import { TxOptions, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, sw
 //     }
 // }
 
-import { createPublicClient, http, parseAbi, defineChain, Chain } from 'viem'
+import { createPublicClient, http, defineChain, Chain } from 'viem'
 import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
 // import { BuildBearChain } from '../components/swap-interface'
 // Define your custom chain
@@ -43,8 +43,6 @@ export const BuildBearChain = {
             url: "https://explorer.buildbear.io/global-thanos-495faead",
         },
     },
-    iconUrl: "https://example.com/avax-icon.png",
-    iconBackground: "#fff",
 } as const satisfies Chain;
 
 // Create the Public Client

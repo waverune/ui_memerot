@@ -43,7 +43,6 @@ export async function fetchUniswapV2Pair(
 export function getExecutionPrice(
     pair: Pair,
     inputToken: Token,
-    outputToken: Token,
     inputAmount: string,
     slippageTolerance: number
 ) {
