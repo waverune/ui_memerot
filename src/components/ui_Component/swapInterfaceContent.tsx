@@ -341,7 +341,6 @@ function SwapInterfaceContent() {
             if (approved) {
                 setNeedsApproval(false);
                 showToast(`${selectedToken} approved for swapping`, "success");
-                await checkApproval(); // Re-check approval status after successful approval
             } else {
                 showToast("Approval failed. Please try again.", "error");
             }
@@ -350,7 +349,6 @@ function SwapInterfaceContent() {
             showToast("Approval failed. Please try again.", "error");
         } finally {
             setIsApproving(false);
-            checkApproval(); // Re-check approval status after the process
         }
     };
 
@@ -370,21 +368,6 @@ function SwapInterfaceContent() {
             const signer = await getSigner();
             if (!signer) throw new Error("Signer not available");
             if (!fromAmount || isNaN(parseFloat(fromAmount))) throw new Error("Invalid input amount");
-
-            // Check for approval if the input token is not ETH
-            if (selectedToken !== "ETH") {
-                const isApproved = await checkAndApproveToken(
-                    TOKENS[selectedToken].address,
-                    swapContractAddress,
-                    fromAmount,
-                    TOKENS[selectedToken].decimals,
-                    signer
-                );
-                console.log("isApproved", isApproved);
-                if (!isApproved) {
-                    throw new Error("Token approval failed or was rejected");
-                }
-            }
 
             const inputAmount = ethers.parseUnits(fromAmount, TOKENS[selectedToken].decimals);
             const activeOutputTokens = selectedOutputTokens.filter(token => token !== "");
