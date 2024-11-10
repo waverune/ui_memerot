@@ -25,7 +25,6 @@ export async function multicallTokenBalances(
   // Get the current chain ID
   const network = await provider.getNetwork();
   const chainId = Number(network.chainId);
-  
   // Get the correct multicall address for this network
   const multicallAddress = MULTICALL_ADDRESSES[chainId];
   if (!multicallAddress) {
@@ -35,10 +34,12 @@ export async function multicallTokenBalances(
   const balanceInterface = new ethers.Interface(BALANCE_OF_ABI);
 
   // Prepare calls array
-  const calls = tokens.map(token => ({
-    target: token.address as string,
-    callData: balanceInterface.encodeFunctionData('balanceOf', [userAddress])
-  }));
+  const calls = tokens
+    .filter(token => token.address !== "0x0000000000000000000000000000000000000000")
+    .map(token => ({
+      target: token.address as string,
+      callData: balanceInterface.encodeFunctionData('balanceOf', [userAddress])
+    }));
 
   try {
     // Make multicall
