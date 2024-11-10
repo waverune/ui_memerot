@@ -6,13 +6,13 @@ import { useAccount, useBalance, usePublicClient, useWalletClient } from "wagmi"
 import TokenSelectionPopup from "./tokenSelectionPopup";
 import { Button } from "../ui/button";
 import { useToast } from "../../hooks/useToast";
-import { TOKENS, TokenSymbol } from "../../config/tokens";
-import { getTokenBalance, checkAndApproveToken, performSwap } from "../../lib/tx_utils";
+import { TOKENS } from "../../config/tokens";
+import { multicallTokenBalances,checkAndApproveToken, performSwap } from "../../lib/tx_utils";
 import { toast } from "react-toastify";
 import { fetchCoinData } from "../../services/coinApi";
 import { swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
 import { quoteExactInputSingle, quoteTokenForMultiTokens, quoteERC20ForMultiTokens, altQuoteExactInputSingle } from '../../lib/quoter_utils'; // Adjust the path as necessary
-import { SimulatedOutput, MOCK_BALANCES,CoinPriceData, TokenSelectionType, Token, DEFAULT_PRICE_DATA, TOKEN_COLORS, TokenConfig } from "../../utils/Modal";
+import { SimulatedOutput, MOCK_BALANCES,CoinPriceData, TokenSelectionType, Token, DEFAULT_PRICE_DATA, TOKEN_COLORS, TokenConfig, TokenSymbol, TokenBalances } from "../../utils/Modal";
 import { getUsdValue, calculateDogeRatio } from '../../utils/helpers/tokenHelper';
 import { isValidPriceData, calculatePriceImpact } from '../../utils/helpers/priceHelper';
 import { calculateAllocationPercentages, gcd } from '../../utils/helpers/allocationHelper';
@@ -33,7 +33,7 @@ function SwapInterfaceContent() {
     const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
     const [activeTokenSelection, setActiveTokenSelection] = useState<TokenSelectionType>(null);
     const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
-    const [tokenBalances, setTokenBalances] = useState<Record<Token, string>>(MOCK_BALANCES);
+    const [tokenBalances, setTokenBalances] = useState<TokenBalances>(MOCK_BALANCES);
     const [dogeMarketCap, setDogeMarketCap] = useState(0);
     const [isBalanceSufficient, setIsBalanceSufficient] = useState(true);
     const [debouncedAllocationRatio, ] = useState("");
@@ -174,27 +174,42 @@ function SwapInterfaceContent() {
                 const provider = getProvider();
                 const newBalances: Partial<Record<Token, string>> = {};
 
-                for (const [symbol, config] of Object.entries(TOKENS)) {
-                    if (symbol !== 'ETH') {
-                        try {
-                            const balance = await getTokenBalance(config.address, address, provider);
-                            newBalances[symbol as Token] = ethers.formatUnits(balance, config.decimals);
-                        } catch (error) {
-                            console.error(`Error fetching balance for ${symbol}:`, error);
-                            newBalances[symbol as Token] = '0'; // Set balance to 0 if there's an error
-                        }
-                    }
-                }
+                // Prepare tokens array for multicall
+                const tokensToFetch = Object.entries(TOKENS)
+                    .filter(([symbol]) => symbol !== 'ETH')
+                    .map(([symbol, config]) => ({
+                        address: config.address,
+                        decimals: config.decimals,
+                        symbol
+                    }));
+
+                // Fetch all balances in a single multicall
+                const balanceResults = await multicallTokenBalances(tokensToFetch, address, provider);
+                console.log("balanceResults", balanceResults);
+                // Process results
+                tokensToFetch.forEach(({ symbol, address }) => {
+                    newBalances[symbol as Token] = balanceResults[address] || '0';
+                });
 
                 setTokenBalances(prev => ({
                     ...prev,
-                    ...Object.fromEntries(
-                        Object.entries(newBalances).map(([key, value]) => [key, value ?? '0'])
-                    ),
+                    ...newBalances,
                 }));
+
             } catch (error) {
                 console.error("Error fetching token balances:", error);
-                toast.error("Failed to fetch some token balances. Please try again or check your network connection.");
+                toast.error("Failed to fetch token balances. Please try again.");
+                
+                // Set all balances to 0 in case of error
+                const zeroBalances = Object.fromEntries(
+                    Object.keys(TOKENS)
+                        .filter(symbol => symbol !== 'ETH')
+                        .map(symbol => [symbol, '0'])
+                );
+                setTokenBalances(prev => ({
+                    ...prev,
+                    ...zeroBalances
+                }));
             }
         }
     }, [address, getProvider]);
@@ -652,13 +667,24 @@ useEffect(() => {
     useEffect(() => {
         const updateEffects = async () => {
             // Only proceed if still mounted and on swap page
-            if (!mounted.current || location.pathname !== '/swap') {
+             // Check only the base path
+             if (!mounted.current) {
+                console.log("4a. Not mounted, returning");
                 return;
             }
+    
+            if (!location.pathname.startsWith('/swap')) {
+                console.log("4b. Not on swap page, returning");
+                return;
+            }
+            console.log("5. Proceeding with effects...");
 
             try {
                 // Effect 1: Fetch balances and update token balances
+                console.log("isConnected", isConnected);
+                console.log("address", address);
                 if (isConnected && address) {
+                    console.log("fetching balances");
                     await fetchBalances();
                     await refetchEthBalance();
                 } else {
@@ -758,15 +784,13 @@ useEffect(() => {
 
     // Add cleanup in a separate useEffect
     useEffect(() => {
+        console.log("1. Mount effect starting, current value:", mounted.current);
+        mounted.current = true;
+        console.log("2. Set mounted to true:", mounted.current);
+    
         return () => {
+            console.log("Cleanup: Setting mounted to false");
             mounted.current = false;
-            // Clear any pending updates
-            if (retryIntervalRef.current) {
-                clearInterval(retryIntervalRef.current);
-            }
-            if (updateIntervalRef.current) {
-                clearInterval(updateIntervalRef.current);
-            }
         };
     }, []);
 

@@ -1,13 +1,62 @@
 import { ethers } from 'ethers';
 import { ERC20_ABI, SWAP_ABI } from './contracts';
 import { TxOptions, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from './tx_types';
-
+import { MULTICALL_ADDRESSES } from './contracts';
 // Default transaction options
 const defaultTxOptions: TxOptions = {
   gasLimit: 8000000, // Reasonable gas limit for most swaps
   // maxFeePerGas: ethers.parseUnits('50', 'gwei'), // Maximum fee willing to pay
   // maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei'), // Tip for miners
 };
+// Interface for Multicall
+const MULTICALL_ABI = [
+  'function aggregate(tuple(address target, bytes callData)[] calls) view returns (uint256 blockNumber, bytes[] returnData)'
+];
+
+// ERC20 balanceOf function signature
+const BALANCE_OF_ABI = ['function balanceOf(address) view returns (uint256)'];
+
+
+export async function multicallTokenBalances(
+  tokens: { address: string; decimals: number }[],
+  userAddress: string,
+  provider: ethers.Provider
+) {
+  // Get the current chain ID
+  const network = await provider.getNetwork();
+  const chainId = Number(network.chainId);
+  
+  // Get the correct multicall address for this network
+  const multicallAddress = MULTICALL_ADDRESSES[chainId];
+  if (!multicallAddress) {
+    throw new Error(`Multicall not supported on chain ID ${chainId}`);
+  }
+  const multicall = new ethers.Contract(multicallAddress, MULTICALL_ABI, provider);
+  const balanceInterface = new ethers.Interface(BALANCE_OF_ABI);
+
+  // Prepare calls array
+  const calls = tokens.map(token => ({
+    target: token.address as string,
+    callData: balanceInterface.encodeFunctionData('balanceOf', [userAddress])
+  }));
+
+  try {
+    // Make multicall
+    const [, returnData] = await multicall.aggregate(calls);
+
+    // Process results
+    return tokens.reduce((acc, token, index) => {
+      const balance = ethers.formatUnits(
+        balanceInterface.decodeFunctionResult('balanceOf', returnData[index])[0],
+        token.decimals
+      );
+      return { ...acc, [token.address]: balance };
+    }, {} as Record<string, string>);
+  } catch (error) {
+    console.error('Multicall failed:', error);
+    throw error;
+  }
+}
 
 //get token balance of user
 export async function getTokenBalance(

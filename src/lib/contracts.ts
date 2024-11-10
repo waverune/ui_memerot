@@ -16,6 +16,13 @@ export const ERC20_ABI = [
   'event Approval(address indexed owner, address indexed spender, uint256 value)'
 ] as const;
 
+export const MULTICALL_ADDRESSES: Record<number, string> = {
+  1: '0xcA11bde05977b3631167028862bE2a173976CA11', // Ethereum Mainnet
+  56: '0xcA11bde05977b3631167028862bE2a173976CA11', // BSC
+  137: '0xcA11bde05977b3631167028862bE2a173976CA11', // Polygon
+  21598:'0xbe5442b465A6BF98ba30b449087Ee821eb1eE3cC' 
+  // Add other networks as needed
+};
 // Mock Swap Contract Interface
 export const SWAP_ABI = [
   'function swapWithPermit(uint256 sellAmount, uint256 minBuyAmount, uint256 deadline, address[] path, uint8 v, bytes32 r, bytes32 s) returns (uint256)',

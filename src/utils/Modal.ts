@@ -1,4 +1,4 @@
-import { TokenSymbol } from "../config/tokens";
+import { TOKENS } from "../config/tokens";
 
 // Represents the mock balance data structure for testing and development
 // Maps each token symbol to its balance as a string
@@ -37,9 +37,12 @@ export type CoinPriceData = {
     image: string;           // Token logo URL
 };
 
+export type TokenSymbol = keyof typeof TOKENS;
 // Type alias for TokenSymbol
 // Used throughout the application for type safety when referring to token symbols
 export type Token = TokenSymbol;
+
+export type TokenBalances = Partial<Record<TokenSymbol, string>>;
 
 // Default values for token price data
 // Used as fallback when price data is unavailable
