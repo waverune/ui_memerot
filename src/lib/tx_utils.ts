@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { ERC20_ABI, SWAP_ABI } from './contracts';
 import { TxOptions, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from './tx_types';
-
+import { MULTICALL_ADDRESSES } from './contracts';
 // Default transaction options
 const defaultTxOptions: TxOptions = {
   gasLimit: 8000000, // Reasonable gas limit for most swaps
@@ -16,14 +16,22 @@ const MULTICALL_ABI = [
 // ERC20 balanceOf function signature
 const BALANCE_OF_ABI = ['function balanceOf(address) view returns (uint256)'];
 
-export const MULTICALL_ADDRESS = '0xcA11bde05977b3631167028862bE2a173976CA11'; // Multicall3 contract address
 
 export async function multicallTokenBalances(
   tokens: { address: string; decimals: number }[],
   userAddress: string,
   provider: ethers.Provider
 ) {
-  const multicall = new ethers.Contract(MULTICALL_ADDRESS, MULTICALL_ABI, provider);
+  // Get the current chain ID
+  const network = await provider.getNetwork();
+  const chainId = Number(network.chainId);
+  
+  // Get the correct multicall address for this network
+  const multicallAddress = MULTICALL_ADDRESSES[chainId];
+  if (!multicallAddress) {
+    throw new Error(`Multicall not supported on chain ID ${chainId}`);
+  }
+  const multicall = new ethers.Contract(multicallAddress, MULTICALL_ABI, provider);
   const balanceInterface = new ethers.Interface(BALANCE_OF_ABI);
 
   // Prepare calls array
