@@ -8,6 +8,47 @@ const defaultTxOptions: TxOptions = {
   // maxFeePerGas: ethers.parseUnits('50', 'gwei'), // Maximum fee willing to pay
   // maxPriorityFeePerGas: ethers.parseUnits('2', 'gwei'), // Tip for miners
 };
+// Interface for Multicall
+const MULTICALL_ABI = [
+  'function aggregate(tuple(address target, bytes callData)[] calls) view returns (uint256 blockNumber, bytes[] returnData)'
+];
+
+// ERC20 balanceOf function signature
+const BALANCE_OF_ABI = ['function balanceOf(address) view returns (uint256)'];
+
+export const MULTICALL_ADDRESS = '0xcA11bde05977b3631167028862bE2a173976CA11'; // Multicall3 contract address
+
+export async function multicallTokenBalances(
+  tokens: { address: string; decimals: number }[],
+  userAddress: string,
+  provider: ethers.Provider
+) {
+  const multicall = new ethers.Contract(MULTICALL_ADDRESS, MULTICALL_ABI, provider);
+  const balanceInterface = new ethers.Interface(BALANCE_OF_ABI);
+
+  // Prepare calls array
+  const calls = tokens.map(token => ({
+    target: token.address as string,
+    callData: balanceInterface.encodeFunctionData('balanceOf', [userAddress])
+  }));
+
+  try {
+    // Make multicall
+    const [, returnData] = await multicall.aggregate(calls);
+
+    // Process results
+    return tokens.reduce((acc, token, index) => {
+      const balance = ethers.formatUnits(
+        balanceInterface.decodeFunctionResult('balanceOf', returnData[index])[0],
+        token.decimals
+      );
+      return { ...acc, [token.address]: balance };
+    }, {} as Record<string, string>);
+  } catch (error) {
+    console.error('Multicall failed:', error);
+    throw error;
+  }
+}
 
 //get token balance of user
 export async function getTokenBalance(

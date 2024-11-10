@@ -66,4 +66,4 @@ export const TOKENS: { [key: string]: TokenConfig } = {
     }
 };
 
-export type TokenSymbol = keyof typeof TOKENS;
+
