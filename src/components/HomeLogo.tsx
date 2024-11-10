@@ -1,17 +1,49 @@
 import Matter from "matter-js";
 import { useRef, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { debounce } from "lodash";
+import "./HomeLogo.css";
 
 const HomeLogo: React.FC = () => {
     const sceneRef = useRef<HTMLDivElement>(null);
     const engineRef = useRef(Matter.Engine.create());
     const [logos, setLogos] = useState<string[]>([]);
     const [isSpacebarPressed, setIsSpacebarPressed] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+    const maxBodies = isMobile ? 80 : 150; // Increased from 50/100
+    const bodiesRef = useRef<Matter.Body[]>([]);
 
     useEffect(() => {
         import('./logoList.ts').then(module => {
             setLogos(module.default);
         });
+    }, []);
+
+    // Add viewport resize handler
+    useEffect(() => {
+        const handleResize = debounce(() => {
+            const mobile = window.innerWidth <= 768;
+            setIsMobile(mobile);
+            
+            // Update render dimensions
+            if (engineRef.current && sceneRef.current) {
+                const render = Matter.Render.lookAt(Matter.Render.create({
+                    element: sceneRef.current,
+                    engine: engineRef.current,
+                    options: {
+                        width: window.innerWidth,
+                        height: window.innerHeight,
+                        wireframes: false,
+                        showAngleIndicator: false,
+                    }
+                }));
+                
+                Matter.Render.run(render);
+            }
+        }, 250);
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     // First useEffect for physics setup (runs once)
@@ -33,6 +65,10 @@ const HomeLogo: React.FC = () => {
         const engine = engineRef.current;
         const world = engine.world;
 
+        // Clear existing bodies
+        Matter.Composite.clear(world, false);
+        bodiesRef.current = [];
+
         // create renderer
         const render = Render.create({
             element: sceneRef.current!,
@@ -51,99 +87,46 @@ const HomeLogo: React.FC = () => {
         const runner = Runner.create();
         Runner.run(runner, engine);
 
-        // add bodies
-      // add bodies (invisible walls)
-Composite.add(world, [
-    // Top wall
-    Bodies.rectangle(window.innerWidth / 2, -10, window.innerWidth, 20, { 
-        isStatic: true,
-        render: { visible: false },
-        friction: 1,
-        restitution: 0.5,
-        slop: 0,
-        density: 1
-    }),
-    // Bottom wall
-    Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 10, window.innerWidth, 20, { 
-        isStatic: true,
-        render: { visible: false },
-        friction: 1,
-        restitution: 0.5,
-        slop: 0,
-        density: 1
-    }),
-    // Right wall
-    Bodies.rectangle(window.innerWidth + 10, window.innerHeight / 2, 20, window.innerHeight, { 
-        isStatic: true,
-        render: { visible: false },
-        friction: 1,
-        restitution: 0.5,
-        slop: 0,
-        density: 1
-    }),
-    // Left wall
-    Bodies.rectangle(-10, window.innerHeight / 2, 20, window.innerHeight, { 
-        isStatic: true,
-        render: { visible: false },
-        friction: 1,
-        restitution: 0.5,
-        slop: 0,
-        density: 1
-    })
-]);
-engine.world.gravity.y = 0.5;
-engine.constraintIterations = 6;
-engine.positionIterations = 8;
-engine.velocityIterations = 8;
-
-        const explosion = function(engine: Matter.Engine, delta: number) {
-            const timeScale = (1000 / 60) / delta;
-            const bodies = Composite.allBodies(engine.world);
-
-            for (let i = 0; i < bodies.length; i++) {
-                const body = bodies[i];
-
-                if (!body.isStatic && body.position.y >= 500) {
-                    const forceMagnitude = (0.02 * body.mass) * timeScale;
-
-                    Body.applyForce(body, body.position, {
-                        x: (forceMagnitude + Common.random() * forceMagnitude) * Common.choose([1, -1]), 
-                        y: -forceMagnitude + Common.random() * -forceMagnitude
-                    });
-                }
+        // Adjust initial stack parameters
+        const stackConfig = {
+            mobile: {
+                columns: 12,    // Increased from 8
+                rows: 5,        // Increased from 3
+                gapX: 25,      // Adjusted gap between columns
+                gapY: 35,      // Adjusted gap between rows
+                startX: window.innerWidth * 0.15, // Adjusted start position
+                startY: 50     // Adjusted start height
+            },
+            desktop: {
+                columns: 20,    // Increased from 15
+                rows: 7,        // Increased from 5
+                gapX: 30,
+                gapY: 40,
+                startX: window.innerWidth * 0.2,
+                startY: 50
             }
         };
 
-        let timeScaleTarget = 1;
-        let lastTime = Common.now();
-
-        Events.on(engine, 'afterUpdate', function(event) {
-            // engine.timing.timeScale += (timeScaleTarget - engine.timing.timeScale) * 12 * timeScale;
-
-            if (Common.now() - lastTime >= 2000) {
-                timeScaleTarget = timeScaleTarget < 1 ? 1 : 0;
-                explosion(engine, event.timestamp);
-                lastTime = Common.now();
-            }
-        });
-
-        const bodyOptions = {
-            frictionAir: 0.001  ,
-            friction: 0.2,
-            restitution: 0.5,
-            density: 0.001,
-            render: {
-                sprite: {
-                    texture: logos.length > 0 ? `/logos/${logos[Math.floor(Math.random() * logos.length)]}` : '',
-                    xScale: 0.5,
-                    yScale: 0.5
+        // Modified body creation with adjusted sizes
+        const createBody = (x: number, y: number) => {
+            if (bodiesRef.current.length >= maxBodies) {
+                const oldestBody = bodiesRef.current.shift();
+                if (oldestBody) {
+                    Matter.Composite.remove(world, oldestBody);
                 }
             }
-        };
-        
-        Composite.add(world, Composites.stack(window.innerWidth/4, 100, 20, 5   , 20, 40, function(x: number, y: number ) {
-            const scale = Common.random(0.4, 0.8);
-            return Bodies.circle(x, y, Common.random(10, 20), {
+
+            // Adjusted scale ranges for better visibility
+            const scale = isMobile ? 
+                Common.random(0.35, 0.65) : // Mobile scale
+                Common.random(0.45, 0.85);  // Desktop scale
+
+            // Adjusted radius ranges
+            const radius = isMobile ? 
+                Common.random(8, 16) :     // Mobile size
+                Common.random(12, 20);     // Desktop size
+
+            const newBody = Bodies.circle(x, y, radius, {
                 ...bodyOptions,
                 render: {
                     sprite: {
@@ -153,58 +136,114 @@ engine.velocityIterations = 8;
                     }
                 }
             });
-        }));
 
-        Composite.add(world, Composites.stack(50, 50, 12, 4, 0, 0, function(x: number, y: number ) {
-            switch (Math.round(Common.random(0, 1))) {
-                case 0:
-                    if (Common.random() < 0.8) {
-                        return Bodies.rectangle(x, y, Common.random(20, 50), Common.random(20, 50), {
-                            ...bodyOptions,
-                            render:{
-                                sprite:{
-                                    texture: logos.length > 0 ? `/logos/${logos[Math.floor(Math.random() * logos.length)]}` : '',
-                                    xScale: 0.5,
-                                    yScale: 0.5
-                                }
-                            }
-                        });
-                    } else {
-                        return Bodies.rectangle(x, y, Common.random(80, 120), Common.random(20, 30), {
-                            ...bodyOptions,
-                            render:{
-                                sprite:{
-                                    texture: logos.length > 0 ? `/logos/${logos[Math.floor(Math.random() * logos.length)]}` : '',
-                                    xScale: 0.5,
-                                    yScale: 0.5 
-                                }
-                            }
-                        });
-                    }
-                case 1:
-                    return Bodies.polygon(x, y, Math.round(Common.random(4, 8)), Common.random(20, 50), {
-                        ...bodyOptions,
-                        render:{
-                            sprite:{
-                                texture: logos.length > 0 ? `/logos/${logos[Math.floor(Math.random() * logos.length)]}` : '',
-                                xScale: 0.5,
-                                yScale: 0.5
-                            }
-                        }
-                    });
-                default:
-                    return Bodies.circle(x, y, Common.random(10, 20), {
-                        ...bodyOptions,
-                        render:{
-                            sprite:{
-                                texture: logos.length > 0 ? `/logos/${logos[Math.floor(Math.random() * logos.length)]}` : '',
-                                xScale: 0.5,
-                                yScale: 0.5
-                            }
-                        }
-                    });
+            bodiesRef.current.push(newBody);
+            return newBody;
+        };
+
+        // Adjusted body options for better physics
+        const bodyOptions = {
+            frictionAir: 0.001 * (isMobile ? 1.2 : 1),
+            friction: 0.15,      // Reduced friction
+            restitution: 0.6,    // Increased bounce
+            density: 0.001 * (isMobile ? 1.1 : 1),
+            render: {
+                sprite: {
+                    xScale: 0.5 * (isMobile ? 0.8 : 1),
+                    yScale: 0.5 * (isMobile ? 0.8 : 1)
+                }
             }
-        }));
+        };
+
+        // add bodies (invisible walls)
+        Composite.add(world, [
+            // Top wall
+            Bodies.rectangle(window.innerWidth / 2, -10, window.innerWidth, 20, { 
+                isStatic: true,
+                render: { visible: false },
+                friction: 1,
+                restitution: 0.5,
+                slop: 0,
+                density: 1
+            }),
+            // Bottom wall
+            Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 10, window.innerWidth, 20, { 
+                isStatic: true,
+                render: { visible: false },
+                friction: 1,
+                restitution: 0.5,
+                slop: 0,
+                density: 1
+            }),
+            // Right wall
+            Bodies.rectangle(window.innerWidth + 10, window.innerHeight / 2, 20, window.innerHeight, { 
+                isStatic: true,
+                render: { visible: false },
+                friction: 1,
+                restitution: 0.5,
+                slop: 0,
+                density: 1
+            }),
+            // Left wall
+            Bodies.rectangle(-10, window.innerHeight / 2, 20, window.innerHeight, { 
+                isStatic: true,
+                render: { visible: false },
+                friction: 1,
+                restitution: 0.5,
+                slop: 0,
+                density: 1
+            })
+        ]);
+
+        // Modified stack creation with new parameters
+        const config = isMobile ? stackConfig.mobile : stackConfig.desktop;
+        
+        Composite.add(world, Composites.stack(
+            config.startX,
+            config.startY,
+            config.columns,
+            config.rows,
+            config.gapX,
+            config.gapY,
+            createBody
+        ));
+
+        // Adjusted physics engine parameters
+        engine.world.gravity.y = 0.3 * (isMobile ? 0.8 : 1); // Reduced gravity
+        engine.constraintIterations = 4;
+        engine.positionIterations = 6;
+        engine.velocityIterations = 4;
+
+        // Modified explosion parameters
+        const explosion = function(engine: Matter.Engine, delta: number) {
+            const timeScale = (1000 / 60) / delta;
+            const bodies = Composite.allBodies(engine.world)
+                .filter(body => !body.isStatic)
+                .slice(0, maxBodies);
+
+            bodies.forEach(body => {
+                if (body.position.y >= 500) {
+                    // Adjusted force for smoother movement
+                    const forceMagnitude = (0.015 * body.mass) * timeScale;
+
+                    Body.applyForce(body, body.position, {
+                        x: (forceMagnitude + Common.random() * forceMagnitude) * Common.choose([1, -1]), 
+                        y: -forceMagnitude + Common.random() * -forceMagnitude
+                    });
+                }
+            });
+        };
+
+        let timeScaleTarget = 1;
+        let lastTime = Common.now();
+
+        Events.on(engine, 'afterUpdate', function(event) {
+            if (Common.now() - lastTime >= 2000) {
+                timeScaleTarget = timeScaleTarget < 1 ? 1 : 0;
+                explosion(engine, event.delta);
+                lastTime = Common.now();
+            }
+        });
 
         // add mouse control
         const mouse = Mouse.create(render.canvas);
@@ -273,11 +312,36 @@ engine.velocityIterations = 8;
         window.addEventListener('keyup', handleKeyUp);
         window.addEventListener('blur', handleBlur);
 
+        // Add touch events support
+        const touchHandler = (event: TouchEvent) => {
+            const bodies = Composite.allBodies(world);
+            const force = isMobile ? 0.02 : 0.03;
+            const touch = event.touches[0];
+            
+            bodies.forEach(body => {
+                if (!body.isStatic) {
+                    const dx = touch.clientX - body.position.x;
+                    const dy = touch.clientY - body.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 100) {
+                        Body.applyForce(body, body.position, {
+                            x: (dx / distance) * force,
+                            y: (dy / distance) * force
+                        });
+                    }
+                }
+            });
+        };
+
+        window.addEventListener('touchmove', touchHandler, { passive: true });
+        
         // Cleanup function
         return () => {
             window.removeEventListener('keydown', handleKeyPress);
             window.removeEventListener('keyup', handleKeyUp);
             window.removeEventListener('blur', handleBlur);
+            window.removeEventListener('touchmove', touchHandler);
             Matter.Render.stop(render);
             Matter.Runner.stop(runner);
             Matter.Engine.clear(engine);
@@ -286,7 +350,7 @@ engine.velocityIterations = 8;
                 render.canvas.remove();
             }
         };
-    }, [logos]); // Remove isSpacebarPressed from dependencies
+    }, [logos, isMobile, maxBodies]); // Remove isSpacebarPressed from dependencies
 
     // Second useEffect for handling spacebar state
     useEffect(() => {
@@ -338,25 +402,47 @@ engine.velocityIterations = 8;
             style={{ 
                 width: '100vw',
                 height: '100vh',
-                position: 'absolute',
+                position: 'fixed',
                 top: 0,
-                left: 0
+                left: 0,
+                overflow: 'hidden',
+                background: 'linear-gradient(to right, #0f172a, #1e3a8a)',
+                isolation: 'isolate'
             }}
         >
-            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center z-10 w-full max-w-4xl px-4">
-                <h1 className="text-8xl font-extrabold mb-12 tracking-widest leading-tight" style={{ fontFamily: "'Roboto Mono', monospace" }}>
+            {/* Canvas container */}
+            <div 
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    zIndex: 1
+                }}
+            />
+            
+            {/* Content overlay */}
+            <div 
+                className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center z-10 w-full max-w-4xl px-4"
+                style={{ 
+                    pointerEvents: 'none',
+                    background: 'transparent'
+                }}
+            >
+                <h1 className={`${isMobile ? 'text-5xl' : 'text-8xl'} font-extrabold mb-12 tracking-widest leading-tight`}>
                     <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-white">
                         MemeR0t
                     </span>
                 </h1>
-                <p className="text-white mb-12 text-lg max-w-2xl mx-auto">
+                <p className={`text-white mb-12 ${isMobile ? 'text-base' : 'text-lg'} max-w-2xl mx-auto`}>
                 User-friendly multi-swap router built for easy token diversification. With just one click, you can convert assets like Ethereum into a custom mix of tokens—like a 50:50 split between SPX and HPOS. Our platform offers a simple way to manage risk and diversify portfolios through customizable, shareable token presets.
                 <br />
                 <br />
                 Our goal is to help you reduce risk, avoid impulsive investments, and grow smarter with your assets. Share your allocations and contribute to a network where diversification happens naturally.
                 </p>
-                <Link to="/swap">
-                    <button className="px-8 py-4 text-xl bg-pink-600 bg-opacity-80 text-white rounded-full cursor-pointer transition-all duration-300 ease-in-out hover:bg-pink-700 hover:bg-opacity-100 hover:shadow-lg hover:shadow-pink-600/50 w-64 text-center">
+                <Link to="/swap" style={{ pointerEvents: 'auto' }}>
+                    <button className={`px-8 py-4 ${isMobile ? 'text-lg' : 'text-xl'} bg-pink-600 bg-opacity-80 text-white rounded-full hover:bg-opacity-100 transition-all`}>
                         Go to Swap Page
                     </button>
                 </Link>

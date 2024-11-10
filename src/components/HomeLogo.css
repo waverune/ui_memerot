@@ -54,3 +54,63 @@
                 0 0 30px rgba(255, 105, 180, 0.4);
     transform: translate(-50%, -52%);
 }
+
+/* General styling */
+.home-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* Further adjustments for very small screens */
+@media (max-width: 480px) {
+  .home-logo {
+    flex-direction: column;
+    text-align: center;
+  }
+  .logo-title {
+    font-size: 1rem;
+  }
+}
+/* Main container adjustments */
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Logo styling for mobile */
+#logo {
+  font-size: 24px;
+  text-align: center;
+  margin-top: 20px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  #logo {
+      font-size: 18px;
+      margin-top: 10px;
+  }
+
+  .description {
+      font-size: 14px;
+      padding: 10px;
+      text-align: center;
+  }
+
+  .token-icons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+  }
+
+  .action-button {
+      font-size: 16px;
+      padding: 12px;
+      width: 90%;
+      margin: 0 auto;
+  }
+}
+
