@@ -10,16 +10,16 @@ import { TOKENS } from "../../config/tokens";
 import { multicallTokenBalances, checkAndApproveToken, performSwap } from "../../lib/tx_utils";
 import { toast } from "react-toastify";
 import { fetchCoinData } from "../../services/coinApi";
-import { BaseTransactionParam, UnifiedSwapParams,swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
+import { BaseTransactionParam, UnifiedSwapParams, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
 import { quoteTokenForMultiTokens, quoteERC20ForMultiTokens, altQuoteExactInputSingle } from '../../lib/quoter_utils'; // Adjust the path as necessary
 import { SimulatedOutput, MOCK_BALANCES, CoinPriceData, TokenSelectionType, Token, DEFAULT_PRICE_DATA, TOKEN_COLORS, TokenConfig, TokenSymbol, TokenBalances } from "../../utils/Modal";
 import { getUsdValue, calculateDogeRatio } from '../../utils/helpers/tokenHelper';
 import { isValidPriceData, calculatePriceImpact } from '../../utils/helpers/priceHelper';
 import { calculateAllocationPercentages, gcd } from '../../utils/helpers/allocationHelper';
 
-const SLIPPAGE_TOLERANCE = 0.01;
+const SLIPPAGE_TOLERANCE = 0.80;
 //Function to construct sellAmounts based on allocation values, ensure Amount of WETH shoule be parsed
-const sellAmountsConstruct = (selectedOutputTokens: TokenSymbol[], allocationValues: string[],Amount: bigint) =>{
+const sellAmountsConstruct = (selectedOutputTokens: TokenSymbol[], allocationValues: string[], Amount: bigint) => {
     const sellAmounts = selectedOutputTokens.map((token, index) => {
         console.log('Token:', token);
         console.log('Index:', index);
@@ -48,7 +48,7 @@ const constructSwapParams = async (
     allocationValues: string[],
     isQuote: boolean,
     quoteResult?: readonly bigint[],
-): Promise< swapUSDForMultiTokensParam | swapEthForMultiTokensParam | swapTokenForMultiTokensParam> => {
+): Promise<swapUSDForMultiTokensParam | swapEthForMultiTokensParam | swapTokenForMultiTokensParam> => {
     if (!fromAmount || isNaN(parseFloat(fromAmount))) {
         throw new Error("Invalid input amount");
     }
@@ -58,17 +58,18 @@ const constructSwapParams = async (
     const path = [TOKENS["WETH"].address, ...activeOutputTokens.map(token => TOKENS[token].address)];
 
     // Calculate sellAmounts based on allocations
-    const sellAmounts = sellAmountsConstruct(activeOutputTokens, allocationValues, inputAmount);
+    
 
     // Set minAmounts based on whether this is for quote or swap
     const minAmounts = isQuote
         ? activeOutputTokens.map(() => ethers.parseUnits("1", 0))
-        : quoteResult!.map(amount => 
+        : quoteResult!.map(amount =>
             (amount * BigInt(Math.floor((1 - SLIPPAGE_TOLERANCE) * 10000))) / BigInt(10000)
-          );
+        );
 
     // Return appropriate params based on token type
     if (selectedToken === "ETH" || selectedToken === "WETH") {
+        const sellAmounts = sellAmountsConstruct(activeOutputTokens, allocationValues, inputAmount);
         const baseParams = {
             sellAmounts: [inputAmount, ...sellAmounts as bigint[]],
             minAmounts,
@@ -78,46 +79,24 @@ const constructSwapParams = async (
         };
 
         return baseParams as (swapEthForMultiTokensParam | swapTokenForMultiTokensParam);
-    }  else {
-        if (!netWethQuote && !isQuote) {
-            throw new Error("netWethQuote is required for ERC20 swap params");
-        }
+    } else {
         const netWethQuote = await altQuoteExactInputSingle(
             TOKENS[selectedToken].address as `0x${string}`,
             [path[0]] as `0x${string}`[],
             inputAmount
         );
+        const sellAmounts = sellAmountsConstruct(activeOutputTokens, allocationValues, netWethQuote);
 
         return {
-                sellToken: TOKENS[selectedToken].address as `0x${string}`,
-                sellAmount: inputAmount,
-                sellAmounts: [netWethQuote!, ...sellAmounts],
-                minAmounts,
-                path: path as `0x${string}`[],
-                deadline
-            } as swapUSDForMultiTokensParam
-        };
+            sellToken: TOKENS[selectedToken].address as `0x${string}`,
+            sellAmount: inputAmount,
+            sellAmounts: [netWethQuote!, ...sellAmounts],
+            minAmounts,
+            path: path as `0x${string}`[],
+            deadline
+        } as swapUSDForMultiTokensParam
     };
-const getSwapQuote = async (params: UnifiedSwapParams): Promise<readonly bigint[]> => {
-    console.log('>>> params OF GET SWAP QUOTE', params);
-    if (params.type === 'ETH' || params.type === 'WETH') {
-        const quoteParams: BaseTransactionParam | swapEthForMultiTokensParam = {
-            ...params.params,
-            ...(params.type === 'ETH' && { 
-                etherValue: (params.params as swapEthForMultiTokensParam).etherValue 
-            })
-        };
-        let k =  await quoteTokenForMultiTokens(quoteParams);
-        console.log('>> checking        k', k);
-        return k;
-    } else {
-        const erc20Params = params.params as swapUSDForMultiTokensParam;
-        let k = await quoteERC20ForMultiTokens(erc20Params);
-        console.log('>> checking        k', k);
-        return k;
-    }
 };
-
 
 function SwapInterfaceContent() {
     const { showToast } = useToast();
@@ -131,7 +110,7 @@ function SwapInterfaceContent() {
         SPX6900: "0",
         MOG: "0",
     });
-    const [temp,setTemp] = useState<swapUSDForMultiTokensParam>({});
+    const [quoteResult, setQuoteResult] = useState<readonly bigint[]>([]);
     const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
     const [activeTokenSelection, setActiveTokenSelection] = useState<TokenSelectionType>(null);
     const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
@@ -459,65 +438,23 @@ function SwapInterfaceContent() {
             showToast("Please connect your wallet to perform a swap.", "error");
             return;
         }
-
         if (needsApproval) {
             showToast("Please approve the token before swapping.", "error");
             return;
         }
-
+        const paramForSwap = await constructSwapParams(selectedToken, fromAmount, selectedOutputTokens, allocationValues, false, quoteResult);
         setIsSwapping(true);
         try {
             const signer = await getSigner();
             if (!signer) throw new Error("Signer not available");
             if (!fromAmount || isNaN(parseFloat(fromAmount))) throw new Error("Invalid input amount");
-            const activeOutputTokens = selectedOutputTokens.filter(token => token !== "");
-            // 1. First get quote params
-            const quoteParams = await constructSwapParams(
-                selectedToken,
-                fromAmount,
-                activeOutputTokens,
-                sliderValues,
-                true  // isQuote = true
-            );
-
-            // 2. Get netWethQuote for ERC20 tokens
-            let netWethQuote: bigint | undefined;
-            if (selectedToken !== "ETH" && selectedToken !== "WETH") {
-                const inputAmount = ethers.parseUnits(fromAmount, TOKENS[selectedToken].decimals);
-                netWethQuote = await altQuoteExactInputSingle(
-                    TOKENS[selectedToken].address as `0x${string}`,
-                    [TOKENS["WETH"].address] as `0x${string}`[],
-                    inputAmount
-                );
-                console.log('Intermediate WETH quote:', netWethQuote);
-            }
-
-            // 3. Get quote result
-            // const quoteResult = await getSwapQuote(quoteParams);
-            // console.log("Quote result:", quoteResult);
-
-            // 4. Construct final swap params with quote results
-            // const swapParams = await constructSwapParams(
-            //     selectedToken,
-            //     fromAmount,
-            //     activeOutputTokens,
-            //     sliderValues,
-            //     false,  // isQuote = false
-            //     quoteResult,
-            //     netWethQuote
-            // );
-
-            // console.log("Final swap parameters:", swapParams);
-            console.log(temp)
-            // 5. Execute the swap
-            console.log('>>asdas       asdasdasd     temp', temp);
+            console.log('>> paramForSwap', paramForSwap);
             const swapTx = await performSwap(
                 swapContractAddress,
                 selectedToken as string,
-                temp,
-                signer
+                paramForSwap,
+                signer,
             );
-
             const receipt = await swapTx.wait();
             if (receipt && receipt.status === 1) {
                 showToast("Swap completed successfully!", "success");
@@ -958,7 +895,6 @@ function SwapInterfaceContent() {
                     return prev;
                 }
             }
-
             // Check if the new values match any template
             const newTemplate = newValues.join(':');
             const templates = allocationType === 'ratio'
@@ -1013,7 +949,7 @@ function SwapInterfaceContent() {
         }
 
         // Set loading state for all output tokens
-        
+
 
         try {
             let quoteResult;
@@ -1024,15 +960,15 @@ function SwapInterfaceContent() {
                 quoteResult = await quoteTokenForMultiTokens(quoteParams);
             } else {
 
-
-                // Calculate sell amounts based on netWethQuote
-                const quoteParams = await constructSwapParams(selectedToken, fromAmount, selectedOutputTokens, allocationValues, false);
+                const quoteParams = await constructSwapParams(selectedToken, fromAmount, selectedOutputTokens, allocationValues, true);
                 console.log('>> quoteParams', quoteParams);
 
                 // Get quote for ERC20 tokens
                 quoteResult = await quoteERC20ForMultiTokens(quoteParams as swapUSDForMultiTokensParam);
                 console.log('>>> intermediate USD quote == ', quoteResult);
             }
+            setQuoteResult(quoteResult);
+            console.log('>> quoteResult', quoteResult);
             // Process quote results
             const newSimulatedOutputs: Record<TokenSymbol, SimulatedOutput> = {};
             selectedOutputTokens.forEach((token, index) => {
@@ -1192,8 +1128,8 @@ function SwapInterfaceContent() {
                                             </span>
                                             {selectedOutputTokens[index] && simulatedOutputs[selectedOutputTokens[index]]?.priceImpact && (
                                                 <span className={`text-xs ${parseFloat(simulatedOutputs[selectedOutputTokens[index]]?.priceImpact || '0') > 5
-                                                        ? 'text-red-400'
-                                                        : 'text-green-400'
+                                                    ? 'text-red-400'
+                                                    : 'text-green-400'
                                                     }`}>
                                                     {/* // TODO FIX Price Impact// Price Impact: {simulatedOutputs[selectedOutputTokens[index]]?.priceImpact}  */}
                                                 </span>
