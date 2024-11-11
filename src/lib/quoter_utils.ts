@@ -1,4 +1,4 @@
-import { swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from './tx_types';
+import { swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from './tx_types';
 
 // viem work
 // TODO: import types for tx and use for quoting
@@ -55,7 +55,7 @@ const quoterAddress = '0x1664A211D6C2414c88671a412065A15388EFEd5d' // Replace wi
 // Quoters returns array of token amounts in their respective decimals
 // for human readable amounts, divide by 10^decimals eg decimals: 18 for ETH, divide by 10^18, usdc: 6, divide by 10^6, spx&hpos: 8, divide by 10^8
 export async function quoteTokenForMultiTokens(
-    param: swapTokenForMultiTokensParam
+    param: swapTokenForMultiTokensParam | swapEthForMultiTokensParam
 ) {
     try {
 
