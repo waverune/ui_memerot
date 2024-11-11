@@ -86,6 +86,7 @@ const constructSwapParams = async (
     }
 };
 const getSwapQuote = async (params: UnifiedSwapParams): Promise<readonly bigint[]> => {
+    console.log('>>> params OF GET SWAP QUOTE', params);
     if (params.type === 'ETH' || params.type === 'WETH') {
         const quoteParams: BaseTransactionParam | swapEthForMultiTokensParam = {
             ...params.params,
@@ -93,10 +94,14 @@ const getSwapQuote = async (params: UnifiedSwapParams): Promise<readonly bigint[
                 etherValue: (params.params as swapEthForMultiTokensParam).etherValue 
             })
         };
-        return await quoteTokenForMultiTokens(quoteParams);
+        let k =  await quoteTokenForMultiTokens(quoteParams);
+        console.log('>> checking        k', k);
+        return k;
     } else {
         const erc20Params = params.params as swapUSDForMultiTokensParam;
-        return await quoteERC20ForMultiTokens(erc20Params);
+        let k = await quoteERC20ForMultiTokens(erc20Params);
+        console.log('>> checking        k', k);
+        return k;
     }
 };
 
@@ -113,6 +118,7 @@ function SwapInterfaceContent() {
         SPX6900: "0",
         MOG: "0",
     });
+    const [temp,setTemp] = useState<swapUSDForMultiTokensParam>({});
     const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
     const [activeTokenSelection, setActiveTokenSelection] = useState<TokenSelectionType>(null);
     const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
@@ -474,27 +480,28 @@ function SwapInterfaceContent() {
             }
 
             // 3. Get quote result
-            const quoteResult = await getSwapQuote(quoteParams);
-            console.log("Quote result:", quoteResult);
+            // const quoteResult = await getSwapQuote(quoteParams);
+            // console.log("Quote result:", quoteResult);
 
             // 4. Construct final swap params with quote results
-            const swapParams = await constructSwapParams(
-                selectedToken,
-                fromAmount,
-                activeOutputTokens,
-                sliderValues,
-                false,  // isQuote = false
-                quoteResult,
-                netWethQuote
-            );
+            // const swapParams = await constructSwapParams(
+            //     selectedToken,
+            //     fromAmount,
+            //     activeOutputTokens,
+            //     sliderValues,
+            //     false,  // isQuote = false
+            //     quoteResult,
+            //     netWethQuote
+            // );
 
-            console.log("Final swap parameters:", swapParams);
-
+            // console.log("Final swap parameters:", swapParams);
+            console.log(temp)
             // 5. Execute the swap
+            console.log('>>asdas       asdasdasd     temp', temp);
             const swapTx = await performSwap(
                 swapContractAddress,
                 selectedToken as string,
-                swapParams.params,
+                temp,
                 signer
             );
 
@@ -946,7 +953,7 @@ function SwapInterfaceContent() {
                 : ['100', '50:50', '33.33:33.33:33.33', '25:25:25:25', '40:30:30', '50:25:25'];
 
             setSelectedTemplate(templates.includes(newTemplate) ? newTemplate : '');
-
+            console.log('>> newValues', newValues);
             return newValues;
         });
     };
@@ -985,9 +992,12 @@ function SwapInterfaceContent() {
     // Calculate percentages for the allocation values
     const allocationPercentages = calculateAllocationPercentages(allocationValues);
 
+    const simulateQuote = useCallback(async () => {
+
+    }, []);
 
     // Move simulateQuote inside component
-    const simulateQuote = useCallback(async () => {
+    const simulateQuote2 = useCallback(async () => {
         if (!fromAmount || !selectedToken || selectedOutputTokens.length === 0) {
             setSimulatedOutputs({});
             return;
@@ -1013,8 +1023,11 @@ function SwapInterfaceContent() {
 
             if (selectedToken === "ETH" || selectedToken === "WETH") {
                 // Directly use the sell amounts for ETH/WETH
-                const sellAmounts = selectedOutputTokens.map((index) => {
-                    const allocation = getAllocationForIndex(index as number) / 100;
+                const sellAmounts = selectedOutputTokens.map((token,index) => {
+                   
+                    const allocation = sliderValues[index] / 100;
+                    // const allocation = getAllocationForIndex(index as number) / 100;
+                    console.log('>> allocation', allocation);
                     return ethers.parseUnits((parseFloat(fromAmount) * allocation).toString(), TOKENS[selectedToken].decimals);
                 });
 
@@ -1042,10 +1055,26 @@ function SwapInterfaceContent() {
                 console.log('>>> intermediate weth == ', netWethQuote); // Log the intermediate WETH quote
 
                 // Calculate sell amounts based on netWethQuote
-                const sellAmounts = selectedOutputTokens.map((token) => {
-                    const allocation = sliderValues[token] / 100;
-                    return (netWethQuote * BigInt(allocation * 10000)) / BigInt(10000); // Allocate from netWethQuote
+                const sellAmounts = selectedOutputTokens.map((token, index) => {
+                    console.log('Token:', token);
+                    console.log('Index:', index);
+                    console.log('Allocation Values:', allocationValues);
+
+                    // Convert allocation values to numbers and calculate total ratio
+                    const ratios = allocationValues.map(v => parseFloat(v) || 0);
+                    const totalRatio = ratios.reduce((sum, ratio) => sum + ratio, 0);
+
+                    // Calculate proportion for this token (e.g., for 1:2 ratio, first token gets 1/3, second gets 2/3)
+                    const proportion = ratios[index] / totalRatio;
+                    console.log('Proportion for token:', proportion);
+                    console.log('>> totalRatio', totalRatio);
+                    // Calculate this token's share of the netWethQuote
+                    const tokenShare = (netWethQuote * BigInt(Math.floor(proportion * 10000))) / BigInt(10000);
+                    console.log('Token share of WETH:', tokenShare.toString());
+                    console.log('>> tokenShare', tokenShare);
+                    return tokenShare;
                 });
+                console.log('>> sellAmounts', sellAmounts);
 
                 // Update swapParams with the calculated sell amounts
                 // swapParams.sellAmounts = [netWethQuote, ...sellAmounts];
@@ -1057,6 +1086,13 @@ function SwapInterfaceContent() {
                     path: path as `0x${string}`[],
                     deadline
                 };
+                const unifiedParams: UnifiedSwapParams = {
+                    type: 'ERC20', // or 'WETH' or 'ERC20' depending on your input token
+                    params: quoteParams as swapUSDForMultiTokensParam
+                };
+                getSwapQuote(unifiedParams);
+
+                console.log('>> quoteParams', quoteParams);
 
                 // Get quote for ERC20 tokens
                 quoteResult = await quoteERC20ForMultiTokens(quoteParams);
@@ -1135,8 +1171,9 @@ function SwapInterfaceContent() {
     useEffect(() => {
         if (fromAmount && selectedToken && selectedOutputTokens.length > 0 && selectedOutputTokens[0] !== '') {
             simulateQuote();
+            getSwapQuote(temp as swapEthForMultiTokensParam);
         }
-    }, [fromAmount, selectedToken, selectedOutputTokens, simulateQuote]);
+    }, [fromAmount, selectedToken, selectedOutputTokens]);
 
 
     return (
