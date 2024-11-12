@@ -110,6 +110,7 @@ function SwapInterfaceContent() {
         SPX6900: "0",
         MOG: "0",
     });
+    const [areFieldsValid, setAreFieldsValid] = useState(false);
     const [quoteResult, setQuoteResult] = useState<readonly bigint[]>([]);
     const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
     const [activeTokenSelection, setActiveTokenSelection] = useState<TokenSelectionType>(null);
@@ -122,7 +123,7 @@ function SwapInterfaceContent() {
     //     SPX6900: 50,
     //     MOG: 50,
     // });
-    const [isQuoteSucess, setIsQuoteSucess] = useState(false);
+    const [isQuoteSucess, setIsQuoteSucess] = useState(true);
     const [simulatedOutputs, setSimulatedOutputs] = useState<Record<TokenSymbol, SimulatedOutput>>({});
     const [allocationType, setAllocationType] = useState<'ratio' | 'percentage'>('ratio');
     const [allocationValues, setAllocationValues] = useState(['1']);
@@ -1026,7 +1027,12 @@ function SwapInterfaceContent() {
     // Add useEffect for simulation
     useEffect(() => {
         if (fromAmount && selectedToken && selectedOutputTokens.length > 0 && selectedOutputTokens[0] !== '') {
+            setAreFieldsValid(true);
             simulateQuote();
+        }
+        else
+        {
+            setAreFieldsValid(false);
         }
     }, [fromAmount, selectedToken, selectedOutputTokens, allocationValues]);
 
@@ -1181,7 +1187,7 @@ function SwapInterfaceContent() {
                 <Button
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
                     onClick={needsApproval ? handleApprove : handleSwap}
-                    disabled={!isConnected || isSwapping || (needsApproval && isApproving) || !isBalanceSufficient || !isQuoteSucess}
+                    disabled={!isConnected || !areFieldsValid || isSwapping || (needsApproval && isApproving) || !isBalanceSufficient || !isQuoteSucess}
                 >
                     {!isConnected
                         ? "Connect Wallet"
@@ -1189,11 +1195,11 @@ function SwapInterfaceContent() {
                             ? `Insufficient ${selectedToken}`
                             : needsApproval
                                 ? "Approve"
-                                : !isQuoteSucess 
-                                 ? "Quote failed, please retry"
-                                :isSwapping
+                                : isSwapping
                                     ? "Swapping..."
-                                    : "Swap"}
+                                    : !isQuoteSucess
+                                        ? "Quote failed, please retry"
+                                        : "Swap"}
                 </Button>
             </div>
 
