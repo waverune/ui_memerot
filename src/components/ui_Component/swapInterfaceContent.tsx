@@ -10,7 +10,7 @@ import { TOKENS } from "../../config/tokens";
 import { multicallTokenBalances, checkAndApproveToken, performSwap } from "../../lib/tx_utils";
 import { toast } from "react-toastify";
 import { fetchCoinData } from "../../services/coinApi";
-import { BaseTransactionParam, UnifiedSwapParams, swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
+import { swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMultiTokensParam } from "../../lib/tx_types";
 import { quoteTokenForMultiTokens, quoteERC20ForMultiTokens, altQuoteExactInputSingle } from '../../lib/quoter_utils'; // Adjust the path as necessary
 import { SimulatedOutput, MOCK_BALANCES, CoinPriceData, TokenSelectionType, Token, DEFAULT_PRICE_DATA, TOKEN_COLORS, TokenConfig, TokenSymbol, TokenBalances } from "../../utils/Modal";
 import { getUsdValue, calculateDogeRatio } from '../../utils/helpers/tokenHelper';
@@ -118,10 +118,11 @@ function SwapInterfaceContent() {
     const [dogeMarketCap, setDogeMarketCap] = useState(0);
     const [isBalanceSufficient, setIsBalanceSufficient] = useState(true);
     const [debouncedAllocationRatio,] = useState("");
-    const [sliderValues, setSliderValues] = useState<Record<TokenSymbol, number>>({
-        SPX6900: 50,
-        MOG: 50,
-    });
+    // const [sliderValues, setSliderValues] = useState<Record<TokenSymbol, number>>({
+    //     SPX6900: 50,
+    //     MOG: 50,
+    // });
+    const [isQuoteSucess, setIsQuoteSucess] = useState(false);
     const [simulatedOutputs, setSimulatedOutputs] = useState<Record<TokenSymbol, SimulatedOutput>>({});
     const [allocationType, setAllocationType] = useState<'ratio' | 'percentage'>('ratio');
     const [allocationValues, setAllocationValues] = useState(['1']);
@@ -304,18 +305,7 @@ function SwapInterfaceContent() {
         }
     }, [selectedToken, fromAmount, tokenBalances]);
 
-    const recalculateSliders = useCallback(() => {
-        const activeTokens = selectedOutputTokens.filter(token => token !== "");
-        if (activeTokens.length > 0) {
-            const newSliderValue = 100 / activeTokens.length;
-            const updatedSliderValues = Object.fromEntries(
-                activeTokens.map(token => [token, newSliderValue])
-            );
-            setSliderValues(updatedSliderValues);
-        } else {
-            setSliderValues({});
-        }
-    }, [selectedOutputTokens]);
+
     const updateDisabledTokens = useCallback((tokens: TokenSymbol[] = selectedOutputTokens) => {
         const disabled = [selectedToken, ...tokens].filter(token => token !== "");
         setDisabledTokens(disabled);
@@ -338,7 +328,6 @@ function SwapInterfaceContent() {
             }
 
             updateDisabledTokens(['']);
-            recalculateSliders();
             return;
         }
 
@@ -365,8 +354,7 @@ function SwapInterfaceContent() {
         }
 
         updateDisabledTokens(newSelectedOutputTokens);
-        recalculateSliders();
-    }, [selectedOutputTokens, toAmounts, allocationValues, allocationType, updateDisabledTokens, recalculateSliders]);
+    }, [selectedOutputTokens, toAmounts, allocationValues, allocationType, updateDisabledTokens]);
 
 
 
@@ -616,8 +604,7 @@ function SwapInterfaceContent() {
         );
         setToAmounts(newToAmounts);
 
-        recalculateSliders();
-    }, [selectedOutputTokens, toAmounts, recalculateSliders]);
+    }, [selectedOutputTokens, toAmounts]);
     // First, separate the price fetching useEffect
     useEffect(() => {
         console.log("Setting up price fetching intervals");
@@ -690,8 +677,6 @@ function SwapInterfaceContent() {
                     }));
                 }
 
-                // Effect 3: Recalculate sliders
-                recalculateSliders();
 
                 // Effect 4: Simulate swap
                 if (fromAmount && selectedToken && selectedOutputTokens.length > 0) {
@@ -1015,8 +1000,10 @@ function SwapInterfaceContent() {
             });
 
             setSimulatedOutputs(newSimulatedOutputs);
+            setIsQuoteSucess(true);
 
         } catch (error) {
+            setIsQuoteSucess(false);
             console.error('Quote simulation failed:', error);
             // Set error state for all output tokens
             setSimulatedOutputs(() => {
@@ -1041,7 +1028,7 @@ function SwapInterfaceContent() {
         if (fromAmount && selectedToken && selectedOutputTokens.length > 0 && selectedOutputTokens[0] !== '') {
             simulateQuote();
         }
-    }, [fromAmount, selectedToken, selectedOutputTokens]);
+    }, [fromAmount, selectedToken, selectedOutputTokens, allocationValues]);
 
 
     return (
@@ -1194,7 +1181,7 @@ function SwapInterfaceContent() {
                 <Button
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
                     onClick={needsApproval ? handleApprove : handleSwap}
-                    disabled={!isConnected || isSwapping || (needsApproval && isApproving) || !isBalanceSufficient}
+                    disabled={!isConnected || isSwapping || (needsApproval && isApproving) || !isBalanceSufficient || !isQuoteSucess}
                 >
                     {!isConnected
                         ? "Connect Wallet"
@@ -1202,7 +1189,9 @@ function SwapInterfaceContent() {
                             ? `Insufficient ${selectedToken}`
                             : needsApproval
                                 ? "Approve"
-                                : isSwapping
+                                : !isQuoteSucess 
+                                 ? "Quote failed, please retry"
+                                :isSwapping
                                     ? "Swapping..."
                                     : "Swap"}
                 </Button>
