@@ -1036,6 +1036,11 @@ function SwapInterfaceContent() {
         }
     }, [fromAmount, selectedToken, selectedOutputTokens, allocationValues]);
 
+    const OUTPUT_TOKENS = useMemo(() => {
+        return Object.fromEntries(
+            Object.entries(TOKENS).filter(([symbol]) => symbol !== 'ETH' && symbol !== 'WETH')
+        ) as Record<string, TokenConfig>;
+    }, []);
 
     return (
         <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8">
@@ -1343,7 +1348,7 @@ function SwapInterfaceContent() {
                 isOpen={isTokenPopupOpen}
                 onClose={closeTokenPopup}
                 onSelect={handleTokenSelect}
-                tokens={TOKENS as Record<string, TokenConfig>}
+                tokens={activeTokenSelection?.type === 'output' ? OUTPUT_TOKENS as Record<string, TokenConfig> : TOKENS as Record<string, TokenConfig>}
                 balances={tokenBalances}
                 disabledTokens={disabledTokens as string[]}
                 tokenPriceData={tokenPriceData}
