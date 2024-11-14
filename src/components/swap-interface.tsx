@@ -59,7 +59,7 @@ export function SwapInterface() {
                   className="text-4xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-white"
                   style={{ fontFamily: "'Roboto Mono', monospace" }}
                 >
-                  MemeR0t
+                  
                 </h1>
               </Link>
               <div className="mt-4 md:mt-0">

@@ -31,3 +31,4 @@ export const PresetCard = ({ title, creator, allocations, users }: PresetCardPro
     </div>
   );
 }; 
+export default PresetCard;
