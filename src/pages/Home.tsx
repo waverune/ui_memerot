@@ -1,6 +1,6 @@
 import { SwapInterface } from '../components/swap-interface';
 import { Navbar } from '../components/Navbar';
-import {PresetCard}  from '../components/PresetCard';
+import PresetCard  from '../components/PresetCard';
 
 const Home = () => {
   return (
