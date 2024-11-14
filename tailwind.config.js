@@ -56,5 +56,11 @@ export default {
   	}
   },
   plugins: [require("tailwindcss-animate")],
+  safelist: [
+    'backdrop-blur-md',
+    'backdrop-blur-[150px]',
+    'bg-[#1c2333]/80',
+    'bg-[#1c2333]/95',
+  ],
 }
 
