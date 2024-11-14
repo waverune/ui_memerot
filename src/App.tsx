@@ -6,13 +6,14 @@ import 'react-toastify/dist/ReactToastify.css';
 import HomeLogo from "./components/HomeLogo";
 import Status from './pages/Status';
 import SimulationPage from './pages/SimulationPage';
+import Home from './pages/Home';
 
 function App() {
   return (
     <Router>
-      <div  className="app-container text-white">
+      <div  className="app-container">
         <Routes>
-        <Route path="/" element={<HomeLogo key="home" />} />
+        <Route path="/" element={<Home key="home" />} />
           <Route path="/swap" element={<SwapInterface key="swap" />} />
           <Route path="/status" element={<Status key="status" />} />
           <Route path="/sims" element={<SimulationPage key="sims" />} />
