@@ -1,6 +1,10 @@
 "use client";
 import "@rainbow-me/rainbowkit/styles.css";
-import { getDefaultConfig, RainbowKitProvider, Chain, } from "@rainbow-me/rainbowkit";
+import {
+  getDefaultConfig,
+  RainbowKitProvider,
+  Chain,
+} from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
 import { mainnet, polygon, optimism, arbitrum, base } from "wagmi/chains";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
@@ -9,7 +13,7 @@ import SwapInterfaceContent from "./ui_Component/swapInterfaceContent";
 import { Link } from "react-router-dom";
 
 export const BuildBearChain = {
-  id: 21598,
+  id: 22892,
   name: "BB",
   nativeCurrency: {
     name: "BB",
@@ -18,13 +22,13 @@ export const BuildBearChain = {
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc.buildbear.io/global-thanos-495faead"],
+      http: ["https://rpc.buildbear.io/bizarre-nebula-535f2d2c"],
     },
   },
   blockExplorers: {
     default: {
       name: "BuildBear Explorer",
-      url: "https://explorer.buildbear.io/global-thanos-495faead",
+      url: "https://explorer.buildbear.io/bizarre-nebula-535f2d2c",
     },
   },
   iconUrl: "https://example.com/avax-icon.png",
@@ -36,15 +40,12 @@ const queryClient = new QueryClient();
 const config = getDefaultConfig({
   appName: "My RainbowKit App",
   projectId: "288a12f8c7549e28f9540f38707c3c19",
-  chains: [mainnet,BuildBearChain],
+  chains: [mainnet, BuildBearChain],
   ssr: true, // If your dApp uses server side rendering (SSR)
 });
 
 const CustomConnectButton = () => {
-  return (
-    
-      <ConnectButton/>
-  );
+  return <ConnectButton />;
 };
 
 export function SwapInterface() {
