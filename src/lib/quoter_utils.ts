@@ -28,7 +28,7 @@ export const BuildBearChain = {
     id: 1,
     name: "Tenderly Virtual Testnet",
     nativeCurrency: {
-        name: "BB",
+        name: "Ethereum Virutal",
         symbol: "ETH",
         decimals: 18,
     },
