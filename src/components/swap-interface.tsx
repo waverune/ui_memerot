@@ -13,16 +13,16 @@ import SwapInterfaceContent from "./ui_Component/swapInterfaceContent";
 import { Link } from "react-router-dom";
 
 export const BuildBearChain = {
-  id: 22892,
-  name: "BB",
+  id: 1,
+  name: "Tenderly Virtual Testnet",
   nativeCurrency: {
-    name: "BB",
+    name: "Tenderly Virtual Testnet",
     symbol: "ETH",
     decimals: 18,
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc.buildbear.io/bizarre-nebula-535f2d2c"],
+      http: ["https://virtual.mainnet.rpc.tenderly.co/87a41065-48e0-49aa-b7cf-593798b729b7"],
     },
   },
   blockExplorers: {

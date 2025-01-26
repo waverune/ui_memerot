@@ -50,7 +50,7 @@ const publicClient = createPublicClient({
     chain: defineChain(BuildBearChain),
     transport: http()
 })
-const quoterAddress = '0x71618D8BBa10c21ffd42bB409D2aBfEED8A8F997' // Replace with your actual quoter address
+const quoterAddress = '0xFc05a2054Dc83647164734F45Cd49279DDB69c8d' // Replace with your actual quoter address
 
 // Quoters returns array of token amounts in their respective decimals
 // for human readable amounts, divide by 10^decimals eg decimals: 18 for ETH, divide by 10^18, usdc: 6, divide by 10^6, spx&hpos: 8, divide by 10^8
