@@ -13,7 +13,7 @@ import SwapInterfaceContent from "./ui_Component/swapInterfaceContent";
 import { Link } from "react-router-dom";
 
 export const BuildBearChain = {
-  id: 1,
+  id: 23786,
   name: "Tenderly Virtual Testnet",
   nativeCurrency: {
     name: "Tenderly Virtual Testnet",
@@ -22,13 +22,13 @@ export const BuildBearChain = {
   },
   rpcUrls: {
     default: {
-      http: ["https://virtual.mainnet.rpc.tenderly.co/87a41065-48e0-49aa-b7cf-593798b729b7"],
+      http: ["https://rpc.buildbear.io/low-aurora-b355ef67"],
     },
   },
   blockExplorers: {
     default: {
       name: "BuildBear Explorer",
-      url: "https://explorer.buildbear.io/bizarre-nebula-535f2d2c",
+      url: "https://explorer.buildbear.io/low-aurora-b355ef67",
     },
   },
   iconUrl: "https://example.com/avax-icon.png",

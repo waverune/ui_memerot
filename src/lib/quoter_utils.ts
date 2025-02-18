@@ -25,8 +25,8 @@ import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
 // Define your custom chain
 // const bb_chain = ;
 export const BuildBearChain = {
-    id: 1,
-    name: "Tenderly Virtual Testnet",
+    id: 23786,
+    name: "Testnet",
     nativeCurrency: {
         name: "Ethereum Virutal",
         symbol: "ETH",
@@ -34,13 +34,13 @@ export const BuildBearChain = {
     },
     rpcUrls: {
         default: {
-            http: ["https://virtual.mainnet.rpc.tenderly.co/87a41065-48e0-49aa-b7cf-593798b729b7"],
+            http: ["https://rpc.buildbear.io/low-aurora-b355ef67"],
         },
     },
     blockExplorers: {
         default: {
             name: "BuildBear Explorer",
-            url: "https://explorer.buildbear.io/bizarre-nebula-535f2d2cd",
+            url: "https://explorer.buildbear.io/low-aurora-b355ef67",
         },
     },
 } as const satisfies Chain;
@@ -50,7 +50,7 @@ const publicClient = createPublicClient({
     chain: defineChain(BuildBearChain),
     transport: http()
 })
-const quoterAddress = '0xFc05a2054Dc83647164734F45Cd49279DDB69c8d' // Replace with your actual quoter address
+const quoterAddress = '0x1664A211D6C2414c88671a412065A15388EFEd5d' // Replace with your actual quoter address
 
 // Quoters returns array of token amounts in their respective decimals
 // for human readable amounts, divide by 10^decimals eg decimals: 18 for ETH, divide by 10^18, usdc: 6, divide by 10^6, spx&hpos: 8, divide by 10^8

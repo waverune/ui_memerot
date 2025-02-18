@@ -328,7 +328,7 @@ function SwapInterfaceContent() {
     }
     // Fallback to a default provider if wallet is not connected
     return new ethers.JsonRpcProvider(
-      "https://virtual.mainnet.rpc.tenderly.co/87a41065-48e0-49aa-b7cf-593798b729b7"
+      "https://rpc.buildbear.io/low-aurora-b355ef67"
     );
   }, [publicClient]);
 
