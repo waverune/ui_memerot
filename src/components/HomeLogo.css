@@ -1,116 +1,123 @@
-.scene-container {
-    position: relative;
-    width: 100%;
-    height: 100vh;
-    overflow: hidden;
-    background: linear-gradient(45deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    background-attachment: fixed;
-  }
-  
-  .scene-container::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: 
-      radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
-      radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px),
-      radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px);
-    background-size: 550px 550px, 350px 350px, 250px 250px;
-    background-position: 0 0, 40px 60px, 130px 270px;
-    animation: slowly-move 30s linear infinite;
-    opacity: 0.2;
-    pointer-events: none;
-    will-change: background-position;
-  }
-  
-  @keyframes slowly-move {
-    0% { background-position: 0 0, 40px 60px, 130px 270px; }
-    100% { background-position: -550px 0, -310px 60px, -120px 270px; }
-  }
-  
-  .stack-button {
-    position: absolute;
-    left: 50%;
-    top: 75%;
-    transform: translate(-50%, -50%);
-    z-index: 10;
-    padding: 10px 20px;
-    font-size: 18px;
-    background-color: rgba(255, 105, 180, 0.8);
-    color: white;
-    border: none;
-    border-radius: 25px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    will-change: transform, box-shadow;
-  }
-  
-  .stack-button:hover {
-    background-color: rgba(255, 105, 180, 1);
-    box-shadow: 0 0 15px rgba(255, 105, 180, 0.7),
-                0 0 30px rgba(255, 105, 180, 0.4);
-    transform: translate(-50%, -52%);
+html, body {
+  height: 100%; /* Ensure the body takes full height */
+  margin: 0; /* Remove default margin */
+  overflow: hidden;
+  background: linear-gradient(to bottom, #3b0a45, #6a0dad, #080554, #080554); /* Gradient from dark purple to light purple */
 }
-
-/* General styling */
-.home-logo {
+.centered-container {
+  display: flex; /* Use Flexbox for centering */
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  min-height: 80vh; /* Reduced from 100vh to make container smaller */
+  font-size: 80px; /* Scaled down from 100px */
+  position: relative;
+}
+.logo-container {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+  flex-direction: column; /* Stack items vertically */
+  align-items: center; /* Center items horizontally */
 }
 
-/* Further adjustments for very small screens */
-@media (max-width: 480px) {
-  .home-logo {
-    flex-direction: column;
-    text-align: center;
-  }
-  .logo-title {
-    font-size: 1rem;
-  }
+.logo-gif {
+  width: 150px; /* Adjust the width as needed */
+  height: auto; /* Maintain aspect ratio */
+  margin-bottom: 20px; /* Space between GIF and text */
 }
-/* Main container adjustments */
-body {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+.box {
+  border: 2px solid white; /* Border color */
+  border-radius: 25px; /* Rounded corners */
+  padding: 50px; /* Reduced from 100px */
+  display: flex; /* Flexbox for centering text */
+  justify-content: center; /* Center text horizontally */
+  align-items: center; /* Center text vertically */
 }
-
-/* Logo styling for mobile */
-#logo {
-  font-size: 24px;
-  text-align: center;
-  margin-top: 20px;
+.bushes-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1;
+    display: block;
 }
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  #logo {
-      font-size: 18px;
-      margin-top: 10px;
-  }
-
-  .description {
-      font-size: 14px;
-      padding: 10px;
-      text-align: center;
-  }
-
-  .token-icons {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-  }
-
-  .action-button {
-      font-size: 16px;
-      padding: 12px;
-      width: 90%;
-      margin: 0 auto;
-  }
+img[alt="Pixel Art"] {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+.hearts-container {
+    position: fixed;
+    bottom: 50px; /* Positioned just above the bushes */
+    left: 20px; /* Slight left margin */
+    display: flex;
+    flex-direction: row;
+    align-items: center;  
+    z-index: 2; /* Ensure hearts are above other elements */
 }
 
+.heart-image {
+    width: 50px; /* Adjust size as needed */
+    height: 50px;
+    margin-bottom: 10px; /* Space between hearts */
+    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5)); /* Optional: add a subtle shadow */
+}
+
+.wassie-container {
+    position: fixed;
+    bottom: 110px; /* Positioned just above the hearts container */
+    left: 20px; /* Aligned with the hearts container */
+    display: flex;
+    justify-content: center;
+    width: 200px;
+    height: 200px;
+    z-index: 2; /* Ensure image is above other elements */
+}
+
+.wassie-image {
+    width: 250px; /* Size similar to other images */
+    height: auto;
+    object-fit: contain;
+    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5)); /* Optional: add a subtle shadow */
+}
+
+.diamond-container {
+    position: fixed;
+    bottom: 50px; /* Same vertical positioning as hearts */
+    right: 20px; /* Positioned on the right side */
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    z-index: 2; /* Ensure diamonds are above other elements */
+}
+
+.new-image-container {
+    position: fixed;
+    bottom: 110px; /* Positioned just above the diamond container */
+    right: 20px; /* Aligned with the diamond container */
+    display: flex;
+    justify-content: center;
+    width: 200px; /* Increased from 200px */
+    height: 200px; /* Increased from 200px */
+    z-index: 2; /* Ensure image is above other elements */
+}
+
+.new-image {
+    width: 150px; /* Increased from 100px */
+    height: auto;
+    object-fit: contain;
+    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5)); /* Optional: add a subtle shadow */
+}
+
+.cloud-container {
+    position: absolute;
+    z-index: 1; /* Ensure clouds are behind the main content but above the background */
+    pointer-events: none; /* Prevent clouds from interfering with interactions */
+    animation: cloud-float 20s linear infinite; /* Add a subtle floating animation */
+}
+
+.cloud-image {
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+    filter: brightness(1.2) opacity(0.8); /* Soft, slightly transparent look */
+}
