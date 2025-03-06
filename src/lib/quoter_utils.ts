@@ -25,7 +25,7 @@ import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
 // Define your custom chain
 // const bb_chain = ;
 export const BuildBearChain = {
-    id: 23786,
+    id: 24454,
     name: "Testnet",
     nativeCurrency: {
         name: "Ethereum Virutal",
@@ -34,13 +34,13 @@ export const BuildBearChain = {
     },
     rpcUrls: {
         default: {
-            http: ["https://rpc.buildbear.io/low-aurora-b355ef67"],
+            http: ["https://rpc.buildbear.io/extensive-gambit-a0c10a1d"],
         },
     },
     blockExplorers: {
         default: {
             name: "BuildBear Explorer",
-            url: "https://explorer.buildbear.io/low-aurora-b355ef67",
+            url: "https://explorer.buildbear.io/extensive-gambit-a0c10a1d",
         },
     },
 } as const satisfies Chain;

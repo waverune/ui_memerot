@@ -13,22 +13,22 @@ import SwapInterfaceContent from "./ui_Component/swapInterfaceContent";
 import { Link } from "react-router-dom";
 
 export const BuildBearChain = {
-  id: 23786,
-  name: "Tenderly Virtual Testnet",
+  id: 24454,
+  name: "Buildbear Testnet",
   nativeCurrency: {
-    name: "Tenderly Virtual Testnet",
+    name: "Buildbear Testnet",
     symbol: "ETH",
     decimals: 18,
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc.buildbear.io/low-aurora-b355ef67"],
+      http: ["https://rpc.buildbear.io/extensive-gambit-a0c10a1d"],
     },
   },
   blockExplorers: {
     default: {
       name: "BuildBear Explorer",
-      url: "https://explorer.buildbear.io/low-aurora-b355ef67",
+      url: "https://explorer.buildbear.io/extensive-gambit-a0c10a1d",
     },
   },
   iconUrl: "https://example.com/avax-icon.png",
@@ -40,7 +40,7 @@ const queryClient = new QueryClient();
 const config = getDefaultConfig({
   appName: "My RainbowKit App",
   projectId: "288a12f8c7549e28f9540f38707c3c19",
-  chains: [ BuildBearChain],
+  chains: [BuildBearChain],
   ssr: true, // If your dApp uses server side rendering (SSR)
 });
 
