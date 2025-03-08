@@ -44,16 +44,17 @@ body {
 
 .logo-container {
   display: flex;
-  flex-direction: column; /* Stack items vertically */
-  align-items: center; /* Center items horizontally */
+  flex-direction: column;
+  align-items: center;
   z-index: 10;
   width: 100%;
+  margin-top: 40px;
+  gap: 0px; /* Control spacing between elements */
 }
 
 .logo-gif {
   width: 120px; /* Adjust the width as needed */
   height: auto; /* Maintain aspect ratio */
-  margin-bottom: 20px; /* Space between GIF and text */
   image-rendering: pixelated; /* Make the image look more pixelated */
 }
 
@@ -61,8 +62,8 @@ body {
   border: 4px solid white; /* Thicker border */
   border-radius: 30px; /* Rounded corners */
   padding: 40px; /* Reduced padding */
-  width: 1200px;
-  height: auto;
+  width: 800px;
+  height: 600px;
   display: flex; /* Flexbox for centering text */
   justify-content: center; /* Center text horizontally */
   align-items: center; /* Center text vertically */
@@ -72,24 +73,22 @@ body {
 /* Pixel text styling for MEMEROT */
 .pixel-text {
   font-family: "Press Start 2P", monospace; /* Pixel font */
-  font-size: 100px; /* Larger text */
+  font-size: 50px; /* Larger text */
   color: white;
   text-align: center;
   letter-spacing: 2px;
-  margin-bottom: 30px;
   text-shadow: 2px 2px 0 #000;
   image-rendering: pixelated;
 }
 
 /* SWAP button styling */
 .swap-button-container {
-  margin: 20px 0 30px 0;
   display: flex;
   justify-content: center;
 }
 
 .swap-button {
-  width: 350px;
+  width: 300px;
   height: 300px;
   cursor: pointer;
   image-rendering: pixelated;
@@ -108,11 +107,10 @@ body {
 /* Tagline styling */
 .tagline {
   font-family: "Press Start 2P", monospace;
-  font-size: 24px;
+  font-size: 14px;
   color: white;
   text-align: center;
   line-height: 1.5;
-  margin-top: 20px;
   text-shadow: 2px 2px 0 #000;
 }
 
@@ -143,22 +141,22 @@ img[alt="Pixel Art Ground"] {
 }
 
 .heart-image {
-  width: 80px; /* Adjust size as needed */
-  height: 80px;
+  width: 50px; /* Adjust size as needed */
+  height: 50px;
   margin-right: 5px; /* Space between hearts */
   image-rendering: pixelated; /* Make the image look more pixelated */
 }
 
 .diamond-image {
-  width: 80px; /* Adjust size as needed */
-  height: 80px;
+  width: 50px; /* Adjust size as needed */
+  height: 50px;
   margin-right: 5px; /* Space between diamonds */
   image-rendering: pixelated; /* Make the image look more pixelated */
 }
 
 .pepe-container {
   position: fixed;
-  bottom: 110px; /* Positioned just above the hearts container */
+  bottom: 60px; /* Positioned just above the hearts container */
   left: 20px; /* Aligned with the hearts container */
   display: flex;
   justify-content: center;
@@ -168,7 +166,7 @@ img[alt="Pixel Art Ground"] {
 }
 
 .pepe-image {
-  width: 250px; /* Size similar to other images */
+  width: 150px; /* Size similar to other images */
   height: auto;
   object-fit: contain;
   image-rendering: pixelated; /* Make the image look more pixelated */
@@ -186,7 +184,7 @@ img[alt="Pixel Art Ground"] {
 
 .doge-container {
   position: fixed;
-  bottom: 110px; /* Positioned just above the diamond container */
+  bottom: 60px; /* Positioned just above the diamond container */
   right: 80px; /* Aligned with the diamond container */
   display: flex;
   justify-content: center;
@@ -196,7 +194,7 @@ img[alt="Pixel Art Ground"] {
 }
 
 .doge-image {
-  width: 250px;
+  width: 120px;
   height: auto;
   object-fit: contain;
   image-rendering: pixelated; /* Make the image look more pixelated */

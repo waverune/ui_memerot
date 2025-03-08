@@ -8,7 +8,7 @@ import {
 import { WagmiProvider } from "wagmi";
 import { mainnet, polygon, optimism, arbitrum, base } from "wagmi/chains";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
-import CustomWalletConnectButton from "./ui/customWalletConnectButton";
+import CustomWalletConnectButton from "./ui/CustomWalletConnectButton";
 import SwapInterfaceContent from "./ui_Component/swapInterfaceContent";
 import { Link } from "react-router-dom";
 
@@ -57,7 +57,7 @@ export function SwapInterface() {
             <div className="w-full max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center p-4">
               <Link to="/">
                 <h1
-                  className="text-4xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-white"
+                  className="text-2xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-white"
                   
                 >
                   MemeR0t
