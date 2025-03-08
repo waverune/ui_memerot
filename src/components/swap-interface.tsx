@@ -8,7 +8,7 @@ import {
 import { WagmiProvider } from "wagmi";
 import { mainnet, polygon, optimism, arbitrum, base } from "wagmi/chains";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import CustomWalletConnectButton from "./ui/customWalletConnectButton";
 import SwapInterfaceContent from "./ui_Component/swapInterfaceContent";
 import { Link } from "react-router-dom";
 
@@ -45,7 +45,7 @@ const config = getDefaultConfig({
 });
 
 const CustomConnectButton = () => {
-  return <ConnectButton />;
+  return <CustomWalletConnectButton />;
 };
 
 export function SwapInterface() {
@@ -58,7 +58,7 @@ export function SwapInterface() {
               <Link to="/">
                 <h1
                   className="text-4xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-white"
-                  style={{ fontFamily: "'Roboto Mono', monospace" }}
+                  
                 >
                   MemeR0t
                 </h1>

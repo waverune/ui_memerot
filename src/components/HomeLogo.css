@@ -1,123 +1,245 @@
-html, body {
+html,
+body {
   height: 100%; /* Ensure the body takes full height */
   margin: 0; /* Remove default margin */
   overflow: hidden;
-  background: linear-gradient(to bottom, #3b0a45, #6a0dad, #080554, #080554); /* Gradient from dark purple to light purple */
+  background: linear-gradient(to bottom, #1e3a8a, #581c87, #000000); /* from-blue-900 via-purple-900 to-black */
 }
+
+/* Retro background with grid */
+.retro-background {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(to bottom, #1e3a8a, #581c87, #000000); /* from-blue-900 via-purple-900 to-black */
+}
+
+/* Grid overlay for retro effect */
+.grid-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  background-image: linear-gradient(0deg, rgba(255, 0, 255, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 0, 255, 0.2) 1px, transparent 1px);
+  background-size: 50px 50px;
+  background-position: 0 0;
+  transform: perspective(500px) rotateX(60deg);
+  transform-origin: bottom;
+  z-index: 1;
+}
+
 .centered-container {
   display: flex; /* Use Flexbox for centering */
   justify-content: center; /* Center horizontally */
   align-items: center; /* Center vertically */
   min-height: 80vh; /* Reduced from 100vh to make container smaller */
-  font-size: 80px; /* Scaled down from 100px */
   position: relative;
+  z-index: 10;
+  width: 100%; /* Full width */
+  margin-top: 50px; /* Move container down */
 }
+
 .logo-container {
   display: flex;
   flex-direction: column; /* Stack items vertically */
   align-items: center; /* Center items horizontally */
+  z-index: 10;
+  width: 100%;
 }
 
 .logo-gif {
-  width: 150px; /* Adjust the width as needed */
+  width: 120px; /* Adjust the width as needed */
   height: auto; /* Maintain aspect ratio */
   margin-bottom: 20px; /* Space between GIF and text */
+  image-rendering: pixelated; /* Make the image look more pixelated */
 }
+
 .box {
-  border: 2px solid white; /* Border color */
-  border-radius: 25px; /* Rounded corners */
-  padding: 50px; /* Reduced from 100px */
+  border: 4px solid white; /* Thicker border */
+  border-radius: 30px; /* Rounded corners */
+  padding: 40px; /* Reduced padding */
+  width: 1200px;
+  height: auto;
   display: flex; /* Flexbox for centering text */
   justify-content: center; /* Center text horizontally */
   align-items: center; /* Center text vertically */
+  background-color: rgba(59, 10, 69, 0.5); /* Semi-transparent background */
 }
+
+/* Pixel text styling for MEMEROT */
+.pixel-text {
+  font-family: "Press Start 2P", monospace; /* Pixel font */
+  font-size: 100px; /* Larger text */
+  color: white;
+  text-align: center;
+  letter-spacing: 2px;
+  margin-bottom: 30px;
+  text-shadow: 2px 2px 0 #000;
+  image-rendering: pixelated;
+}
+
+/* SWAP button styling */
+.swap-button-container {
+  margin: 20px 0 30px 0;
+  display: flex;
+  justify-content: center;
+}
+
+.swap-button {
+  width: 350px;
+  height: 300px;
+  cursor: pointer;
+  image-rendering: pixelated;
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.5));
+  transition: transform 0.1s;
+}
+
+.swap-button:hover {
+  transform: scale(1.05);
+}
+
+.swap-button:active {
+  transform: scale(0.95);
+}
+
+/* Tagline styling */
+.tagline {
+  font-family: "Press Start 2P", monospace;
+  font-size: 24px;
+  color: white;
+  text-align: center;
+  line-height: 1.5;
+  margin-top: 20px;
+  text-shadow: 2px 2px 0 #000;
+}
+
 .bushes-container {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    z-index: 1;
-    display: block;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 3;
+  display: block;
 }
-img[alt="Pixel Art"] {
-    width: 100%;
-    height: auto;
-    display: block;
-    object-fit: contain;
+
+img[alt="Pixel Art Ground"] {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
 }
+
 .hearts-container {
-    position: fixed;
-    bottom: 50px; /* Positioned just above the bushes */
-    left: 20px; /* Slight left margin */
-    display: flex;
-    flex-direction: row;
-    align-items: center;  
-    z-index: 2; /* Ensure hearts are above other elements */
+  position: fixed;
+  bottom: 80px; /* Positioned just above the bushes */
+  left: 20px; /* Slight left margin */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  z-index: 4; /* Ensure hearts are above other elements */
 }
 
 .heart-image {
-    width: 50px; /* Adjust size as needed */
-    height: 50px;
-    margin-bottom: 10px; /* Space between hearts */
-    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5)); /* Optional: add a subtle shadow */
+  width: 80px; /* Adjust size as needed */
+  height: 80px;
+  margin-right: 5px; /* Space between hearts */
+  image-rendering: pixelated; /* Make the image look more pixelated */
 }
 
-.wassie-container {
-    position: fixed;
-    bottom: 110px; /* Positioned just above the hearts container */
-    left: 20px; /* Aligned with the hearts container */
-    display: flex;
-    justify-content: center;
-    width: 200px;
-    height: 200px;
-    z-index: 2; /* Ensure image is above other elements */
+.diamond-image {
+  width: 80px; /* Adjust size as needed */
+  height: 80px;
+  margin-right: 5px; /* Space between diamonds */
+  image-rendering: pixelated; /* Make the image look more pixelated */
 }
 
-.wassie-image {
-    width: 250px; /* Size similar to other images */
-    height: auto;
-    object-fit: contain;
-    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5)); /* Optional: add a subtle shadow */
+.pepe-container {
+  position: fixed;
+  bottom: 110px; /* Positioned just above the hearts container */
+  left: 20px; /* Aligned with the hearts container */
+  display: flex;
+  justify-content: center;
+  width: 200px;
+  height: 300px;
+  z-index: 4; /* Ensure image is above other elements */
+}
+
+.pepe-image {
+  width: 250px; /* Size similar to other images */
+  height: auto;
+  object-fit: contain;
+  image-rendering: pixelated; /* Make the image look more pixelated */
 }
 
 .diamond-container {
-    position: fixed;
-    bottom: 50px; /* Same vertical positioning as hearts */
-    right: 20px; /* Positioned on the right side */
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    z-index: 2; /* Ensure diamonds are above other elements */
+  position: fixed;
+  bottom: 80px; /* Same vertical positioning as hearts */
+  right: 20px; /* Positioned on the right side */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  z-index: 4; /* Ensure diamonds are above other elements */
 }
 
-.new-image-container {
-    position: fixed;
-    bottom: 110px; /* Positioned just above the diamond container */
-    right: 20px; /* Aligned with the diamond container */
-    display: flex;
-    justify-content: center;
-    width: 200px; /* Increased from 200px */
-    height: 200px; /* Increased from 200px */
-    z-index: 2; /* Ensure image is above other elements */
+.doge-container {
+  position: fixed;
+  bottom: 110px; /* Positioned just above the diamond container */
+  right: 80px; /* Aligned with the diamond container */
+  display: flex;
+  justify-content: center;
+  width: 200px;
+  height: 300px;
+  z-index: 4; /* Ensure image is above other elements */
 }
 
-.new-image {
-    width: 150px; /* Increased from 100px */
-    height: auto;
-    object-fit: contain;
-    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5)); /* Optional: add a subtle shadow */
+.doge-image {
+  width: 250px;
+  height: auto;
+  object-fit: contain;
+  image-rendering: pixelated; /* Make the image look more pixelated */
 }
 
 .cloud-container {
-    position: absolute;
-    z-index: 1; /* Ensure clouds are behind the main content but above the background */
-    pointer-events: none; /* Prevent clouds from interfering with interactions */
-    animation: cloud-float 20s linear infinite; /* Add a subtle floating animation */
+  position: absolute;
+  width: 100%;
+  z-index: 2; /* Ensure clouds are behind the main content but above the background */
+  pointer-events: none; /* Prevent clouds from interfering with interactions */
 }
 
 .cloud-image {
-    max-width: 100%;
-    height: auto;
-    object-fit: contain;
-    filter: brightness(1.2) opacity(0.8); /* Soft, slightly transparent look */
+  max-width: 150%; /* Increased from 100% */
+  height: auto;
+  object-fit: contain;
+  filter: brightness(1.2) opacity(0.8); /* Soft, slightly transparent look */
+  image-rendering: pixelated; /* Make the image look more pixelated */
+}
+
+/* Add a media query for smaller screens */
+@media (max-width: 768px) {
+  .pixel-text {
+    font-size: 40px;
+  }
+
+  .tagline {
+    font-size: 16px;
+  }
+
+  .box {
+    padding: 20px;
+    width: 90%;
+  }
+
+  .pepe-image,
+  .doge-image {
+    width: 100px;
+  }
+
+  .heart-image,
+  .diamond-image {
+    width: 30px;
+    height: 30px;
+  }
 }
