@@ -20,7 +20,7 @@ import { TOKENS } from "../config/tokens";
 // 3.
 // Utils:save token functionality >> if tokens metadta doesnt exist in tokens.ts, save it.
 const provider = new ethers.JsonRpcProvider(
-  "https://rpc.buildbear.io/low-aurora-b355ef67"
+  "https://rpc.buildbear.io/extensive-gambit-a0c10a1d"
 );
 
 const SimulationPage: React.FC = () => {
@@ -165,7 +165,7 @@ const SimulationPage: React.FC = () => {
 
     try {
       const provider = new ethers.JsonRpcProvider(
-        "https://rpc.buildbear.io/low-aurora-b355ef67"
+        "https://rpc.buildbear.io/extensive-gambit-a0c10a1d"
       );
       const chainId = await provider
         .getNetwork()

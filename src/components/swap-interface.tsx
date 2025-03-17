@@ -14,9 +14,9 @@ import { Link } from "react-router-dom";
 
 export const BuildBearChain = {
   id: 24454,
-  name: "Buildbear Testnet",
+  name: "Forked Testnet",
   nativeCurrency: {
-    name: "Buildbear Testnet",
+    name: "Ethereum",
     symbol: "ETH",
     decimals: 18,
   },
@@ -27,7 +27,7 @@ export const BuildBearChain = {
   },
   blockExplorers: {
     default: {
-      name: "BuildBear Explorer",
+      name: "Explorer",
       url: "https://explorer.buildbear.io/extensive-gambit-a0c10a1d",
     },
   },

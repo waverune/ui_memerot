@@ -26,9 +26,9 @@ import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
 // const bb_chain = ;
 export const BuildBearChain = {
     id: 24454,
-    name: "Testnet",
+    name: "Forked Testnet",
     nativeCurrency: {
-        name: "Ethereum Virutal",
+        name: "Ethereum",
         symbol: "ETH",
         decimals: 18,
     },
@@ -39,7 +39,7 @@ export const BuildBearChain = {
     },
     blockExplorers: {
         default: {
-            name: "BuildBear Explorer",
+            name: "Explorer",
             url: "https://explorer.buildbear.io/extensive-gambit-a0c10a1d",
         },
     },

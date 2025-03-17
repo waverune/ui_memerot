@@ -328,7 +328,7 @@ function SwapInterfaceContent() {
     }
     // Fallback to a default provider if wallet is not connected
     return new ethers.JsonRpcProvider(
-      "https://rpc.buildbear.io/low-aurora-b355ef67"
+      "https://rpc.buildbear.io/extensive-gambit-a0c10a1d"
     );
   }, [publicClient]);
 
