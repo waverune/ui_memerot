@@ -2,7 +2,7 @@ html,
 body {
   height: 100%; /* Ensure the body takes full height */
   margin: 0; /* Remove default margin */
-  overflow: hidden;
+  overflow-x: hidden; /* Changed from overflow: hidden to allow vertical scrolling */
   background: linear-gradient(to bottom, #1e3a8a, #581c87, #000000); /* from-blue-900 via-purple-900 to-black */
 }
 
@@ -10,8 +10,8 @@ body {
 .retro-background {
   position: relative;
   width: 100%;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh; /* Changed from height: 100vh to min-height for better responsiveness */
+  overflow-x: hidden; /* Allow vertical scrolling */
   background: linear-gradient(to bottom, #1e3a8a, #581c87, #000000); /* from-blue-900 via-purple-900 to-black */
 }
 
@@ -39,7 +39,8 @@ body {
   position: relative;
   z-index: 10;
   width: 100%; /* Full width */
-  margin-top: 50px; /* Move container down */
+  margin-top: 80px; /* Increased from 50px to provide more space for the navbar */
+  padding-bottom: 50px; /* Added padding at the bottom */
 }
 
 .logo-container {
@@ -48,7 +49,7 @@ body {
   align-items: center;
   z-index: 10;
   width: 100%;
-  margin-top: 40px;
+  margin-top: 20px; /* Reduced from 40px */
   gap: 0px; /* Control spacing between elements */
 }
 
@@ -62,8 +63,10 @@ body {
   border: 4px solid white; /* Thicker border */
   border-radius: 30px; /* Rounded corners */
   padding: 40px; /* Reduced padding */
-  width: 800px;
-  height: 600px;
+  width: 80%; /* Changed from fixed 800px to responsive percentage */
+  max-width: 800px; /* Added max-width to prevent it from getting too large */
+  height: auto; /* Changed from fixed 600px to auto for responsiveness */
+  min-height: 500px; /* Added min-height to maintain some vertical space */
   display: flex; /* Flexbox for centering text */
   justify-content: center; /* Center text horizontally */
   align-items: center; /* Center text vertically */
@@ -85,11 +88,12 @@ body {
 .swap-button-container {
   display: flex;
   justify-content: center;
+  margin: 20px 0; /* Added margin for spacing */
 }
 
 .swap-button {
-  width: 300px;
-  height: 300px;
+  width: 150px; /* Reduced from 300px to be more proportional */
+  height: auto; /* Changed from fixed 300px to auto to maintain aspect ratio */
   cursor: pointer;
   image-rendering: pixelated;
   filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.5));
@@ -112,6 +116,7 @@ body {
   text-align: center;
   line-height: 1.5;
   text-shadow: 2px 2px 0 #000;
+  margin-top: 20px; /* Added margin for spacing */
 }
 
 .bushes-container {
@@ -218,21 +223,22 @@ img[alt="Pixel Art Ground"] {
 /* Add a media query for smaller screens */
 @media (max-width: 768px) {
   .pixel-text {
-    font-size: 40px;
+    font-size: 30px; /* Reduced from 40px */
   }
 
   .tagline {
-    font-size: 16px;
+    font-size: 12px; /* Reduced from 16px */
   }
 
   .box {
     padding: 20px;
     width: 90%;
+    min-height: 400px; /* Reduced min-height for mobile */
   }
 
   .pepe-image,
   .doge-image {
-    width: 100px;
+    width: 80px; /* Reduced from 100px */
   }
 
   .heart-image,
@@ -240,4 +246,53 @@ img[alt="Pixel Art Ground"] {
     width: 30px;
     height: 30px;
   }
+
+  .swap-button {
+    width: 120px; /* Reduced size for mobile */
+  }
+
+  .centered-container {
+    margin-top: 70px; /* Adjusted for mobile */
+  }
 }
+
+.swap-button-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.swap-btn {
+  position: relative;
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: auto;
+  min-height: auto;
+  box-shadow: none !important;
+}
+
+.swap-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+.swap-btn:active {
+  transform: translateY(2px);
+}
+
+.swap-btn-img {
+  width: 150px; /* Set a specific width */
+  height: auto;
+  image-rendering: pixelated;
+}
+
+/* Remove the pixel corners since we want to show the original image */
+.swap-btn::after {
+  display: none;
+}
+

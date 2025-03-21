@@ -86,3 +86,8 @@ export interface TokenSelectionPopupProps {
     selectedOutputTokens?: string[];                  // Currently selected output tokens
     allowMultiSelect?: boolean;                      // Whether multiple tokens can be selected
 }
+
+export interface AuthState {
+    isAuthSidebarOpen: boolean;
+    authMode: 'signin' | 'signup';
+}

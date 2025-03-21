@@ -9,12 +9,16 @@ import Doge from "../assets/images.png" // Renamed for clarity
 import Pepe from "../assets/wassie.png" // Renamed for clarity
 import Cloud from "../assets/cloud.png"
 import { useMemo } from "react"
-import SwapImage from "../assets/Swap.png"
-import SwapPressedImage from "../assets/swappressed.png"
+import swapImage from "../assets/Swap.png"
+import swapPressedImage from "../assets/swappressed.png"
 import { useNavigate } from "react-router-dom"
+import TopNavBar from "./ui/topNavBar"
+import { useState } from "react"
+import AuthSidebar from "./ui_Component/auth/authSideBar"
 
 function HomeLogo() {
     const navigate = useNavigate()
+    const [isPressed, setIsPressed] = useState(false)
     // Generate random positioning for clouds with no overlap
     const cloudPositions = useMemo(() => {
         const positions = []
@@ -52,7 +56,9 @@ function HomeLogo() {
     }, [])
 
     return (
-        <div className="retro-background">
+        <div className="home-logo-container">
+            <TopNavBar />
+            <AuthSidebar />
             {/* Retro grid overlay */}
             <div className="grid-overlay"></div>
 
@@ -86,23 +92,17 @@ function HomeLogo() {
                         <div className="pixel-text">MEMEROT</div>
 
                         {/* SWAP button */}
-                        <div className="swap-button-container">
-                            <img
-                                src={SwapImage || "/placeholder.svg"}
-                                alt="Swap Button"
-                                className="swap-button"
-                                onClick={() => navigate('/swap')} // Add this line to navigate to /swap
-                                onMouseDown={(e) => {
-                                    e.currentTarget.src = SwapPressedImage || "/placeholder.svg"
-                                }}
-                                onMouseUp={(e) => {
-                                    e.currentTarget.src = SwapImage || "/placeholder.svg"
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.src = SwapImage || "/placeholder.svg"
-                                }}
-                            />
-                        </div>
+                        <div className="swap-button-wrapper">
+      <button
+        className="nes-btn swap-btn"
+        onClick={() => navigate("/swap")}
+        onMouseDown={() => setIsPressed(true)}
+        onMouseUp={() => setIsPressed(false)}
+        onMouseLeave={() => setIsPressed(false)}
+      >
+        <img src={isPressed ? swapPressedImage : swapImage} alt="Swap" className="swap-btn-img" />
+      </button>
+    </div>
 
                         {/* Tagline text */}
                         <div className="tagline">

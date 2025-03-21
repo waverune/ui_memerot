@@ -10,9 +10,9 @@ import SimulationPage from './pages/SimulationPage';
 function App() {
   return (
     <Router>
-      <div  className="app-container text-white">
+      <div className="app-container text-white">
         <Routes>
-        <Route path="/" element={<HomeLogo key="home" />} />
+          <Route path="/" element={<HomeLogo key="home" />} />
           <Route path="/swap" element={<SwapInterface key="swap" />} />
           <Route path="/status" element={<Status key="status" />} />
           <Route path="/sims" element={<SimulationPage key="sims" />} />

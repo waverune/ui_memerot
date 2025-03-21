@@ -1,0 +1,161 @@
+.top-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    padding: 10px 20px;
+    background: rgba(48, 25, 107, 0.8);
+    backdrop-filter: blur(5px);
+    border-bottom: 4px solid #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .nav-logo {
+    cursor: pointer;
+    font-family: "Press Start 2P", cursive;
+    font-size: 1.5rem;
+    color: white;
+    text-shadow: 2px 2px 0 #000;
+  }
+  
+  .nav-links {
+    display: flex;
+    gap: 15px;
+  }
+  
+  .nav-btn {
+    font-family: "Press Start 2P", cursive;
+    font-size: 0.8rem;
+    padding: 8px 16px;
+    border: 3px solid white;
+    background-color: #f0f0f0;
+    color: #333;
+    cursor: pointer;
+    text-transform: uppercase;
+    box-shadow: 3px 3px 0 #000;
+    transition: all 0.2s ease;
+  }
+  
+  .nav-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 3px 5px 0 #000;
+  }
+  
+  .nav-btn:active {
+    transform: translateY(1px);
+    box-shadow: 2px 2px 0 #000;
+  }
+  
+  .sign-in-btn {
+    background-color: #9bdb4f;
+    color: #333;
+  }
+  
+  /* Mobile menu toggle */
+  .mobile-menu-toggle {
+    display: none;
+    cursor: pointer;
+  }
+  
+  .hamburger {
+    width: 30px;
+    height: 20px;
+    position: relative;
+  }
+  
+  .hamburger span {
+    display: block;
+    position: absolute;
+    height: 4px;
+    width: 100%;
+    background: white;
+    border-radius: 4px;
+    opacity: 1;
+    left: 0;
+    transform: rotate(0deg);
+    transition: .25s ease-in-out;
+  }
+  
+  .hamburger span:nth-child(1) {
+    top: 0px;
+  }
+  
+  .hamburger span:nth-child(2) {
+    top: 8px;
+  }
+  
+  .hamburger span:nth-child(3) {
+    top: 16px;
+  }
+  
+  .hamburger.open span:nth-child(1) {
+    top: 8px;
+    transform: rotate(135deg);
+  }
+  
+  .hamburger.open span:nth-child(2) {
+    opacity: 0;
+    left: -60px;
+  }
+  
+  .hamburger.open span:nth-child(3) {
+    top: 8px;
+    transform: rotate(-135deg);
+  }
+  
+  /* Mobile navigation */
+  .mobile-nav {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px 20px;
+    background: rgba(48, 25, 107, 0.95);
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    position: fixed;
+    top: 60px;
+    left: 0;
+    width: 100%;
+    z-index: 999;
+  }
+  
+  .mobile-nav.open {
+    max-height: 300px;
+    border-bottom: 4px solid #fff;
+  }
+  
+  .mobile-nav-btn {
+    width: 100%;
+    text-align: center;
+    margin: 5px 0;
+    font-family: "Press Start 2P", cursive;
+    font-size: 0.8rem;
+    padding: 8px 16px;
+    border: 3px solid white;
+    background-color: #f0f0f0;
+    color: #333;
+    cursor: pointer;
+    text-transform: uppercase;
+    box-shadow: 3px 3px 0 #000;
+  }
+  
+  /* Media queries for responsive design */
+  @media (max-width: 768px) {
+    .nav-links {
+      display: none;
+    }
+  
+    .mobile-menu-toggle {
+      display: block;
+    }
+  
+    .mobile-nav {
+      display: flex;
+    }
+  }
+  
+  
