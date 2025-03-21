@@ -6,7 +6,6 @@ import {
   Chain,
 } from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
-import { mainnet, polygon, optimism, arbitrum, base } from "wagmi/chains";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import CustomWalletConnectButton from "./ui/CustomWalletConnectButton";
 import SwapInterfaceContent from "./ui_Component/swapInterfaceContent";

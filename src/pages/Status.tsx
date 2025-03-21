@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { TOKENS, TokenSymbol } from '../config/tokens';
-import { fetchCoinData, CoinData } from '../services/coinApi';
+import { TOKENS } from '../config/tokens';
+import { fetchCoinData } from '../services/coinApi';
 
 interface TokenMarketData {
   symbol: string;
@@ -45,7 +45,7 @@ const Status: React.FC = () => {
 
   useEffect(() => {
     const fetchMarketData = async () => {
-      const tokenSymbols = Object.keys(TOKENS) as TokenSymbol[];
+      const tokenSymbols = Object.keys(TOKENS);
       const results = await Promise.all(
         tokenSymbols
           .filter(symbol => TOKENS[symbol].coingeckoId)
@@ -60,15 +60,15 @@ const Status: React.FC = () => {
                 statusCode: 200,
                 errorMessage: null,
               };
-            } catch (error) {
+            } catch (error: any) {
               console.error(`Error fetching data for ${symbol}:`, error);
               return {
                 symbol,
                 price: null,
                 marketCap: null,
                 status: 'error' as const,
-                statusCode: error.response?.status || null,
-                errorMessage: error.message || 'Unknown error',
+                statusCode: error?.response?.status || null,
+                errorMessage: error?.message || 'Unknown error',
               };
             }
           })

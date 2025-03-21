@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { ethers } from "ethers";
 import { Pair } from "@uniswap/v2-sdk";
 import {
-  getExecutionPrice,
   fetchUniswapV2Pair,
   createToken,
   WETH9,
@@ -308,10 +307,12 @@ const SimulationPage: React.FC = () => {
       }
 
       // Execute quote
-      const result = await quoteTokenForMultiTokens(
-        bigIntAmounts,
-        validPaths as `0x${string}`[]
-      );
+      const result = await quoteTokenForMultiTokens({
+        sellAmounts: bigIntAmounts,
+        path: validPaths as `0x${string}`[],
+        minAmounts: bigIntAmounts.map(() => BigInt(0)), // Set minimum amounts to 0 for quote
+        deadline: Math.floor(Date.now() / 1000) + 60 * 20 // 20 minutes from now
+      });
 
       // Format results using proper decimals of the output token
       const formattedResults = result.map((r, index) =>
