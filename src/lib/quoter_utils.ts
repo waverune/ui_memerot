@@ -21,29 +21,29 @@ import { swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMul
 
 import { createPublicClient, http, defineChain, Chain } from 'viem'
 import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
-import { BuildBearChain } from '../components/swap-interface'
+// import { BuildBearChain } from '../components/swap-interface'
 // Define your custom chain
-// const bb_chain = ;
-// export const BuildBearChain = {
-//     id: 1,
-//     name: "Forked Testnet",
-//     nativeCurrency: {
-//         name: "Ethereum",
-//         symbol: "ETH",
-//         decimals: 18,
-//     },
-//     rpcUrls: {
-//         default: {
-//             http: ["https://rpc.buildbear.io/Memerot"],
-//         },
-//     },
-//     blockExplorers: {
-//         default: {
-//             name: "Explorer",
-//             url: "https://explorer.buildbear.io/Memerot",
-//         },
-//     },
-// } as const satisfies Chain;
+
+export const BuildBearChain = {
+    id: 1,
+    name: "Forked Testnet",
+    nativeCurrency: {
+        name: "Ethereum",
+        symbol: "ETH",
+        decimals: 18,
+    },
+    rpcUrls: {
+        default: {
+            http: ["https://rpc.buildbear.io/Memerot"],
+        },
+    },
+    blockExplorers: {
+        default: {
+            name: "Explorer",
+            url: "https://explorer.buildbear.io/Memerot",
+        },
+    },
+} as const satisfies Chain;
 
 // Create the Public Client
 const publicClient = createPublicClient({
