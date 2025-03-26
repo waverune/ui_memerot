@@ -327,9 +327,7 @@ function SwapInterfaceContent() {
       return new ethers.BrowserProvider(publicClient.transport);
     }
     // Fallback to a default provider if wallet is not connected
-    return new ethers.JsonRpcProvider(
-      "https://rpc.buildbear.io/extensive-gambit-a0c10a1d"
-    );
+    return new ethers.JsonRpcProvider("https://rpc.buildbear.io/Memerot");
   }, [publicClient]);
 
   const getSigner = useCallback(async () => {

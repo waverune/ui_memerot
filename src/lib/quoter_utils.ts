@@ -21,36 +21,36 @@ import { swapEthForMultiTokensParam, swapTokenForMultiTokensParam, swapUSDForMul
 
 import { createPublicClient, http, defineChain, Chain } from 'viem'
 import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
-// import { BuildBearChain } from '../components/swap-interface'
+import { BuildBearChain } from '../components/swap-interface'
 // Define your custom chain
 // const bb_chain = ;
-export const BuildBearChain = {
-    id: 24454,
-    name: "Forked Testnet",
-    nativeCurrency: {
-        name: "Ethereum",
-        symbol: "ETH",
-        decimals: 18,
-    },
-    rpcUrls: {
-        default: {
-            http: ["https://rpc.buildbear.io/extensive-gambit-a0c10a1d"],
-        },
-    },
-    blockExplorers: {
-        default: {
-            name: "Explorer",
-            url: "https://explorer.buildbear.io/extensive-gambit-a0c10a1d",
-        },
-    },
-} as const satisfies Chain;
+// export const BuildBearChain = {
+//     id: 1,
+//     name: "Forked Testnet",
+//     nativeCurrency: {
+//         name: "Ethereum",
+//         symbol: "ETH",
+//         decimals: 18,
+//     },
+//     rpcUrls: {
+//         default: {
+//             http: ["https://rpc.buildbear.io/Memerot"],
+//         },
+//     },
+//     blockExplorers: {
+//         default: {
+//             name: "Explorer",
+//             url: "https://explorer.buildbear.io/Memerot",
+//         },
+//     },
+// } as const satisfies Chain;
 
 // Create the Public Client
 const publicClient = createPublicClient({
     chain: defineChain(BuildBearChain),
     transport: http()
 })
-const quoterAddress = '0xFc05a2054Dc83647164734F45Cd49279DDB69c8d' // Replace with your actual quoter address
+const quoterAddress = '0x71618D8BBa10c21ffd42bB409D2aBfEED8A8F997' // Replace with your actual quoter address
 
 // Quoters returns array of token amounts in their respective decimals
 // for human readable amounts, divide by 10^decimals eg decimals: 18 for ETH, divide by 10^18, usdc: 6, divide by 10^6, spx&hpos: 8, divide by 10^8

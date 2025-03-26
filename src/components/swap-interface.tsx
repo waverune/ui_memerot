@@ -13,7 +13,7 @@ import SwapInterfaceContent from "./ui_Component/swapInterfaceContent";
 import { Link } from "react-router-dom";
 
 export const BuildBearChain = {
-  id: 24454,
+  id: 1,
   name: "Forked Testnet",
   nativeCurrency: {
     name: "Ethereum",
@@ -22,13 +22,13 @@ export const BuildBearChain = {
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc.buildbear.io/extensive-gambit-a0c10a1d"],
+      http: ["https://rpc.buildbear.io/Memerot"],
     },
   },
   blockExplorers: {
     default: {
       name: "Explorer",
-      url: "https://explorer.buildbear.io/extensive-gambit-a0c10a1d",
+      url: "https://explorer.buildbear.io/Memerot",
     },
   },
   iconUrl: "https://example.com/avax-icon.png",
