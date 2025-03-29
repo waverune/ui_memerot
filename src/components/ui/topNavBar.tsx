@@ -4,14 +4,11 @@ import { useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import "nes.css/css/nes.min.css"
 import "./TopNavBar.css"
-import { openAuthSidebar } from "../../store/feature/auth/authSlice"
-import { useDispatch } from "react-redux"
 
 export default function TopNavBar() {
   const navigate = useNavigate()
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const dispatch = useDispatch()
 
   // Check if a path is active
   const isActive = (path: string) => {
@@ -33,8 +30,8 @@ export default function TopNavBar() {
         <button className={`nav-btn ${isActive("/docs") ? "is-active" : ""}`} onClick={() => navigate("/docs")}>
           Docs
         </button>
-        <button className="nav-btn sign-in-btn" onClick={() => dispatch(openAuthSidebar("signin"))}>
-          Sign In
+        <button className="nav-btn sign-in-btn" onClick={() => navigate("/discover")}>
+         Discover
         </button>
       </div>
 
@@ -70,7 +67,6 @@ export default function TopNavBar() {
         <button
           className="mobile-nav-btn sign-in-btn"
           onClick={() => {
-            dispatch(openAuthSidebar("signin"))
             setIsMobileMenuOpen(false)
           }}
         >

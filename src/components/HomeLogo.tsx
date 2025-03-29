@@ -14,7 +14,6 @@ import swapPressedImage from "../assets/swappressed.png"
 import { useNavigate } from "react-router-dom"
 import TopNavBar from "./ui/topNavBar"
 import { useState } from "react"
-import AuthSidebar from "./ui_Component/auth/authSideBar"
 
 function HomeLogo() {
     const navigate = useNavigate()
@@ -58,7 +57,6 @@ function HomeLogo() {
     return (
         <div className="home-logo-container">
             <TopNavBar />
-            <AuthSidebar />
             {/* Retro grid overlay */}
             <div className="grid-overlay"></div>
 
