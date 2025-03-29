@@ -3,6 +3,7 @@ import { useRef, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { debounce } from "lodash";
 import "./HomeLogo.css";
+import TopNavBar from "./ui_Component/topNavBar.tsx";
 
 const HomeLogo: React.FC = () => {
     const sceneRef = useRef<HTMLDivElement>(null);
@@ -396,6 +397,8 @@ const HomeLogo: React.FC = () => {
 
     // Return the container div for the Matter.js scene
     return (
+        <>
+        <TopNavBar />
         <div 
             ref={sceneRef} 
             className="scene-container"
@@ -448,6 +451,7 @@ const HomeLogo: React.FC = () => {
                 </Link>
             </div>
         </div>
+        </>
     );
 };
 
