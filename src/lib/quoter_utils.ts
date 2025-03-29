@@ -25,8 +25,8 @@ import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
 // Define your custom chain
 // const bb_chain = ;
 export const BuildBearChain = {
-    id: 1,
-    name: "Tenderly Virtual Testnet",
+    id: 25099,
+    name: "Forked Testnet",
     nativeCurrency: {
         name: "Ethereum Virutal",
         symbol: "ETH",
@@ -34,13 +34,13 @@ export const BuildBearChain = {
     },
     rpcUrls: {
         default: {
-            http: ["https://virtual.mainnet.rpc.tenderly.co/87a41065-48e0-49aa-b7cf-593798b729b7"],
+            http: ["https://rpc.buildbear.io/devoted-goose-2543c510"],
         },
     },
     blockExplorers: {
         default: {
             name: "BuildBear Explorer",
-            url: "https://explorer.buildbear.io/bizarre-nebula-535f2d2cd",
+            url: "https://explorer.buildbear.io/devoted-goose-2543c510",
         },
     },
 } as const satisfies Chain;
