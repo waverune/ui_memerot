@@ -19,7 +19,7 @@ import { TOKENS } from "../config/tokens";
 // 2.
 // 3.
 // Utils:save token functionality >> if tokens metadta doesnt exist in tokens.ts, save it.
-const provider = new ethers.JsonRpcProvider("https://rpc.buildbear.io/Memerot");
+const provider = new ethers.JsonRpcProvider("https://rpc.buildbear.io/memerot");
 
 const SimulationPage: React.FC = () => {
   const [tokenAddress, setTokenAddress] = useState("");
@@ -163,7 +163,7 @@ const SimulationPage: React.FC = () => {
 
     try {
       const provider = new ethers.JsonRpcProvider(
-        "https://rpc.buildbear.io/Memerot"
+        "https://rpc.buildbear.io/memerot"
       );
       const chainId = await provider
         .getNetwork()

@@ -22,13 +22,13 @@ export const BuildBearChain = {
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc.buildbear.io/Memerot"],
+      http: ["https://rpc.buildbear.io/memerot"],
     },
   },
   blockExplorers: {
     default: {
       name: "Explorer",
-      url: "https://explorer.buildbear.io/Memerot",
+      url: "https://explorer.buildbear.io/memerot",
     },
   },
   iconUrl: "https://example.com/avax-icon.png",
