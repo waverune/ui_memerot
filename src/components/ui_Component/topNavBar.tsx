@@ -27,7 +27,7 @@ const TopNavBar:React.FC = () => {
         </Link>
 
         <Link
-          to="https://twitter.com/memerot"
+          to="https://x.com/memer0t"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center text-gray-300 hover:text-[#d355e2] transition-colors"
