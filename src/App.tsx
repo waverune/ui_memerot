@@ -27,13 +27,13 @@ export const BuildBearChain = {
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc.buildbear.io/devoted-goose-2543c510"],
+      http: ["https://rpc.buildbear.io/memerot"],
     },
   },
   blockExplorers: {
     default: {
       name: "BuildBear Explorer",
-      url: "https://explorer.buildbear.io/devoted-goose-2543c510",
+      url: "https://explorer.buildbear.io/memerot",
     },
   },
   iconUrl: "https://example.com/avax-icon.png",
