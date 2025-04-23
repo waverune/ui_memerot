@@ -132,7 +132,7 @@ function SwapInterfaceContent() {
   const [activeTokenSelection, setActiveTokenSelection] = useState<TokenSelectionType>(null)
   const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([])
   const [tokenBalances, setTokenBalances] = useState<TokenBalances>(MOCK_BALANCES)
-  const [dogeMarketCap, setDogeMarketCap] = useState(0)
+  const [dogeMarketCap] = useState(0)
   const [isBalanceSufficient, setIsBalanceSufficient] = useState(true)
   const [debouncedAllocationRatio] = useState("")
   const [isQuoteSucess, setIsQuoteSucess] = useState(true)
@@ -153,10 +153,6 @@ function SwapInterfaceContent() {
     console.log(selectedChartCoin,"Selected Coin")
   };
 
-  const getDogeCoinMarketCap = async () => {
-    const data = await fetchCoinData("dogecoin")
-    setDogeMarketCap(data.market_cap_usd)
-  }
   const mounted = useRef(true)
   const [failedTokens, setFailedTokens] = useState<Set<string>>(new Set())
   const retryIntervalRef = useRef<NodeJS.Timeout>()
@@ -637,9 +633,6 @@ function SwapInterfaceContent() {
   // First, separate the price fetching useEffect
   useEffect(() => {
     console.log("Setting up price fetching intervals")
-    if (dogeMarketCap === 0) {
-      // getDogeCoinMarketCap()
-    }
     // Initial fetch
     // fetchMultiplePriceData()
 

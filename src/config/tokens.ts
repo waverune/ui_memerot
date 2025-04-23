@@ -26,7 +26,7 @@ export const TOKENS: { [key: string]: TokenConfig } = {
         address: "0xe0f63a424a4439cbe457d80e4f4b51ad25b2c56c",
         decimals: 8,
         symbol: "SPX6900",
-        logo: "/logos/spx6900.png",
+        logo: "/logos/SPX6900.png",
         coingeckoId: "spx6900"
     },
     MOG: {
@@ -47,21 +47,21 @@ export const TOKENS: { [key: string]: TokenConfig } = {
         address: "0x5026f006b85729a8b14553fae6af249ad16c9aab",
         decimals: 18,
         symbol: "WOJAK",
-        logo: "/logos/wojak.png",
+        logo: "/logos/WOJAK.png",
         coingeckoId: "wojak"
     },
     PEIPEI: {
         address: "0x3ffeea07a27fab7ad1df5297fa75e77a43cb5790",
         decimals: 18,
         symbol: "PEIPEI",
-        logo: "/logos/peipei.png",
+        logo: "/logos/PEIPEI.png",
         coingeckoId: "peipeicoin-vip"
     },
     SHIBA: {
         address: "0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce",
         decimals: 18,
         symbol: "SHIBA INU",
-        logo: "/logos/shib.png",
+        logo: "/logos/SHIBA_INU.png",
         coingeckoId: "shiba-inu"
     }
 };

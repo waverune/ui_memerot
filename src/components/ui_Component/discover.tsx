@@ -19,9 +19,9 @@ const DiscoverPresetsPage = () => {
       creator: "MemeRot",
       sellToken: "ETH",
       buyTokens: [
-        { symbol: "WOJAK", percentage: 40 },
-        { symbol: "MOG", percentage: 30 },
-        { symbol: "PEIPEI", percentage: 30 },
+        { name: "WOJAK", symbol: "WOJAK", percentage: 40 },
+        { name: "MOG", symbol: "MOG", percentage: 30 },
+        { name: "PEIPEI", symbol: "PEIPEI", percentage: 30 },
       ],
       users: 905,
     },
@@ -31,8 +31,8 @@ const DiscoverPresetsPage = () => {
       creator: "MemeRot",
       sellToken: "WETH",
       buyTokens: [
-        { symbol: "SPX6900", percentage: 50 },
-        { symbol: "HPOS", percentage: 50 },
+        { name: "SPX6900", symbol: "SPX6900", percentage: 50 },
+        { name: "HPOS", symbol: "HPOS", percentage: 50 },
       ],
       users: 723,
     },
@@ -42,10 +42,10 @@ const DiscoverPresetsPage = () => {
       creator: "MemeRot",
       sellToken: "USDC",
       buyTokens: [
-        { symbol: "WOJAK", percentage: 25 },
-        { symbol: "SPX6900", percentage: 25 },
-        { symbol: "SHIBA INU", percentage: 25 },
-        { symbol: "MOG", percentage: 25 },
+        { name: "WOJAK", symbol: "WOJAK", percentage: 25 },
+        { name: "SPX6900", symbol: "SPX6900", percentage: 25 },
+        { name: "SHIBA INU", symbol: "SHIBA_INU", percentage: 25 },
+        { name: "MOG", symbol: "MOG", percentage: 25 },
       ],
       users: 612,
     },
@@ -67,25 +67,6 @@ const DiscoverPresetsPage = () => {
     navigate(`/swap?${queryParams}`)
   }
 
-  // Get token colors based on symbol
-  const getTokenColor = (symbol: string) => {
-    switch (symbol) {
-      case "WOJAK":
-        return "#34d399"
-      case "SPX6900":
-        return "#f59e0b"
-      case "MOG":
-        return "#60a5fa"
-      case "PEIPEI":
-        return "#ec4899"
-      case "SHIBA INU":
-        return "#fbbf24"
-      case "HPOS":
-        return "#8b5cf6"
-      default:
-        return "#a855f7"
-    }
-  }
 
   return (
     <div style={{
@@ -136,9 +117,16 @@ const DiscoverPresetsPage = () => {
                 </div>
 
                 <div style={{ marginBottom: 16 }}>
-                  <Text style={{ color: "#d1d5db", fontSize: 14, display: "block", marginBottom: 8 }}>
-                    Sell Token: <span style={{ color: "#60a5fa" }}>{mix.sellToken}</span>
-                  </Text>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ color: "#d1d5db", fontSize: 14 }}>Sell Token:</span>
+                    <img
+                      src={`/logos/${mix.sellToken}.png`}
+                      alt={mix.sellToken}
+                      style={{ width: 18, height: 18, objectFit: "contain" }}
+                      onError={e => { e.currentTarget.src = "/logos/default.png" }}
+                    />
+                    <span style={{ color: "#60a5fa", fontSize: 14 }}>{mix.sellToken}</span>
+                  </span>
                 </div>
 
                 <Space direction="vertical" style={{ width: "100%", marginBottom: 16 }}>
@@ -146,20 +134,75 @@ const DiscoverPresetsPage = () => {
                   {mix.buyTokens.map((token, index) => (
                     <div key={index} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div
-                          style={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: "50%",
-                            backgroundColor: getTokenColor(token.symbol),
-                          }}
+                        <img
+                          src={`/logos/${token.symbol}.png`}
+                          alt={token.symbol}
+                          style={{ width: 18, height: 18, objectFit: "contain" }}
+                          onError={e => { e.currentTarget.src = "/logos/default.png" }}
                         />
-                        <Text style={{ color: "#d1d5db", fontSize: 14 }}>{token.symbol}</Text>
+                        <Text style={{ color: "#d1d5db", fontSize: 14 }}>{token.name}</Text>
                       </div>
                       <Text style={{ color: "#d1d5db", fontSize: 14 }}>{token.percentage}%</Text>
                     </div>
                   ))}
                 </Space>
+
+                {/* Percentage Bar (identical to swapInterfaceContent.tsx) */}
+                <div style={{ margin: '16px 0' }}>
+                  <div className="text-sm text-gray-400">Token Allocations</div>
+                  <div className="relative h-4 bg-gray-700 rounded" style={{ width: '100%' }}>
+                    {mix.buyTokens.map((token, idx) => {
+                      const leftPosition = mix.buyTokens.slice(0, idx).reduce((a, b) => a + b.percentage, 0)
+                      // Use Tailwind color classes for consistency
+                      const TOKEN_COLORS = [
+                        "bg-blue-500",
+                        "bg-green-500",
+                        "bg-pink-500",
+                        "bg-yellow-500",
+                        "bg-purple-500",
+                        "bg-red-500",
+                        "bg-indigo-500",
+                        "bg-teal-500",
+                      ]
+                      return (
+                        <div
+                          key={token.symbol}
+                          className={`absolute h-full ${TOKEN_COLORS[idx % TOKEN_COLORS.length]} rounded`}
+                          style={{
+                            width: `${token.percentage}%`,
+                            left: `${leftPosition}%`,
+                          }}
+                        />
+                      )
+                    })}
+                  </div>
+                  {/* Allocation labels overlayed on the bar */}
+                  <div className="relative" style={{ width: '100%', height: 18, marginTop: 4 }}>
+                    {mix.buyTokens.map((token, idx) => {
+                      const leftPosition = mix.buyTokens.slice(0, idx).reduce((a, b) => a + b.percentage, 0)
+                      return (
+                        <div
+                          key={token.symbol}
+                          style={{
+                            position: "absolute",
+                            left: `${leftPosition}%`,
+                            width: `${token.percentage}%`,
+                            textAlign: "center",
+                            color: "#d1d5db",
+                            fontSize: 13,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            pointerEvents: "none",
+                            lineHeight: "18px",
+                          }}
+                        >
+                          {`${token.percentage}% ${token.name}`}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
 
                 <Divider style={{ margin: "16px 0", borderColor: "#1f2937" }} />
 
