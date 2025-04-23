@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://web-production-22490.up.railway.app'; // Adjust this to your backend URL
+const API_BASE_URL = 'http://127.0.0.1:8000'; // Adjust this to your backend URL
 
 export interface CoinData {
     coin_id: string;
@@ -33,3 +33,14 @@ export const fetchMarketCaps = async (): Promise<MarketCaps> => {
     console.log('Received market caps:', data);
     return data;
 };
+
+
+export const getCoinChart = async(coinId:string, days: number = 30) =>{
+    const response = await fetch(`${API_BASE_URL}/coin/${coinId}/chart?days=${days}`);
+    if (!response.ok) {
+        throw new Error('Error fetching market caps');
+    }
+    const data = await response.json();
+    console.log('Received market caps:', data);
+    return data;
+}

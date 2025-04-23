@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { debounce } from "lodash";
 import "./HomeLogo.css";
 import TopNavBar from "./ui_Component/topNavBar.tsx";
+// import { Footer } from "./ui_Component/Footer.tsx";
 
 const HomeLogo: React.FC = () => {
     const sceneRef = useRef<HTMLDivElement>(null);
@@ -449,8 +450,14 @@ const HomeLogo: React.FC = () => {
                         Go to Swap Page
                     </button>
                 </Link>
+                <Link to="/discover" style={{ pointerEvents: 'auto' }}>
+                    <button className={`px-8 py-4 ${isMobile ? 'text-lg' : 'text-xl'}  mx-4 bg-pink-600 bg-opacity-80 text-white rounded-full hover:bg-opacity-100 transition-all`}>
+                       Discover!
+                    </button>
+                </Link>
             </div>
         </div>
+        {/* <Footer /> */}
         </>
     );
 };
