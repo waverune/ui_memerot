@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
+import path from 'path'
 
 export default defineConfig({
   base: '/',
@@ -29,7 +30,8 @@ export default defineConfig({
     alias: {
       '@ethersproject/bignumber': resolve(__dirname, 'node_modules/@ethersproject/bignumber'),
       '@ethersproject/contracts': resolve(__dirname, 'node_modules/@ethersproject/contracts'),
-      '@ethersproject/providers': resolve(__dirname, 'node_modules/@ethersproject/providers')
+      '@ethersproject/providers': resolve(__dirname, 'node_modules/@ethersproject/providers'),
+      '@': path.resolve(__dirname, './src')
     }
   },
   optimizeDeps: {
