@@ -89,10 +89,10 @@ const HomeLogo: React.FC = () => {
         <FloatingElements />
         
         {/* Main Content */}
-        <div className="relative z-10 flex flex-col items-center justify-start min-h-screen px-4 pt-32">
+        <div className="relative z-10 flex flex-col items-center justify-start min-h-screen px-4 pt-24">
           {/* Initial View */}
-          <div className="text-center max-w-4xl mx-auto mb-8">
-            <h1 className={`${isMobile ? 'text-5xl' : 'text-7xl'} font-bold mb-8`}>
+          <div className="text-center max-w-4xl mx-auto mb-6">
+            <h1 className={`${isMobile ? 'text-5xl' : 'text-7xl'} font-bold mb-6`}>
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#4c82fb] via-[#7b3fe4] to-[#ff4d4d]">
                 One-Click Token Diversification
               </span>
@@ -216,10 +216,10 @@ const HomeLogo: React.FC = () => {
 
           {/* Scroll Indicator */}
           {showScrollIndicator && (
-            <div className="flex flex-col items-center mb-24 animate-bounce-subtle">
+            <div className="flex flex-col items-center mb-16">
               <p className="text-gray-400 text-lg mb-2">Scroll to learn more</p>
               <div className="w-6 h-10 border-2 border-gray-400 rounded-full flex items-center justify-center">
-                <div className="w-1 h-3 bg-gray-400 rounded-full"></div>
+                <div className="w-1 h-3 bg-gray-400 rounded-full animate-bounce"></div>
               </div>
             </div>
           )}
