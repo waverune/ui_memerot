@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import TopNavBar from "./ui_Component/topNavBar";
 import FloatingElements from "./ui_Component/FloatingElements";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
 import TokenSelectionPopup from "./ui_Component/tokenSelectionPopup";
 import { TOKENS } from "../config/tokens";
 import { TokenConfig, TokenSymbol, TokenSelectionType } from "../utils/Modal";
@@ -11,7 +11,7 @@ const HomeLogo: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
   const [selectedToken, setSelectedToken] = useState<TokenSymbol | null>(null);
-  const [selectedOutputTokens, setSelectedOutputTokens] = useState<TokenSymbol[]>([]);
+  const [selectedOutputTokens, setSelectedOutputTokens] = useState<(TokenSymbol | null)[]>([null]);
   const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
   const [activeTokenSelection, setActiveTokenSelection] = useState<TokenSelectionType>(null);
   const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
@@ -58,8 +58,17 @@ const HomeLogo: React.FC = () => {
     setActiveTokenSelection(null);
   };
 
-  const updateDisabledTokens = (tokens: TokenSymbol[] = selectedOutputTokens) => {
-    const disabled = [selectedToken, ...tokens].filter((token): token is TokenSymbol => token !== null && token !== "") as TokenSymbol[];
+  const handleRemoveToken = (indexToRemove: number) => {
+    setSelectedOutputTokens(prev => {
+      const newTokens = prev.filter((_, index) => index !== indexToRemove);
+      // Ensure there's always at least one token slot
+      return newTokens.length === 0 ? [null] : newTokens;
+    });
+    updateDisabledTokens();
+  };
+
+  const updateDisabledTokens = (tokens: (TokenSymbol | null)[] = selectedOutputTokens) => {
+    const disabled = [selectedToken, ...tokens].filter((token): token is TokenSymbol => token !== null) as TokenSymbol[];
     setDisabledTokens(disabled);
   };
 
@@ -68,8 +77,8 @@ const HomeLogo: React.FC = () => {
       setSelectedToken(tokens[0] as TokenSymbol);
       updateDisabledTokens();
     } else if (activeTokenSelection?.type === "output") {
-      const newTokens = tokens.slice(0, 2) as TokenSymbol[]; // Limit to 2 tokens for homepage
-      setSelectedOutputTokens(newTokens);
+      const newTokens = tokens.slice(0, 4) as TokenSymbol[]; // Allow up to 4 tokens
+      setSelectedOutputTokens(newTokens.map(token => token as TokenSymbol | null));
       updateDisabledTokens(newTokens);
     }
     closeTokenPopup();
@@ -79,6 +88,10 @@ const HomeLogo: React.FC = () => {
   const OUTPUT_TOKENS = Object.fromEntries(
     Object.entries(TOKENS).filter(([symbol]) => symbol !== "ETH" && symbol !== "WETH")
   ) as Record<TokenSymbol, TokenConfig>;
+
+  const handleAddToken = () => {
+    // Implementation of handleAddToken function
+  };
 
   return (
     <div className="min-h-screen bg-[#0d111c] text-white">
@@ -154,54 +167,85 @@ const HomeLogo: React.FC = () => {
 
               {/* Token Outputs */}
               <div className="space-y-3">
-                {[0, 1].map((index: number) => (
+                {selectedOutputTokens.map((token, index) => (
                   <div key={`output-${index}`} className="p-4 bg-[#212638] rounded-xl">
                     <div className="flex flex-col gap-3">
                       <div className="flex items-center justify-between">
-                        <button 
-                          onClick={() => openTokenPopup("output", index)}
-                          className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors"
-                        >
-                          {selectedOutputTokens[index] ? (
-                            <>
-                              <img 
-                                src={TOKENS[selectedOutputTokens[index]].logo} 
-                                alt={selectedOutputTokens[index]} 
-                                className="w-6 h-6 rounded-full"
-                              />
-                              <span>{selectedOutputTokens[index]}</span>
-                            </>
-                          ) : (
-                            <>
-                              <div className="w-6 h-6 rounded-full bg-gray-600"></div>
-                              <span>Select token</span>
-                            </>
+                        <div className="flex items-center gap-2 flex-1">
+                          <button 
+                            onClick={() => openTokenPopup("output", index)}
+                            className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors flex-1"
+                          >
+                            {token ? (
+                              <>
+                                <img 
+                                  src={TOKENS[token].logo} 
+                                  alt={token} 
+                                  className="w-6 h-6 rounded-full"
+                                />
+                                <span>{token}</span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-6 h-6 rounded-full bg-gray-600"></div>
+                                <span>Select token</span>
+                              </>
+                            )}
+                            <ChevronDown size={20} />
+                          </button>
+                          {selectedOutputTokens.length > 1 && (
+                            <button
+                              onClick={() => handleRemoveToken(index)}
+                              className="p-2 hover:bg-[#374160] rounded-full transition-colors"
+                              aria-label="Remove token"
+                            >
+                              <X size={20} className="text-gray-400 hover:text-white" />
+                            </button>
                           )}
-                          <ChevronDown size={20} />
-                        </button>
-                        <span className="text-lg font-medium">50%</span>
+                        </div>
+                        <span className="text-lg font-medium ml-4">
+                          {selectedOutputTokens.length > 0 ? `${Math.floor(100 / selectedOutputTokens.length)}%` : '100%'}
+                        </span>
                       </div>
                       <div className="w-full bg-[#293249] rounded-full h-2">
                         <div 
                           className="bg-[#4c82fb] h-2 rounded-full" 
-                          style={{ width: '50%' }}
+                          style={{ 
+                            width: selectedOutputTokens.length > 0 
+                              ? `${Math.floor(100 / selectedOutputTokens.length)}%` 
+                              : '100%' 
+                          }}
                         ></div>
                       </div>
                     </div>
                   </div>
                 ))}
+                {selectedOutputTokens.length < 4 && (
+                  <button
+                    onClick={handleAddToken}
+                    className="w-full mt-2 py-2 bg-[#293249] hover:bg-[#374160] rounded-lg flex items-center justify-center transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-2 text-gray-400" />
+                    <span className="text-white">Add another token</span>
+                    <span className="text-xs text-gray-400 ml-2">
+                      ({4 - selectedOutputTokens.length} remaining)
+                    </span>
+                  </button>
+                )}
               </div>
 
               {/* Percentage Inputs */}
               <div className="flex flex-wrap gap-2 mt-4">
-                {[0, 1].map((index: number) => (
-                  <div key={`percentage-${index}`} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="0%"
-                      className="bg-transparent text-2xl font-medium focus:outline-none text-right w-[160px]"
-                    />
-                  </div>
+                {selectedOutputTokens.map((token, index) => (
+                  token && (
+                    <div key={`percentage-${index}`} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="0%"
+                        className="bg-transparent text-2xl font-medium focus:outline-none text-right w-[160px]"
+                      />
+                    </div>
+                  )
                 ))}
               </div>
 
@@ -339,7 +383,7 @@ const HomeLogo: React.FC = () => {
         balances={{}}
         disabledTokens={disabledTokens.map(String)}
         tokenPriceData={{}}
-        selectedOutputTokens={selectedOutputTokens.map(String)}
+        selectedOutputTokens={selectedOutputTokens.map(token => token?.toString() || "")}
         allowMultiSelect={activeTokenSelection?.type === "output"}
       />
     </div>

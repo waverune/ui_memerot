@@ -1259,20 +1259,20 @@ function SwapInterfaceContent() {
   }, []);
 
   return (
-    <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8">
+    <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8 bg-[#0d111c]">
       <div className="w-full lg:w-1/2 space-y-4">
         {/* Input (Sell) section */}
-        <div className="bg-gray-800 rounded-lg p-4 space-y-4">
+        <div className="bg-[#191c2a] rounded-lg p-4 space-y-4">
           <div className="space-y-2">
             <label className="text-sm text-gray-400">Sell</label>
-            <div className="bg-gray-700 rounded-lg p-3 flex items-center">
+            <div className="bg-[#212638] rounded-lg p-3 flex items-center">
               <div className="flex-grow">
                 <input
                   type="number"
                   value={fromAmount}
                   onChange={handleFromAmountChange}
                   placeholder="0"
-                  className="bg-transparent border-none text-left w-full placeholder-gray-500 focus:outline-none focus:ring-0"
+                  className="bg-transparent border-none text-left w-full placeholder-gray-500 focus:outline-none focus:ring-0 text-white text-2xl"
                 />
                 <span className="text-xs text-gray-400">
                   {getUsdValue(
@@ -1285,7 +1285,7 @@ function SwapInterfaceContent() {
               <div className="flex flex-col items-end">
                 <button
                   onClick={() => openTokenPopup("from")}
-                  className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
+                  className="flex items-center space-x-2 bg-[#293249] hover:bg-[#374160] rounded-full px-4 py-2 transition-colors min-w-[160px]"
                 >
                   {selectedToken ? (
                     <>
@@ -1294,12 +1294,12 @@ function SwapInterfaceContent() {
                         alt={`${selectedToken} logo`}
                         className="w-6 h-6 rounded-full"
                       />
-                      <span>{selectedToken}</span>
+                      <span className="text-white">{selectedToken}</span>
                     </>
                   ) : (
-                    <span>Select a token</span>
+                    <span className="text-white">Select a token</span>
                   )}
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
                 </button>
                 <span className="text-xs text-gray-400 mt-1">
                   Balance:{" "}
@@ -1314,7 +1314,7 @@ function SwapInterfaceContent() {
 
           {/* Swap arrow */}
           <div className="flex justify-center">
-            <div className="bg-gray-700 rounded-full p-2">
+            <div className="bg-[#293249] rounded-full p-2">
               <ArrowDownUp className="h-6 w-6 text-gray-400" />
             </div>
           </div>
@@ -1325,7 +1325,7 @@ function SwapInterfaceContent() {
             {allocationValues.map((_, index) => (
               <div
                 key={index}
-                className="bg-gray-700 rounded-lg p-3 flex flex-col"
+                className="bg-[#212638] rounded-lg p-3 flex flex-col"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-grow">
@@ -1338,7 +1338,7 @@ function SwapInterfaceContent() {
                           : "0"
                       }
                       readOnly
-                      className="bg-transparent border-none text-left w-full focus:outline-none focus:ring-0 text-lg"
+                      className="bg-transparent border-none text-left w-full focus:outline-none focus:ring-0 text-2xl text-white"
                     />
                     <div className="flex flex-col space-y-1">
                       <span className="text-xs text-gray-400">
@@ -1364,28 +1364,12 @@ function SwapInterfaceContent() {
                           )
                         )}
                       </span>
-                      {selectedOutputTokens[index] &&
-                        simulatedOutputs[selectedOutputTokens[index]]
-                          ?.priceImpact && (
-                          <span
-                            className={`text-xs ${
-                              parseFloat(
-                                simulatedOutputs[selectedOutputTokens[index]]
-                                  ?.priceImpact || "0"
-                              ) > 5
-                                ? "text-red-400"
-                                : "text-green-400"
-                            }`}
-                          >
-                            {/* // TODO FIX Price Impact// Price Impact: {simulatedOutputs[selectedOutputTokens[index]]?.priceImpact}  */}
-                          </span>
-                        )}
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => openTokenPopup("output", index)}
-                      className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
+                      className="flex items-center space-x-2 bg-[#293249] hover:bg-[#374160] rounded-full px-4 py-2 transition-colors min-w-[160px]"
                     >
                       {selectedOutputTokens[index] &&
                       selectedOutputTokens[index] !== "" ? (
@@ -1393,16 +1377,15 @@ function SwapInterfaceContent() {
                           <img
                             src={TOKENS[selectedOutputTokens[index]].logo}
                             alt={`${selectedOutputTokens[index]} logo`}
-                            className="w-5 h-5 rounded-full"
+                            className="w-6 h-6 rounded-full"
                           />
-                          <span>{selectedOutputTokens[index]}</span>
+                          <span className="text-white">{selectedOutputTokens[index]}</span>
                         </>
                       ) : (
-                        <span>Select a token</span>
+                        <span className="text-white">Select a token</span>
                       )}
-                      <ChevronDown className="h-4 w-4" />
+                      <ChevronDown className="h-4 w-4 text-gray-400" />
                     </button>
-                    {/* Show remove button based on conditions */}
                     {(selectedOutputTokens.length > 1 ||
                       selectedOutputTokens[index]) && (
                       <button
@@ -1412,14 +1395,14 @@ function SwapInterfaceContent() {
                             index
                           )
                         }
-                        className="bg-gray-800 rounded-full p-1 hover:bg-gray-600 transition-colors duration-200"
+                        className="bg-[#293249] hover:bg-[#374160] rounded-full p-1 transition-colors"
                         title={
                           selectedOutputTokens.length === 1
                             ? "Clear selection"
                             : "Remove slot"
                         }
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4 text-gray-400" />
                       </button>
                     )}
                   </div>
@@ -1442,14 +1425,13 @@ function SwapInterfaceContent() {
                   )}
               </div>
             ))}
-            {/* Show Add another token button only if we have less than 4 tokens */}
             {getSelectedTokenCount() < 4 && (
               <button
                 onClick={handleAddToken}
-                className="w-full mt-2 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center transition-colors duration-200"
+                className="w-full mt-2 py-2 bg-[#293249] hover:bg-[#374160] rounded-lg flex items-center justify-center transition-colors"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Add another token
+                <Plus className="h-4 w-4 mr-2 text-gray-400" />
+                <span className="text-white">Add another token</span>
                 <span className="text-xs text-gray-400 ml-2">
                   ({4 - getSelectedTokenCount()} remaining)
                 </span>
@@ -1460,7 +1442,7 @@ function SwapInterfaceContent() {
 
         {/* Swap button */}
         <Button
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          className="w-full bg-gradient-to-r from-[#4c82fb] to-[#7b3fe4] hover:from-[#3a6fd0] hover:to-[#6a36c7] text-white font-bold py-2 px-4 rounded-lg transition-colors"
           onClick={needsApproval ? handleApprove : handleSwap}
           disabled={
             !isConnected ||
@@ -1486,7 +1468,7 @@ function SwapInterfaceContent() {
       </div>
 
       <div className="w-full lg:w-1/2 space-y-4 mt-8 lg:mt-0">
-        <div className="bg-gray-800 rounded-lg p-4 space-y-6">
+        <div className="bg-[#191c2a] rounded-lg p-4 space-y-6">
           {/* Allocation Type and Templates in a horizontal layout */}
           <div className="grid grid-cols-2 gap-4">
             {/* Allocation Type Section */}
@@ -1501,9 +1483,9 @@ function SwapInterfaceContent() {
                     value="ratio"
                     checked={allocationType === "ratio"}
                     onChange={() => handleAllocationTypeChange("ratio")}
-                    className="text-blue-600 focus:ring-blue-500 h-4 w-4"
+                    className="text-[#4c82fb] focus:ring-[#4c82fb] h-4 w-4"
                   />
-                  <span className="text-sm">Ratio</span>
+                  <span className="text-sm text-white">Ratio</span>
                 </label>
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input
@@ -1511,9 +1493,9 @@ function SwapInterfaceContent() {
                     value="percentage"
                     checked={allocationType === "percentage"}
                     onChange={() => handleAllocationTypeChange("percentage")}
-                    className="text-blue-600 focus:ring-blue-500 h-4 w-4"
+                    className="text-[#4c82fb] focus:ring-[#4c82fb] h-4 w-4"
                   />
-                  <span className="text-sm">Percentage</span>
+                  <span className="text-sm text-white">Percentage</span>
                 </label>
               </div>
             </div>
@@ -1533,8 +1515,8 @@ function SwapInterfaceContent() {
                           onClick={() => handleTemplateChange(template)}
                           className={`px-2.5 py-0.5 text-xs rounded-full transition-all duration-200 whitespace-nowrap ${
                             selectedTemplate === template
-                              ? "bg-blue-600 text-white ring-2 ring-blue-400 ring-opacity-50"
-                              : "bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white"
+                              ? "bg-gradient-to-r from-[#4c82fb] to-[#7b3fe4] text-white ring-2 ring-[#4c82fb] ring-opacity-50"
+                              : "bg-[#293249] text-gray-300 hover:bg-[#374160] hover:text-white"
                           }`}
                         >
                           {template}
@@ -1557,9 +1539,9 @@ function SwapInterfaceContent() {
                         onClick={() => handleTemplateChange(template)}
                         className={`px-2.5 py-0.5 text-xs rounded-full transition-all duration-200 whitespace-nowrap ${
                           selectedTemplate === template
-                            ? "bg-blue-600 text-white ring-2 ring-blue-400 ring-opacity-50"
-                            : "bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white"
-                        }`}
+                            ? "bg-gradient-to-r from-[#4c82fb] to-[#7b3fe4] text-white ring-2 ring-[#4c82fb] ring-opacity-50"
+                            : "bg-[#293249] text-gray-300 hover:bg-[#374160] hover:text-white"
+                          }`}
                       >
                         {template}
                       </button>
@@ -1584,7 +1566,7 @@ function SwapInterfaceContent() {
                   onChange={(e) =>
                     handleAllocationValueChange(index, e.target.value)
                   }
-                  className="w-full bg-gray-700 rounded-lg p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full bg-[#212638] rounded-lg p-2 text-white focus:ring-2 focus:ring-[#4c82fb] focus:border-transparent"
                   placeholder={
                     allocationType === "ratio" ? "Ratio" : "Percentage"
                   }
@@ -1599,7 +1581,7 @@ function SwapInterfaceContent() {
           {/* Share Button */}
           <button
             onClick={handleShareUrl}
-            className="w-full flex items-center justify-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors duration-200"
+            className="w-full flex items-center justify-center space-x-2 bg-[#293249] hover:bg-[#374160] text-white py-3 rounded-lg transition-colors"
           >
             <Copy className="h-4 w-4" />
             <span>Share Allocation</span>
@@ -1610,11 +1592,11 @@ function SwapInterfaceContent() {
             selectedOutputTokens[0] !== "" && (
               <div className="mt-4">
                 <div className="text-sm text-gray-400">Token Allocations</div>
-                <div className="relative w-full h-4 bg-gray-700 rounded">
+                <div className="relative w-full h-4 bg-[#212638] rounded">
                   {allocationPercentages.map((percentage, index) => {
                     const leftPosition = allocationPercentages
                       .slice(0, index)
-                      .reduce((a, b) => a + b, 0); // Calculate left position for the segment
+                      .reduce((a, b) => a + b, 0);
 
                     return (
                       <div
@@ -1633,7 +1615,7 @@ function SwapInterfaceContent() {
                 <div className="flex justify-between text-xs text-gray-400 mt-1">
                   {allocationValues.map((value, index) => {
                     const tokenSymbol =
-                      TOKENS[selectedOutputTokens[index]]?.symbol; // Safely access symbol
+                      TOKENS[selectedOutputTokens[index]]?.symbol;
                     return (
                       <span key={index}>
                         {`${value} (${allocationPercentages[index].toFixed(
