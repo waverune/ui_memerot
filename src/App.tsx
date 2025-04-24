@@ -7,6 +7,7 @@ import HomeLogo from "./components/HomeLogo";
 import Status from "./pages/Status";
 import SimulationPage from "./pages/SimulationPage";
 import AboutPage from "./components/ui_Component/aboutUs";
+import Discover from "./pages/Discover";
 import "@rainbow-me/rainbowkit/styles.css";
 import {
   getDefaultConfig,
@@ -66,6 +67,7 @@ function App() {
                 <Routes>
                   <Route path="/" element={<HomeLogo key="home" />} />
                   <Route path="/swap" element={<SwapInterface key="swap" />} />
+                  <Route path="/discover" element={<Discover key="discover" />} />
                   <Route path="/status" element={<Status key="status" />} />
                   <Route path="/sims" element={<SimulationPage key="sims" />} />
                   <Route path="/about" element={<AboutPage key="about" />} />

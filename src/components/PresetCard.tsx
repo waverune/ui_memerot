@@ -2,18 +2,20 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { ScrollArea } from "./ui/scroll-area";
+import { TokenSymbol } from "../utils/Modal";
 
 interface TokenAllocation {
-  symbol: string;
+  symbol: TokenSymbol;
   percentage: number;
   icon?: string;
 }
 
 interface PresetCardProps {
   title: string;
+  description?: string;
   creator: string;
   sellToken: {
-    symbol: string;
+    symbol: TokenSymbol;
     icon?: string;
   };
   buyTokens: TokenAllocation[];
@@ -23,6 +25,7 @@ interface PresetCardProps {
 
 export const PresetCard = ({
   title,
+  description,
   creator,
   sellToken,
   buyTokens,
@@ -34,6 +37,7 @@ export const PresetCard = ({
       <CardHeader className="flex-none h-[88px] pb-4">
         <div className="space-y-1">
           <CardTitle className="text-xl font-semibold text-white truncate">{title}</CardTitle>
+          {description && <p className="text-sm text-gray-400 truncate">{description}</p>}
           <p className="text-sm text-gray-400 truncate">Created by {creator}</p>
         </div>
       </CardHeader>
@@ -43,9 +47,9 @@ export const PresetCard = ({
           <p className="text-sm text-gray-400 mb-2">Sell Token:</p>
           <div className="flex items-center space-x-2 p-3 rounded-md bg-[#1A1D24] h-[48px]">
             {sellToken.icon && (
-              <img src={sellToken.icon} alt={sellToken.symbol} className="w-6 h-6" />
+              <img src={sellToken.icon} alt={String(sellToken.symbol)} className="w-6 h-6" />
             )}
-            <span className="text-white truncate">{sellToken.symbol}</span>
+            <span className="text-white truncate">{String(sellToken.symbol)}</span>
           </div>
         </div>
 
@@ -61,9 +65,9 @@ export const PresetCard = ({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2 min-w-0">
                       {token.icon && (
-                        <img src={token.icon} alt={token.symbol} className="w-5 h-5 flex-shrink-0" />
+                        <img src={token.icon} alt={String(token.symbol)} className="w-5 h-5 flex-shrink-0" />
                       )}
-                      <span className="text-white text-sm truncate">{token.symbol}</span>
+                      <span className="text-white text-sm truncate">{String(token.symbol)}</span>
                     </div>
                     <span className="text-white text-sm flex-shrink-0">{token.percentage}%</span>
                   </div>

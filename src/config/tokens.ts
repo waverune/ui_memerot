@@ -1,6 +1,8 @@
 import { TokenConfig } from "../utils/Modal";
 
-export const TOKENS: { [key: string]: TokenConfig } = {
+export type TokenKey = "ETH" | "WETH" | "USDC" | "SPX6900" | "MOG" | "HPOS" | "WOJAK" | "PEIPEI" | "SHIBA";
+
+export const TOKENS: Record<TokenKey, TokenConfig> = {
     ETH: {
         address: "0x0000000000000000000000000000000000000000",
         decimals: 18,

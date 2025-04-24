@@ -1,13 +1,17 @@
-import { TOKENS } from "../config/tokens";
+import { TOKENS, TokenKey } from "../config/tokens";
 
 // Represents the mock balance data structure for testing and development
 // Maps each token symbol to its balance as a string
-export const MOCK_BALANCES: Record<TokenSymbol, string> = {
+export const MOCK_BALANCES: Record<TokenKey, string> = {
     ETH: "0.0",
     SPX6900: "0",
     MOG: "0",
     WETH: "0.0",
     USDC: "0.0",
+    HPOS: "0",
+    WOJAK: "0",
+    PEIPEI: "0",
+    SHIBA: "0"
 };
 
 // Defines the structure of a token's configuration
@@ -37,7 +41,7 @@ export type CoinPriceData = {
     image: string;           // Token logo URL
 };
 
-export type TokenSymbol = keyof typeof TOKENS;
+export type TokenSymbol = TokenKey;
 // Type alias for TokenSymbol
 // Used throughout the application for type safety when referring to token symbols
 export type Token = TokenSymbol;

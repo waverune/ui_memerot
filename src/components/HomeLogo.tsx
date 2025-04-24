@@ -17,7 +17,7 @@ const HomeLogo: React.FC = () => {
   const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
   const navigate = useNavigate();
 
-  useEffect(() => {
+    useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
@@ -44,9 +44,9 @@ const HomeLogo: React.FC = () => {
       state: { 
         selectedToken,
         defaultMode: 'multi'
-      }
-    });
-  };
+                }
+            });
+        };
 
   const openTokenPopup = (type: "from" | "output", index?: number) => {
     setActiveTokenSelection({ type, index });
@@ -326,7 +326,7 @@ const HomeLogo: React.FC = () => {
                 </svg>
               </a>
             </div>
-          </div>
+            </div>
         </div>
       </div>
 
@@ -343,7 +343,7 @@ const HomeLogo: React.FC = () => {
         allowMultiSelect={activeTokenSelection?.type === "output"}
       />
     </div>
-  );
+    );
 };
 
 export default HomeLogo;
