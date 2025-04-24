@@ -52,7 +52,22 @@ export default {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			}
-  		}
+  		},
+  		keyframes: {
+  			'bounce-subtle': {
+  				'0%, 100%': {
+  					transform: 'translateY(-5%)',
+  					animationTimingFunction: 'cubic-bezier(0.8, 0, 1, 1)',
+  				},
+  				'50%': {
+  					transform: 'translateY(0)',
+  					animationTimingFunction: 'cubic-bezier(0, 0, 0.2, 1)',
+  				},
+  			},
+  		},
+  		animation: {
+  			'bounce-subtle': 'bounce-subtle 2s infinite',
+  		},
   	}
   },
   plugins: [require("tailwindcss-animate")],

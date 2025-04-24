@@ -3,11 +3,18 @@ import { Link, useNavigate } from "react-router-dom";
 import TopNavBar from "./ui_Component/topNavBar";
 import FloatingElements from "./ui_Component/FloatingElements";
 import { ChevronDown } from "lucide-react";
+import TokenSelectionPopup from "./ui_Component/tokenSelectionPopup";
+import { TOKENS } from "../config/tokens";
+import { TokenConfig, TokenSymbol, TokenSelectionType } from "../utils/Modal";
 
 const HomeLogo: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
-  const [selectedToken, setSelectedToken] = useState<string | null>(null);
+  const [selectedToken, setSelectedToken] = useState<TokenSymbol | null>(null);
+  const [selectedOutputTokens, setSelectedOutputTokens] = useState<TokenSymbol[]>([]);
+  const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
+  const [activeTokenSelection, setActiveTokenSelection] = useState<TokenSelectionType>(null);
+  const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,6 +32,7 @@ const HomeLogo: React.FC = () => {
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('scroll', handleScroll);
+    setShowScrollIndicator(true); // Initialize as visible
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('scroll', handleScroll);
@@ -39,6 +47,38 @@ const HomeLogo: React.FC = () => {
       }
     });
   };
+
+  const openTokenPopup = (type: "from" | "output", index?: number) => {
+    setActiveTokenSelection({ type, index });
+    setIsTokenPopupOpen(true);
+  };
+
+  const closeTokenPopup = () => {
+    setIsTokenPopupOpen(false);
+    setActiveTokenSelection(null);
+  };
+
+  const updateDisabledTokens = (tokens: TokenSymbol[] = selectedOutputTokens) => {
+    const disabled = [selectedToken, ...tokens].filter((token): token is TokenSymbol => token !== null && token !== "") as TokenSymbol[];
+    setDisabledTokens(disabled);
+  };
+
+  const handleTokenSelect = (tokens: string[]) => {
+    if (activeTokenSelection?.type === "from") {
+      setSelectedToken(tokens[0] as TokenSymbol);
+      updateDisabledTokens();
+    } else if (activeTokenSelection?.type === "output") {
+      const newTokens = tokens.slice(0, 2) as TokenSymbol[]; // Limit to 2 tokens for homepage
+      setSelectedOutputTokens(newTokens);
+      updateDisabledTokens(newTokens);
+    }
+    closeTokenPopup();
+  };
+
+  // Filter tokens for output selection (excluding ETH/WETH)
+  const OUTPUT_TOKENS = Object.fromEntries(
+    Object.entries(TOKENS).filter(([symbol]) => symbol !== "ETH" && symbol !== "WETH")
+  ) as Record<TokenSymbol, TokenConfig>;
 
   return (
     <div className="min-h-screen bg-[#0d111c] text-white">
@@ -60,15 +100,31 @@ const HomeLogo: React.FC = () => {
           </div>
 
           {/* Minimal Swap Interface */}
-          <div className="bg-[#191c2a] rounded-2xl p-6 w-full max-w-md mb-24">
+          <div className="bg-[#191c2a] rounded-2xl p-6 w-full max-w-md mb-12">
             <div className="space-y-4">
               {/* Input Token */}
               <div className="p-4 bg-[#212638] rounded-xl">
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
-                    <button className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors">
-                      <div className="w-6 h-6 rounded-full bg-gray-600"></div>
-                      <span>Select token</span>
+                    <button 
+                      onClick={() => openTokenPopup("from")}
+                      className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors"
+                    >
+                      {selectedToken ? (
+                        <>
+                          <img 
+                            src={TOKENS[selectedToken].logo} 
+                            alt={selectedToken} 
+                            className="w-6 h-6 rounded-full"
+                          />
+                          <span>{selectedToken}</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-6 h-6 rounded-full bg-gray-600"></div>
+                          <span>Select token</span>
+                        </>
+                      )}
                       <ChevronDown size={20} />
                     </button>
                     <input
@@ -77,87 +133,76 @@ const HomeLogo: React.FC = () => {
                       className="bg-transparent text-2xl font-medium focus:outline-none text-right w-[160px]"
                     />
                   </div>
-                  <div className="flex items-center justify-between text-sm text-gray-400">
-                    <span>Balance: 0</span>
-                    <button className="hover:text-white transition-colors">MAX</button>
-                  </div>
                 </div>
               </div>
 
-              {/* Output Tokens Section */}
-              <div className="space-y-3">
-                {/* Token Output Header */}
-                <div className="flex items-center justify-between px-2">
-                  <span className="text-sm text-gray-400">Output Tokens</span>
-                </div>
-
-                {/* Quick Split Presets */}
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  <button className="bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-colors text-center">
-                    <div className="text-sm font-medium">Equal Split</div>
-                    <div className="text-xs text-gray-400 mt-1">50/50</div>
-                  </button>
-                  <button className="bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-colors text-center">
-                    <div className="text-sm font-medium">Weighted</div>
-                    <div className="text-xs text-gray-400 mt-1">70/30</div>
-                  </button>
-                  <button className="bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-colors text-center">
-                    <div className="text-sm font-medium">Custom</div>
-                    <div className="text-xs text-gray-400 mt-1">Your Split</div>
-                  </button>
-                </div>
-
-                {/* Token Outputs */}
-                <div className="space-y-3">
-                  {/* Token 1 */}
-                  <div className="p-4 bg-[#212638] rounded-xl">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between">
-                        <button className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors">
-                          <div className="w-6 h-6 rounded-full bg-gray-600"></div>
-                          <span>Select token</span>
-                          <ChevronDown size={20} />
-                        </button>
-                        <span className="text-lg font-medium">50%</span>
-                      </div>
-                      <div className="w-full bg-[#293249] rounded-full h-2">
-                        <div className="bg-[#4c82fb] h-2 rounded-full" style={{ width: '50%' }}></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Token 2 */}
-                  <div className="p-4 bg-[#212638] rounded-xl">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between">
-                        <button className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors">
-                          <div className="w-6 h-6 rounded-full bg-gray-600"></div>
-                          <span>Select token</span>
-                          <ChevronDown size={20} />
-                        </button>
-                        <span className="text-lg font-medium">50%</span>
-                      </div>
-                      <div className="w-full bg-[#293249] rounded-full h-2">
-                        <div className="bg-[#4c82fb] h-2 rounded-full" style={{ width: '50%' }}></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Add Token Button */}
-                <button className="w-full flex items-center justify-center space-x-2 py-3 text-[#4c82fb] hover:text-[#3a6fd0] transition-colors group">
-                  <div className="bg-[#212638] rounded-full p-1 group-hover:bg-[#293249] transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                  </div>
-                  <span className="text-sm">Add another token (optional)</span>
+              {/* Quick Split Presets */}
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <button className="bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-colors text-center">
+                  <div className="text-sm font-medium">Equal Split</div>
+                  <div className="text-xs text-gray-400 mt-1">50/50</div>
                 </button>
+                <button className="bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-colors text-center">
+                  <div className="text-sm font-medium">Weighted</div>
+                  <div className="text-xs text-gray-400 mt-1">70/30</div>
+                </button>
+                <button className="bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-colors text-center">
+                  <div className="text-sm font-medium">Custom</div>
+                  <div className="text-xs text-gray-400 mt-1">Your Split</div>
+                </button>
+              </div>
 
-                {/* Info Text */}
-                <div className="text-center text-sm text-gray-400 mt-4">
-                  Drag the sliders to adjust allocation percentages
-                </div>
+              {/* Token Outputs */}
+              <div className="space-y-3">
+                {[0, 1].map((index: number) => (
+                  <div key={`output-${index}`} className="p-4 bg-[#212638] rounded-xl">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <button 
+                          onClick={() => openTokenPopup("output", index)}
+                          className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors"
+                        >
+                          {selectedOutputTokens[index] ? (
+                            <>
+                              <img 
+                                src={TOKENS[selectedOutputTokens[index]].logo} 
+                                alt={selectedOutputTokens[index]} 
+                                className="w-6 h-6 rounded-full"
+                              />
+                              <span>{selectedOutputTokens[index]}</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-6 h-6 rounded-full bg-gray-600"></div>
+                              <span>Select token</span>
+                            </>
+                          )}
+                          <ChevronDown size={20} />
+                        </button>
+                        <span className="text-lg font-medium">50%</span>
+                      </div>
+                      <div className="w-full bg-[#293249] rounded-full h-2">
+                        <div 
+                          className="bg-[#4c82fb] h-2 rounded-full" 
+                          style={{ width: '50%' }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Percentage Inputs */}
+              <div className="flex flex-wrap gap-2 mt-4">
+                {[0, 1].map((index: number) => (
+                  <div key={`percentage-${index}`} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="0%"
+                      className="bg-transparent text-2xl font-medium focus:outline-none text-right w-[160px]"
+                    />
+                  </div>
+                ))}
               </div>
 
               <button
@@ -171,10 +216,10 @@ const HomeLogo: React.FC = () => {
 
           {/* Scroll Indicator */}
           {showScrollIndicator && (
-            <div className="flex flex-col items-center mb-16">
-              <p className="text-gray-400 text-sm mb-2">Scroll to learn more</p>
+            <div className="flex flex-col items-center mb-24 animate-bounce-subtle">
+              <p className="text-gray-400 text-lg mb-2">Scroll to learn more</p>
               <div className="w-6 h-10 border-2 border-gray-400 rounded-full flex items-center justify-center">
-                <div className="w-1 h-3 bg-gray-400 rounded-full animate-bounce"></div>
+                <div className="w-1 h-3 bg-gray-400 rounded-full"></div>
               </div>
             </div>
           )}
@@ -284,6 +329,19 @@ const HomeLogo: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Token Selection Popup */}
+      <TokenSelectionPopup
+        isOpen={isTokenPopupOpen}
+        onClose={closeTokenPopup}
+        onSelect={handleTokenSelect}
+        tokens={activeTokenSelection?.type === "output" ? OUTPUT_TOKENS : TOKENS}
+        balances={{}}
+        disabledTokens={disabledTokens.map(String)}
+        tokenPriceData={{}}
+        selectedOutputTokens={selectedOutputTokens.map(String)}
+        allowMultiSelect={activeTokenSelection?.type === "output"}
+      />
     </div>
   );
 };
