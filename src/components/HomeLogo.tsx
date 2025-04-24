@@ -64,49 +64,99 @@ const HomeLogo: React.FC = () => {
             <div className="space-y-4">
               {/* Input Token */}
               <div className="p-4 bg-[#212638] rounded-xl">
-                <div className="flex justify-between items-center">
-                  <input
-                    type="text"
-                    placeholder="0"
-                    className="bg-transparent text-2xl font-medium focus:outline-none w-full"
-                  />
-                  <button className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors">
-                    <span>Select token</span>
-                    <ChevronDown size={20} />
-                  </button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <button className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors">
+                      <div className="w-6 h-6 rounded-full bg-gray-600"></div>
+                      <span>Select token</span>
+                      <ChevronDown size={20} />
+                    </button>
+                    <input
+                      type="text"
+                      placeholder="0"
+                      className="bg-transparent text-2xl font-medium focus:outline-none text-right w-[160px]"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-gray-400">
+                    <span>Balance: 0</span>
+                    <button className="hover:text-white transition-colors">MAX</button>
+                  </div>
                 </div>
               </div>
 
-              {/* Output Tokens */}
-              <div className="space-y-2">
-                {/* Token 1 */}
-                <div className="p-4 bg-[#212638] rounded-xl">
-                  <div className="flex justify-between items-center mb-2">
-                    <button className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors">
-                      <span>Select token</span>
-                      <ChevronDown size={20} />
-                    </button>
-                    <input
-                      type="text"
-                      placeholder="50%"
-                      className="bg-transparent text-right w-20 focus:outline-none"
-                    />
+              {/* Output Tokens Section */}
+              <div className="space-y-3">
+                {/* Token Output Header */}
+                <div className="flex items-center justify-between px-2">
+                  <span className="text-sm text-gray-400">Output Tokens</span>
+                </div>
+
+                {/* Quick Split Presets */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <button className="bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-colors text-center">
+                    <div className="text-sm font-medium">Equal Split</div>
+                    <div className="text-xs text-gray-400 mt-1">50/50</div>
+                  </button>
+                  <button className="bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-colors text-center">
+                    <div className="text-sm font-medium">Weighted</div>
+                    <div className="text-xs text-gray-400 mt-1">70/30</div>
+                  </button>
+                  <button className="bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-colors text-center">
+                    <div className="text-sm font-medium">Custom</div>
+                    <div className="text-xs text-gray-400 mt-1">Your Split</div>
+                  </button>
+                </div>
+
+                {/* Token Outputs */}
+                <div className="space-y-3">
+                  {/* Token 1 */}
+                  <div className="p-4 bg-[#212638] rounded-xl">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <button className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors">
+                          <div className="w-6 h-6 rounded-full bg-gray-600"></div>
+                          <span>Select token</span>
+                          <ChevronDown size={20} />
+                        </button>
+                        <span className="text-lg font-medium">50%</span>
+                      </div>
+                      <div className="w-full bg-[#293249] rounded-full h-2">
+                        <div className="bg-[#4c82fb] h-2 rounded-full" style={{ width: '50%' }}></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Token 2 */}
+                  <div className="p-4 bg-[#212638] rounded-xl">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <button className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors">
+                          <div className="w-6 h-6 rounded-full bg-gray-600"></div>
+                          <span>Select token</span>
+                          <ChevronDown size={20} />
+                        </button>
+                        <span className="text-lg font-medium">50%</span>
+                      </div>
+                      <div className="w-full bg-[#293249] rounded-full h-2">
+                        <div className="bg-[#4c82fb] h-2 rounded-full" style={{ width: '50%' }}></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Token 2 */}
-                <div className="p-4 bg-[#212638] rounded-xl">
-                  <div className="flex justify-between items-center mb-2">
-                    <button className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors">
-                      <span>Select token</span>
-                      <ChevronDown size={20} />
-                    </button>
-                    <input
-                      type="text"
-                      placeholder="50%"
-                      className="bg-transparent text-right w-20 focus:outline-none"
-                    />
+                {/* Add Token Button */}
+                <button className="w-full flex items-center justify-center space-x-2 py-3 text-[#4c82fb] hover:text-[#3a6fd0] transition-colors group">
+                  <div className="bg-[#212638] rounded-full p-1 group-hover:bg-[#293249] transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
                   </div>
+                  <span className="text-sm">Add another token (optional)</span>
+                </button>
+
+                {/* Info Text */}
+                <div className="text-center text-sm text-gray-400 mt-4">
+                  Drag the sliders to adjust allocation percentages
                 </div>
               </div>
 
@@ -114,7 +164,7 @@ const HomeLogo: React.FC = () => {
                 onClick={handleGetStarted}
                 className="w-full bg-gradient-to-r from-[#4c82fb] to-[#7b3fe4] hover:from-[#3a6fd0] hover:to-[#6a36c7] text-white rounded-xl py-3 font-medium transition-colors"
               >
-                Get Started
+                Review Swap
               </button>
             </div>
           </div>
