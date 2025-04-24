@@ -55,21 +55,23 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
           theme={darkTheme({
-            accentColor: "#000", // Makes the button black
-            accentColorForeground: "#fff", // Text color inside button
+            accentColor: "#000",
+            accentColorForeground: "#fff",
             borderRadius: "medium",
           })}
         >
           <Router>
-            <div className="app-container text-white">
-              <Routes>
-                <Route path="/" element={<HomeLogo key="home" />} />
-                <Route path="/swap" element={<SwapInterface key="swap" />} />
-                <Route path="/status" element={<Status key="status" />} />
-                <Route path="/sims" element={<SimulationPage key="sims" />} />
-                <Route path="/about" element={<AboutPage key="about" />} />
-              </Routes>
-              <ToastContainer position="bottom-right" autoClose={5000} />
+            <div className="flex flex-col min-h-screen">
+              <div className="flex-1">
+                <Routes>
+                  <Route path="/" element={<HomeLogo key="home" />} />
+                  <Route path="/swap" element={<SwapInterface key="swap" />} />
+                  <Route path="/status" element={<Status key="status" />} />
+                  <Route path="/sims" element={<SimulationPage key="sims" />} />
+                  <Route path="/about" element={<AboutPage key="about" />} />
+                </Routes>
+                <ToastContainer position="bottom-right" autoClose={5000} />
+              </div>
             </div>
           </Router>
         </RainbowKitProvider>
