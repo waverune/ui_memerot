@@ -49,62 +49,167 @@ const HomeLogo: React.FC = () => {
         <FloatingElements />
         
         {/* Main Content */}
-        <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-16">
-          <div className="text-center max-w-4xl mx-auto">
+        <div className="relative z-10 flex flex-col items-center justify-start min-h-screen px-4 pt-32">
+          {/* Initial View */}
+          <div className="text-center max-w-4xl mx-auto mb-8">
             <h1 className={`${isMobile ? 'text-5xl' : 'text-7xl'} font-bold mb-8`}>
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#4c82fb] to-[#4c82fb]">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#4c82fb] via-[#7b3fe4] to-[#ff4d4d]">
                 One-Click Token Diversification
               </span>
             </h1>
-            
-            <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
-              Revolutionizing DeFi trading by merging Uniswap's swapping capabilities with DeFiLlama's analytics. Diversify into multiple top tokens in a single transaction.
-            </p>
+          </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-              <button 
+          {/* Minimal Swap Interface */}
+          <div className="bg-[#191c2a] rounded-2xl p-6 w-full max-w-md mb-24">
+            <div className="space-y-4">
+              {/* Input Token */}
+              <div className="p-4 bg-[#212638] rounded-xl">
+                <div className="flex justify-between items-center">
+                  <input
+                    type="text"
+                    placeholder="0"
+                    className="bg-transparent text-2xl font-medium focus:outline-none w-full"
+                  />
+                  <button className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors">
+                    <span>Select token</span>
+                    <ChevronDown size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Output Tokens */}
+              <div className="space-y-2">
+                {/* Token 1 */}
+                <div className="p-4 bg-[#212638] rounded-xl">
+                  <div className="flex justify-between items-center mb-2">
+                    <button className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors">
+                      <span>Select token</span>
+                      <ChevronDown size={20} />
+                    </button>
+                    <input
+                      type="text"
+                      placeholder="50%"
+                      className="bg-transparent text-right w-20 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Token 2 */}
+                <div className="p-4 bg-[#212638] rounded-xl">
+                  <div className="flex justify-between items-center mb-2">
+                    <button className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors">
+                      <span>Select token</span>
+                      <ChevronDown size={20} />
+                    </button>
+                    <input
+                      type="text"
+                      placeholder="50%"
+                      className="bg-transparent text-right w-20 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
                 onClick={handleGetStarted}
-                className="w-full sm:w-auto bg-[#4c82fb] hover:bg-[#4c82fb]/90 text-white rounded-2xl px-8 py-4 font-medium transition-colors"
+                className="w-full bg-gradient-to-r from-[#4c82fb] to-[#7b3fe4] hover:from-[#3a6fd0] hover:to-[#6a36c7] text-white rounded-xl py-3 font-medium transition-colors"
               >
-                Start Swapping
+                Get Started
               </button>
-              <Link
-                to="/discover"
-                className="w-full sm:w-auto bg-[#293249] hover:bg-[#374160] text-white rounded-2xl px-8 py-4 font-medium transition-colors"
-              >
-                Explore Presets
-              </Link>
+            </div>
+          </div>
+
+          {/* Scroll Indicator */}
+          {showScrollIndicator && (
+            <div className="flex flex-col items-center mb-16">
+              <p className="text-gray-400 text-sm mb-2">Scroll to learn more</p>
+              <div className="w-6 h-10 border-2 border-gray-400 rounded-full flex items-center justify-center">
+                <div className="w-1 h-3 bg-gray-400 rounded-full animate-bounce"></div>
+              </div>
+            </div>
+          )}
+
+          {/* Feature Cards Section */}
+          <div className="w-full max-w-7xl mx-auto px-4 py-24">
+            {/* MultiSwap Feature */}
+            <div className="flex flex-col md:flex-row items-center gap-12 mb-32">
+              <div className="flex-1">
+                <h2 className="text-4xl font-bold mb-6">Multi-Token Swaps</h2>
+                <p className="text-xl text-gray-400">
+                  Diversify your portfolio in a single transaction. Swap any token into multiple tokens with customizable allocations, saving time and gas fees.
+                </p>
+              </div>
+              <div className="flex-1 bg-[#191c2a] rounded-2xl p-8">
+                {/* Placeholder for MultiSwap illustration */}
+                <div className="aspect-video bg-[#212638] rounded-xl"></div>
+              </div>
             </div>
 
-            {/* Key Features */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-              <div className="bg-[#191c2a] rounded-2xl p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">Lower Fees</h3>
-                <p className="text-gray-400">Reduce gas fees and slippage with our optimized routing</p>
+            {/* Discover Narratives Feature */}
+            <div className="flex flex-col md:flex-row-reverse items-center gap-12 mb-32">
+              <div className="flex-1">
+                <h2 className="text-4xl font-bold mb-6">Discover Narratives</h2>
+                <p className="text-xl text-gray-400">
+                  Explore and invest in trending narratives across DeSci, DeFi, Memes, DePIN, and more. Our curated token baskets make it easy to gain exposure to emerging sectors.
+                </p>
+                <div className="flex flex-wrap gap-3 mt-6">
+                  <span className="px-4 py-2 bg-[#212638] rounded-full text-sm text-gray-300">DeSci</span>
+                  <span className="px-4 py-2 bg-[#212638] rounded-full text-sm text-gray-300">DeFi</span>
+                  <span className="px-4 py-2 bg-[#212638] rounded-full text-sm text-gray-300">Memes</span>
+                  <span className="px-4 py-2 bg-[#212638] rounded-full text-sm text-gray-300">DePIN</span>
+                  <span className="px-4 py-2 bg-[#212638] rounded-full text-sm text-gray-300">AI</span>
+                </div>
               </div>
-              <div className="bg-[#191c2a] rounded-2xl p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">MEV Protection</h3>
-                <p className="text-gray-400">Secure your trades with built-in MEV protection</p>
+              <div className="flex-1 bg-[#191c2a] rounded-2xl p-8">
+                {/* Placeholder for Narratives illustration */}
+                <div className="aspect-video bg-[#212638] rounded-xl"></div>
               </div>
-              <div className="bg-[#191c2a] rounded-2xl p-6">
-                <h3 className="text-lg font-semibold text-white mb-2">AI-Driven Discovery</h3>
-                <p className="text-gray-400">Find the best token combinations with AI-powered insights</p>
+            </div>
+
+            {/* Lower Fees Feature */}
+            <div className="flex flex-col md:flex-row items-center gap-12 mb-32">
+              <div className="flex-1">
+                <h2 className="text-4xl font-bold mb-6">Lower Fees & MEV Protection</h2>
+                <p className="text-xl text-gray-400">
+                  Our optimized routing ensures you get the best rates while protecting your trades from MEV attacks. Save on gas and trade with confidence.
+                </p>
+              </div>
+              <div className="flex-1 bg-[#191c2a] rounded-2xl p-8">
+                {/* Placeholder for Fees illustration */}
+                <div className="aspect-video bg-[#212638] rounded-xl"></div>
+              </div>
+            </div>
+
+            {/* D/acc Funding Feature */}
+            <div className="flex flex-col md:flex-row-reverse items-center gap-12 mb-32">
+              <div className="flex-1">
+                <h2 className="text-4xl font-bold mb-6">D/acc Project Funding</h2>
+                <p className="text-xl text-gray-400">
+                  Supporting innovation through decentralized acceleration. A portion of trading fees goes directly to fund DeSci and other d/acc projects, creating a sustainable ecosystem for technological advancement.
+                </p>
+              </div>
+              <div className="flex-1 bg-[#191c2a] rounded-2xl p-8">
+                {/* Placeholder for Funding illustration */}
+                <div className="aspect-video bg-[#212638] rounded-xl"></div>
+              </div>
+            </div>
+
+            {/* AI-Driven Feature */}
+            <div className="flex flex-col md:flex-row items-center gap-12 mb-16">
+              <div className="flex-1">
+                <h2 className="text-4xl font-bold mb-6">AI-Driven Discovery <span className="text-sm font-normal text-gray-400 ml-2">Coming Soon</span></h2>
+                <p className="text-xl text-gray-400">
+                  Let AI help you discover the best token combinations based on market trends, sentiment analysis, and historical data.
+                </p>
+              </div>
+              <div className="flex-1 bg-[#191c2a] rounded-2xl p-8">
+                {/* Placeholder for AI illustration */}
+                <div className="aspect-video bg-[#212638] rounded-xl"></div>
               </div>
             </div>
 
             {/* Social Links */}
-            <div className="flex justify-center items-center space-x-6">
-              <a
-                href="https://github.com/your-repo"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                  <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
-                </svg>
-              </a>
+            <div className="flex justify-center items-center space-x-6 mb-8">
               <a
                 href="https://twitter.com/memer0t"
                 target="_blank"
