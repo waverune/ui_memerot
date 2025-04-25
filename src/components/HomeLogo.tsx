@@ -252,7 +252,7 @@ const HomeLogo: React.FC = () => {
           <div className="text-center max-w-4xl mx-auto mb-6">
             <h1 className={`${isMobile ? 'text-5xl' : 'text-7xl'} font-bold mb-6`}>
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#4c82fb] via-[#7b3fe4] to-[#ff4d4d]">
-                Swap Once, Diversify Instantly
+              Swap One Token Into Multiple Tokens Instantly
               </span>
             </h1>
           </div>

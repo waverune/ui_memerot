@@ -20,7 +20,7 @@ const TopNavBar: React.FC = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between w-full px-4 py-4 md:px-8 bg-[#0d111c]/90 backdrop-blur-sm border-b border-gray-800">
         <div className="flex items-center space-x-6">
           <Link to="/" className="text-2xl font-bold tracking-tight">
-            <span className="bg-gradient-to-r from-[#4c82fb] to-[#4c82fb] bg-clip-text text-transparent">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#4c82fb] via-[#3a6fd0] to-[#2d5cb3]">
               MEMEROT
             </span>
           </Link>
