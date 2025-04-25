@@ -71,7 +71,7 @@ export const PresetCard = ({
   };
 
   return (
-    <Card className="w-[380px] min-h-[460px] bg-[#0F1218] border-[#1F2937] hover:border-[#374151] transition-all duration-200 flex flex-col">
+    <Card className="w-full max-w-[380px] min-h-[460px] bg-[#0F1218] border-[#1F2937] hover:border-[#374151] transition-all duration-200 flex flex-col">
       <CardHeader className="pb-2">
         <div className="space-y-1">
           <CardTitle className="text-xl font-semibold text-white">{title}</CardTitle>
