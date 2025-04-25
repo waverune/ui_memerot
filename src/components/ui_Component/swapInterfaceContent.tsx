@@ -198,11 +198,9 @@ function SwapInterfaceContent() {
   const [simulatedOutputs, setSimulatedOutputs] = useState<
     Record<TokenSymbol, SimulatedOutput>
   >({});
-  const [allocationType, setAllocationType] = useState<"ratio" | "percentage">(
-    "percentage"
-  );
-  const [allocationValues, setAllocationValues] = useState(["1"]);
-  const [selectedTemplate, setSelectedTemplate] = useState("1");
+  const [allocationType, setAllocationType] = useState<"ratio" | "percentage">("percentage");
+  const [allocationValues, setAllocationValues] = useState<string[]>(["100"]);
+  const [selectedTemplate, setSelectedTemplate] = useState("100");
   const [tokenPriceData, setTokenPriceData] = useState<
     Record<string, CoinPriceData>
   >({});
@@ -406,9 +404,8 @@ function SwapInterfaceContent() {
     [selectedToken]
   );
 
-  // Modify the removeOutputToken function to handle empty slots
   const removeOutputToken = useCallback(
-    (tokenToRemove: TokenSymbol | null, index: number) => {
+    (tokenToRemove: TokenSymbol, index: number) => {
       // If this is the only slot, just clear the selection instead of removing it
       if (selectedOutputTokens.length === 1) {
         setSelectedOutputTokens([null]); // Keep one empty slot
@@ -423,27 +420,26 @@ function SwapInterfaceContent() {
           setSelectedTemplate("1");
         }
 
-        updateDisabledTokens([null]);
+        updateDisabledTokens([]);
         return;
       }
 
-      // For multiple slots, remove the slot completely
+      // For multiple slots, remove the token completely
       const newSelectedOutputTokens = selectedOutputTokens.filter(
         (_, i) => i !== index
-      );
+      ).filter(token => token !== null) as TokenSymbol[];
+
       setSelectedOutputTokens(newSelectedOutputTokens);
 
-      if (tokenToRemove) {
-        const newToAmounts = { ...toAmounts };
-        delete newToAmounts[tokenToRemove];
-        setToAmounts(newToAmounts);
-      }
+      // Update toAmounts by removing the removed token
+      const newToAmounts = { ...toAmounts };
+      delete newToAmounts[tokenToRemove];
+      setToAmounts(newToAmounts);
 
-      const newLength = allocationValues.length - 1;
+      // Update allocation values
+      const newLength = newSelectedOutputTokens.length;
       if (allocationType === "ratio") {
-        const newAllocationValues = allocationValues.filter(
-          (_, i) => i !== index
-        );
+        const newAllocationValues = Array(newLength).fill("1");
         setAllocationValues(newAllocationValues);
         setSelectedTemplate(newAllocationValues.join(":"));
       } else {
@@ -455,13 +451,7 @@ function SwapInterfaceContent() {
 
       updateDisabledTokens(newSelectedOutputTokens);
     },
-    [
-      selectedOutputTokens,
-      toAmounts,
-      allocationValues,
-      allocationType,
-      updateDisabledTokens,
-    ]
+    [selectedOutputTokens, toAmounts, allocationType, updateDisabledTokens]
   );
 
   const checkApproval = useCallback(async () => {
@@ -608,40 +598,49 @@ function SwapInterfaceContent() {
     if (activeTokenSelection?.type === "from") {
       setSelectedToken(tokens[0] as TokenSymbol);
     } else if (activeTokenSelection?.type === "output") {
-      const currentTokens = selectedOutputTokens.filter(
-        (token) => token !== null
-      );
-      console.log(">>> current tokens:", currentTokens);
-
-      // Filter out tokens that are already selected
-      const newUniqueTokens = tokens.filter(
-        (token) => !currentTokens.includes(token as TokenSymbol)
-      );
-      console.log(">>> new unique tokens:", newUniqueTokens);
-
-      // Create new array with existing tokens
-      const newTokens = [...currentTokens];
-
-      // Add only the new unique tokens
-      newUniqueTokens.forEach((token) => {
-        if (newTokens.length < 4) {
-          newTokens.push(token as TokenSymbol);
+      // Get the current tokens array
+      const currentTokens = [...selectedOutputTokens];
+      
+      // If we have an index, update that specific slot
+      if (activeTokenSelection.index !== undefined) {
+        // If multiple tokens are selected, add them to new slots
+        if (tokens.length > 1) {
+          // First, update the current slot with the first token
+          currentTokens[activeTokenSelection.index] = tokens[0] as TokenSymbol;
+          
+          // Then add remaining tokens to new slots
+          for (let i = 1; i < tokens.length; i++) {
+            if (currentTokens.length < 4) {
+              currentTokens.push(tokens[i] as TokenSymbol);
+            }
+          }
+        } else {
+          // Single token selection
+          currentTokens[activeTokenSelection.index] = tokens[0] as TokenSymbol;
         }
-      });
-
-      console.log(">>> final tokens array:", newTokens);
+      } else {
+        // If no index specified, add tokens to empty slots or create new ones
+        tokens.forEach(token => {
+          const emptySlotIndex = currentTokens.findIndex(t => t === null);
+          if (emptySlotIndex !== -1) {
+            currentTokens[emptySlotIndex] = token as TokenSymbol;
+          } else if (currentTokens.length < 4) {
+            currentTokens.push(token as TokenSymbol);
+          }
+        });
+      }
 
       // Update allocation values based on number of actual tokens
-      const actualTokenCount = newTokens.filter((token) => token !== null).length;
+      const actualTokenCount = currentTokens.filter(token => token !== null).length;
       const newAllocationValues =
         allocationType === "percentage"
           ? Array(actualTokenCount).fill((100 / actualTokenCount).toFixed(0))
           : Array(actualTokenCount).fill("1");
 
-      setSelectedOutputTokens(newTokens);
+      setSelectedOutputTokens(currentTokens);
       setAllocationValues(newAllocationValues);
       setSelectedTemplate(newAllocationValues.join(":"));
-      updateDisabledTokens(newTokens);
+      updateDisabledTokens(currentTokens.filter(token => token !== null) as TokenSymbol[]);
     }
     closeTokenPopup();
   };
@@ -805,6 +804,7 @@ function SwapInterfaceContent() {
         const fromToken = params.get('from');
         const toTokens = params.get('to')?.split('-') || [];
         const ratio = params.get('ratio')?.split('-') || [];
+        const urlAllocationType = params.get('allocationType');
 
         // Initialize state with URL parameters if they exist
         if (fromToken) {
@@ -815,7 +815,10 @@ function SwapInterfaceContent() {
         }
         if (ratio.length > 0) {
           setAllocationValues(ratio);
-          setAllocationType('ratio');
+          // Only set allocation type to ratio if explicitly specified in URL
+          if (urlAllocationType === 'ratio') {
+            setAllocationType('ratio');
+          }
         }
 
         // Fetch balances and update token balances
@@ -1245,6 +1248,7 @@ function SwapInterfaceContent() {
         (100 / selectedOutputTokens.length).toFixed(2)
       );
       setAllocationValues(newValues);
+      setSelectedTemplate(newValues.join(":"));
     }
   }, [selectedOutputTokens.length, allocationType]);
 
@@ -1377,9 +1381,9 @@ function SwapInterfaceContent() {
                             </div>
                             <ChevronDown className="h-3 w-3 text-gray-400 ml-1 flex-shrink-0" />
                           </button>
-                          {selectedOutputTokens.length > 1 && (
+                          {selectedOutputTokens.length > 1 && token && (
                             <button
-                              onClick={() => removeOutputToken(token || null, index)}
+                              onClick={() => removeOutputToken(token, index)}
                               className="bg-[#293249]/80 hover:bg-[#374160] rounded-full p-1.5 transition-all duration-200 border border-[#3d4860]/50 flex-shrink-0"
                             >
                               <X className="h-3 w-3 text-gray-400" />
@@ -1745,8 +1749,9 @@ function SwapInterfaceContent() {
         balances={tokenBalances}
         disabledTokens={disabledTokens as string[]}
         tokenPriceData={tokenPriceData}
-        selectedOutputTokens={selectedOutputTokens as string[]}
+        selectedOutputTokens={selectedOutputTokens.filter(token => token !== null) as string[]}
         allowMultiSelect={activeTokenSelection?.type === "output"}
+        selectedToken={activeTokenSelection?.type === "from" ? selectedToken : null}
       />
     </div>
   );

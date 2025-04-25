@@ -16,7 +16,7 @@ interface TokenSelectionPopupProps {
   selectedOutputTokens: string[];
   maxSelections?: number;
   allowMultiSelect?: boolean;
-  tokenBalances?: Record<TokenSymbol, string>;
+  selectedToken?: string | null;
 }
 
 const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
@@ -30,6 +30,7 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
   maxSelections = 4,
   selectedOutputTokens = [],
   allowMultiSelect = false,
+  selectedToken = null,
   tokenBalances = MOCK_BALANCES
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -151,7 +152,7 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors
                     ${disabledTokens.includes(symbol)
                       ? 'bg-[#212638] text-gray-500 cursor-not-allowed'
-                      : newSelections.has(symbol)
+                      : currentOutputTokens.includes(symbol) || newSelections.has(symbol)
                       ? 'bg-[#4c82fb] text-white'
                       : 'bg-[#293249] text-white hover:bg-[#374160]'
                     }`}
@@ -174,7 +175,7 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
                     className={`w-full p-3 rounded-xl transition-colors flex items-center justify-between
                       ${disabledTokens.includes(symbol)
                         ? 'bg-[#212638] cursor-not-allowed opacity-50'
-                        : newSelections.has(symbol)
+                        : currentOutputTokens.includes(symbol) || newSelections.has(symbol)
                         ? 'bg-[#293249] ring-2 ring-[#4c82fb]'
                         : 'bg-[#212638] hover:bg-[#293249]'
                       }`}
@@ -228,7 +229,9 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
 }, (prevProps, nextProps) => {
   return prevProps.isOpen === nextProps.isOpen &&
     prevProps.tokenPriceData === nextProps.tokenPriceData &&
-    prevProps.balances === nextProps.balances;
+    prevProps.balances === nextProps.balances &&
+    prevProps.selectedOutputTokens === nextProps.selectedOutputTokens &&
+    prevProps.selectedToken === nextProps.selectedToken;
 });
 
 export default TokenSelectionPopup;
