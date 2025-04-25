@@ -1,457 +1,606 @@
-import Matter from "matter-js";
-import { useRef, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { debounce } from "lodash";
-import "./HomeLogo.css";
-import TopNavBar from "./ui_Component/topNavBar.tsx";
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import TopNavBar from "./ui_Component/topNavBar";
+import FloatingElements from "./ui_Component/FloatingElements";
+import { ChevronDown, Plus, X, Percent } from "lucide-react";
+import TokenSelectionPopup from "./ui_Component/tokenSelectionPopup";
+import { TOKENS } from "../config/tokens";
+import { TokenConfig, TokenSymbol, TokenSelectionType } from "../utils/Modal";
+import { useAccount, useBalance } from "wagmi";
+import { ethers } from "ethers";
+import { multicallTokenBalances } from "../lib/tx_utils";
+import { MOCK_BALANCES } from "../utils/Modal";
 
 const HomeLogo: React.FC = () => {
-    const sceneRef = useRef<HTMLDivElement>(null);
-    const engineRef = useRef(Matter.Engine.create());
-    const [logos, setLogos] = useState<string[]>([]);
-    const [isSpacebarPressed, setIsSpacebarPressed] = useState(false);
-    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-    const maxBodies = isMobile ? 80 : 150; // Increased from 50/100
-    const bodiesRef = useRef<Matter.Body[]>([]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(true);
+  const [selectedToken, setSelectedToken] = useState<TokenSymbol | null>(null);
+  const [selectedOutputTokens, setSelectedOutputTokens] = useState<(TokenSymbol | null)[]>([null]);
+  const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
+  const [activeTokenSelection, setActiveTokenSelection] = useState<TokenSelectionType>(null);
+  const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
+  const [allocationType, setAllocationType] = useState<"ratio" | "percentage">("percentage");
+  const [selectedSplitType, setSelectedSplitType] = useState<"equal" | "custom">("equal");
+  const [customPercentages, setCustomPercentages] = useState<Record<number, number>>({});
+  const [activePercentageIndex, setActivePercentageIndex] = useState<number | null>(null);
+  const [tempPercentages, setTempPercentages] = useState<Record<number, number>>({});
+  const [tokenBalances, setTokenBalances] = useState(MOCK_BALANCES);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { address, isConnected } = useAccount();
+  const { data: ethBalanceData, refetch: refetchEthBalance } = useBalance({
+    address,
+  });
 
-    useEffect(() => {
-        import('./logoList.ts').then(module => {
-            setLogos(module.default);
+  const getProvider = () => {
+    return new ethers.JsonRpcProvider("https://rpc.buildbear.io/devoted-goose-2543c510");
+  };
+
+  const fetchBalances = async () => {
+    if (address) {
+      try {
+        const provider = getProvider();
+        const newBalances = { ...MOCK_BALANCES };
+
+        // Update ETH balance
+        if (ethBalanceData) {
+          newBalances.ETH = ethers.formatUnits(ethBalanceData.value, 18);
+        }
+
+        // Prepare tokens array for multicall
+        const tokensToFetch = Object.entries(TOKENS)
+          .filter(([symbol]) => symbol !== "ETH" && symbol !== "WETH")
+          .map(([symbol, config]) => ({
+            address: config.address,
+            decimals: config.decimals,
+            symbol,
+          }));
+
+        // Fetch all balances in a single multicall
+        const balanceResults = await multicallTokenBalances(
+          tokensToFetch,
+          address,
+          provider
+        );
+
+        // Process results
+        tokensToFetch.forEach(({ symbol, address }) => {
+          newBalances[symbol as TokenSymbol] = balanceResults[address] || "0";
         });
-    }, []);
 
-    // Add viewport resize handler
-    useEffect(() => {
-        const handleResize = debounce(() => {
-            const mobile = window.innerWidth <= 768;
-            setIsMobile(mobile);
-            
-            // Update render dimensions
-            if (engineRef.current && sceneRef.current) {
-                const render = Matter.Render.lookAt(Matter.Render.create({
-                    element: sceneRef.current,
-                    engine: engineRef.current,
-                    options: {
-                        width: window.innerWidth,
-                        height: window.innerHeight,
-                        wireframes: false,
-                        showAngleIndicator: false,
-                    }
-                }));
-                
-                Matter.Render.run(render);
-            }
-        }, 250);
+        setTokenBalances(newBalances);
+      } catch (error) {
+        console.error("Error fetching token balances:", error);
+      }
+    }
+  };
 
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+  useEffect(() => {
+    if (isConnected) {
+      fetchBalances();
+    }
+  }, [isConnected, address, ethBalanceData]);
 
-    // First useEffect for physics setup (runs once)
-    useEffect(() => {
-        if (logos.length === 0) return;
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    const handleScroll = () => {
+      if (window.scrollY > 100) {
+        setShowScrollIndicator(false);
+      } else {
+        setShowScrollIndicator(true);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll);
+    setShowScrollIndicator(true); // Initialize as visible
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  const handleGetStarted = () => {
+    // Create URL parameters
+    const searchParams = new URLSearchParams();
+    if (selectedToken) {
+      searchParams.set('from', selectedToken);
+    }
+    if (selectedOutputTokens.length > 0) {
+      searchParams.set('to', selectedOutputTokens.filter(token => token !== null).join('-'));
+    }
+    if (selectedSplitType === 'custom') {
+      const percentages = selectedOutputTokens.map((_, index) => getTokenPercentage(index));
+      const commonDivisor = percentages.reduce((a, b) => {
+        const _gcd = (x: number, y: number): number => (!y ? x : _gcd(y, x % y));
+        return _gcd(a, b);
+      });
+      const ratios = percentages.map(p => p / commonDivisor);
+      searchParams.set('ratio', ratios.join('-'));
+    } else {
+      // For equal split, use 1:1:1... ratio
+      const ratio = Array(selectedOutputTokens.filter(token => token !== null).length).fill('1').join('-');
+      searchParams.set('ratio', ratio);
+    }
+
+    navigate(`/swap?${searchParams.toString()}`);
+  };
+
+  const openTokenPopup = (type: "from" | "output", index?: number) => {
+    setActiveTokenSelection({ type, index });
+    setIsTokenPopupOpen(true);
+  };
+
+  const closeTokenPopup = () => {
+    setIsTokenPopupOpen(false);
+    setActiveTokenSelection(null);
+  };
+
+  const handleRemoveToken = (indexToRemove: number) => {
+    setSelectedOutputTokens(prev => {
+      const newTokens = prev.filter((_, index) => index !== indexToRemove);
+      // Ensure there's always at least one token slot
+      return newTokens.length === 0 ? [null] : newTokens;
+    });
+    updateDisabledTokens();
+  };
+
+  const updateDisabledTokens = (tokens: (TokenSymbol | null)[] = selectedOutputTokens) => {
+    const disabled = [selectedToken, ...tokens].filter((token): token is TokenSymbol => token !== null) as TokenSymbol[];
+    setDisabledTokens(disabled);
+  };
+
+  const handleTokenSelect = (tokens: string[]) => {
+    if (activeTokenSelection?.type === "from") {
+      setSelectedToken(tokens[0] as TokenSymbol);
+      updateDisabledTokens();
+    } else if (activeTokenSelection?.type === "output") {
+      const newTokens = tokens.slice(0, 4) as TokenSymbol[]; // Allow up to 4 tokens
+      setSelectedOutputTokens(newTokens.map(token => token as TokenSymbol | null));
+      updateDisabledTokens(newTokens);
+    }
+    closeTokenPopup();
+  };
+
+  // Filter tokens for output selection (excluding ETH/WETH)
+  const OUTPUT_TOKENS = Object.fromEntries(
+    Object.entries(TOKENS).filter(([symbol]) => symbol !== "ETH" && symbol !== "WETH")
+  ) as Record<TokenSymbol, TokenConfig>;
+
+  const handleAddToken = () => {
+    if (selectedOutputTokens.length < 4) {
+      setSelectedOutputTokens(prev => [...prev, null]);
+      updateDisabledTokens();
+    }
+  };
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setActivePercentageIndex(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Function to handle percentage change
+  const handlePercentageChange = (index: number, value: number) => {
+    const newPercentages = { ...customPercentages };
+    newPercentages[index] = Math.min(100, Math.max(0, value));
+    
+    // Calculate total of other percentages
+    const otherTotal = Object.entries(newPercentages)
+      .filter(([key]) => Number(key) !== index)
+      .reduce((sum, [_, val]) => sum + val, 0);
+
+    // If total exceeds 100%, adjust other values proportionally
+    if (newPercentages[index] + otherTotal > 100) {
+      const excess = newPercentages[index] + otherTotal - 100;
+      const otherIndices = Object.keys(newPercentages)
+        .map(Number)
+        .filter(key => key !== index);
+      
+      otherIndices.forEach(idx => {
+        const currentVal = newPercentages[idx];
+        const proportion = currentVal / otherTotal;
+        newPercentages[idx] = Math.max(0, currentVal - (excess * proportion));
+      });
+    }
+
+    setCustomPercentages(newPercentages);
+  };
+
+  // Initialize percentages when tokens change
+  useEffect(() => {
+    if (selectedSplitType === "custom") {
+      const newPercentages: Record<number, number> = {};
+      selectedOutputTokens.forEach((_, index) => {
+        newPercentages[index] = 100 / selectedOutputTokens.length;
+      });
+      setCustomPercentages(newPercentages);
+    }
+  }, [selectedOutputTokens.length, selectedSplitType]);
+
+  // Get percentage for a token
+  const getTokenPercentage = (index: number) => {
+    if (selectedSplitType === "equal") {
+      return 100 / (selectedOutputTokens.filter(t => t !== null).length || 1);
+    }
+    return customPercentages[index] || 0;
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0d111c] text-white overflow-hidden">
+      <TopNavBar />
+      
+      {/* Hero Section */}
+      <div className="relative min-h-screen">
+        {/* Fixed background */}
+        <div className="fixed inset-0 bg-[#0d111c] -z-20" />
         
-        const 
-            Render = Matter.Render,
-            Runner = Matter.Runner,
-            Body = Matter.Body,
-            Events = Matter.Events,
-            Composite = Matter.Composite,
-            Composites = Matter.Composites,
-            Common = Matter.Common,
-            MouseConstraint = Matter.MouseConstraint,
-            Mouse = Matter.Mouse,
-            Bodies = Matter.Bodies;
-
-        const engine = engineRef.current;
-        const world = engine.world;
-
-        // Clear existing bodies
-        Matter.Composite.clear(world, false);
-        bodiesRef.current = [];
-
-        // create renderer
-        const render = Render.create({
-            element: sceneRef.current!,
-            engine: engine,
-            options: {
-                width: window.innerWidth,
-                height: window.innerHeight,
-                wireframes: false,
-                showAngleIndicator: false,
-            }
-        });
-
-        Render.run(render);
-
-        // create runner
-        const runner = Runner.create();
-        Runner.run(runner, engine);
-
-        // Adjust initial stack parameters
-        const stackConfig = {
-            mobile: {
-                columns: 12,    // Increased from 8
-                rows: 5,        // Increased from 3
-                gapX: 25,      // Adjusted gap between columns
-                gapY: 35,      // Adjusted gap between rows
-                startX: window.innerWidth * 0.15, // Adjusted start position
-                startY: 50     // Adjusted start height
-            },
-            desktop: {
-                columns: 20,    // Increased from 15
-                rows: 7,        // Increased from 5
-                gapX: 30,
-                gapY: 40,
-                startX: window.innerWidth * 0.2,
-                startY: 50
-            }
-        };
-
-        // Modified body creation with adjusted sizes
-        const createBody = (x: number, y: number) => {
-            if (bodiesRef.current.length >= maxBodies) {
-                const oldestBody = bodiesRef.current.shift();
-                if (oldestBody) {
-                    Matter.Composite.remove(world, oldestBody);
-                }
-            }
-
-            // Adjusted scale ranges for better visibility
-            const scale = isMobile ? 
-                Common.random(0.35, 0.65) : // Mobile scale
-                Common.random(0.45, 0.85);  // Desktop scale
-
-            // Adjusted radius ranges
-            const radius = isMobile ? 
-                Common.random(8, 16) :     // Mobile size
-                Common.random(12, 20);     // Desktop size
-
-            const newBody = Bodies.circle(x, y, radius, {
-                ...bodyOptions,
-                render: {
-                    sprite: {
-                        texture: logos.length > 0 ? `/logos/${logos[Math.floor(Math.random() * logos.length)]}` : '',
-                        xScale: scale,
-                        yScale: scale,
-                    }
-                }
-            });
-
-            bodiesRef.current.push(newBody);
-            return newBody;
-        };
-
-        // Adjusted body options for better physics
-        const bodyOptions = {
-            frictionAir: 0.001 * (isMobile ? 1.2 : 1),
-            friction: 0.15,      // Reduced friction
-            restitution: 0.6,    // Increased bounce
-            density: 0.001 * (isMobile ? 1.1 : 1),
-            render: {
-                sprite: {
-                    xScale: 0.5 * (isMobile ? 0.8 : 1),
-                    yScale: 0.5 * (isMobile ? 0.8 : 1)
-                }
-            }
-        };
-
-        // add bodies (invisible walls)
-        Composite.add(world, [
-            // Top wall
-            Bodies.rectangle(window.innerWidth / 2, -10, window.innerWidth, 20, { 
-                isStatic: true,
-                render: { visible: false },
-                friction: 1,
-                restitution: 0.5,
-                slop: 0,
-                density: 1
-            }),
-            // Bottom wall
-            Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 10, window.innerWidth, 20, { 
-                isStatic: true,
-                render: { visible: false },
-                friction: 1,
-                restitution: 0.5,
-                slop: 0,
-                density: 1
-            }),
-            // Right wall
-            Bodies.rectangle(window.innerWidth + 10, window.innerHeight / 2, 20, window.innerHeight, { 
-                isStatic: true,
-                render: { visible: false },
-                friction: 1,
-                restitution: 0.5,
-                slop: 0,
-                density: 1
-            }),
-            // Left wall
-            Bodies.rectangle(-10, window.innerHeight / 2, 20, window.innerHeight, { 
-                isStatic: true,
-                render: { visible: false },
-                friction: 1,
-                restitution: 0.5,
-                slop: 0,
-                density: 1
-            })
-        ]);
-
-        // Modified stack creation with new parameters
-        const config = isMobile ? stackConfig.mobile : stackConfig.desktop;
+        <FloatingElements />
         
-        Composite.add(world, Composites.stack(
-            config.startX,
-            config.startY,
-            config.columns,
-            config.rows,
-            config.gapX,
-            config.gapY,
-            createBody
-        ));
+        {/* Main Content */}
+        <div className="relative z-10 flex flex-col items-center justify-start min-h-screen px-4 pt-24">
+          {/* Initial View */}
+          <div className="text-center max-w-4xl mx-auto mb-6">
+            <h1 className={`${isMobile ? 'text-5xl' : 'text-7xl'} font-bold mb-6`}>
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#4c82fb] via-[#7b3fe4] to-[#ff4d4d]">
+              Swap One Token Into Multiple Tokens Instantly
+              </span>
+            </h1>
+          </div>
 
-        // Adjusted physics engine parameters
-        engine.world.gravity.y = 0.3 * (isMobile ? 0.8 : 1); // Reduced gravity
-        engine.constraintIterations = 4;
-        engine.positionIterations = 6;
-        engine.velocityIterations = 4;
-
-        // Modified explosion parameters
-        const explosion = function(engine: Matter.Engine, delta: number) {
-            const timeScale = (1000 / 60) / delta;
-            const bodies = Composite.allBodies(engine.world)
-                .filter(body => !body.isStatic)
-                .slice(0, maxBodies);
-
-            bodies.forEach(body => {
-                if (body.position.y >= 500) {
-                    // Adjusted force for smoother movement
-                    const forceMagnitude = (0.015 * body.mass) * timeScale;
-
-                    Body.applyForce(body, body.position, {
-                        x: (forceMagnitude + Common.random() * forceMagnitude) * Common.choose([1, -1]), 
-                        y: -forceMagnitude + Common.random() * -forceMagnitude
-                    });
-                }
-            });
-        };
-
-        let timeScaleTarget = 1;
-        let lastTime = Common.now();
-
-        Events.on(engine, 'afterUpdate', function(event) {
-            if (Common.now() - lastTime >= 2000) {
-                timeScaleTarget = timeScaleTarget < 1 ? 1 : 0;
-                explosion(engine, event.delta);
-                lastTime = Common.now();
-            }
-        });
-
-        // add mouse control
-        const mouse = Mouse.create(render.canvas);
-        const mouseConstraint = MouseConstraint.create(engine, {
-            mouse: mouse,
-            constraint: {
-                stiffness: 0.2,
-                render: {
-                    visible: false
-                }
-            }
-        });
-
-        Composite.add(world, mouseConstraint);
-        render.mouse = mouse;
-
-        // fit the render viewport to the scene
-        Render.lookAt(render, {
-            min: { x: 0, y: 0 },
-            max: { x: window.innerWidth, y: window.innerHeight }
-        });
-
-        // Add this after creating the engine and world, but before the cleanup function
-        const handleKeyPress = (event: KeyboardEvent) => {
-            const bodies = Composite.allBodies(world);
-            const force = 0.03;
-
-            if (event.repeat) return; // Prevent key repeat events
-
-            bodies.forEach(body => {
-                if (!body.isStatic) {
-                    switch(event.key) {
-                        case 'ArrowUp':
-                            Body.applyForce(body, body.position, { x: 0, y: -force });
-                            break;
-                        case 'ArrowDown':
-                            Body.applyForce(body, body.position, { x: 0, y: force });
-                            break;
-                        case 'ArrowLeft':
-                            Body.applyForce(body, body.position, { x: -force, y: 0 });
-                            break;
-                        case 'ArrowRight':
-                            Body.applyForce(body, body.position, { x: force, y: 0 });
-                            break;
-                        case ' ': // Spacebar
-                            setIsSpacebarPressed(true);
-                            break;
-                    }
-                }
-            });
-        };
-
-        const handleKeyUp = (event: KeyboardEvent) => {
-            if (event.key === ' ') {
-                setIsSpacebarPressed(false);
-            }
-        };
-
-        // Add a blur event handler to reset spacebar state when window loses focus
-        const handleBlur = () => {
-            setIsSpacebarPressed(false);
-        };
-
-        // Add all event listeners
-        window.addEventListener('keydown', handleKeyPress);
-        window.addEventListener('keyup', handleKeyUp);
-        window.addEventListener('blur', handleBlur);
-
-        // Add touch events support
-        const touchHandler = (event: TouchEvent) => {
-            const bodies = Composite.allBodies(world);
-            const force = isMobile ? 0.02 : 0.03;
-            const touch = event.touches[0];
-            
-            bodies.forEach(body => {
-                if (!body.isStatic) {
-                    const dx = touch.clientX - body.position.x;
-                    const dy = touch.clientY - body.position.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance < 100) {
-                        Body.applyForce(body, body.position, {
-                            x: (dx / distance) * force,
-                            y: (dy / distance) * force
-                        });
-                    }
-                }
-            });
-        };
-
-        window.addEventListener('touchmove', touchHandler, { passive: true });
-        
-        // Cleanup function
-        return () => {
-            window.removeEventListener('keydown', handleKeyPress);
-            window.removeEventListener('keyup', handleKeyUp);
-            window.removeEventListener('blur', handleBlur);
-            window.removeEventListener('touchmove', touchHandler);
-            Matter.Render.stop(render);
-            Matter.Runner.stop(runner);
-            Matter.Engine.clear(engine);
-            render.canvas.remove();
-            if (render.canvas) {
-                render.canvas.remove();
-            }
-        };
-    }, [logos, isMobile, maxBodies]); // Remove isSpacebarPressed from dependencies
-
-    // Second useEffect for handling spacebar state
-    useEffect(() => {
-        if (logos.length === 0) return;
-        
-        const engine = engineRef.current;
-        const world = engine.world;
-
-        // Add attraction force when spacebar is pressed
-        const attractionUpdate = () => {
-            if (isSpacebarPressed) {
-                const bodies = Matter.Composite.allBodies(world);
-                const centerX = window.innerWidth / 2;
-                const centerY = window.innerHeight / 2;
-                const attractionForce = 0.003;
-
-                bodies.forEach(body => {
-                    if (!body.isStatic) {
-                        const dx = centerX - body.position.x;
-                        const dy = centerY - body.position.y;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        
-                        if (distance > 1) {
-                            const force = {
-                                x: (dx / distance) * attractionForce * body.mass,
-                                y: (dy / distance) * attractionForce * body.mass
-                            };
-                            Matter.Body.applyForce(body, body.position, force);
-                        }
-                    }
-                });
-            }
-        };
-
-        // Add the update function to the engine
-        Matter.Events.on(engine, 'beforeUpdate', attractionUpdate);
-
-        // Cleanup
-        return () => {
-            Matter.Events.off(engine, 'beforeUpdate', attractionUpdate);
-        };
-    }, [isSpacebarPressed, logos]);
-
-    // Return the container div for the Matter.js scene
-    return (
-        <>
-        <TopNavBar />
-        <div 
-            ref={sceneRef} 
-            className="scene-container"
-            style={{ 
-                width: '100vw',
-                height: '100vh',
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                overflow: 'hidden',
-                background: 'linear-gradient(to right, #0f172a, #1e3a8a)',
-                isolation: 'isolate'
-            }}
-        >
-            {/* Canvas container */}
-            <div 
-                style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    zIndex: 1
-                }}
-            />
-            
-            {/* Content overlay */}
-            <div 
-                className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center z-10 w-full max-w-4xl px-4"
-                style={{ 
-                    pointerEvents: 'none',
-                    background: 'transparent'
-                }}
-            >
-                <h1 className={`${isMobile ? 'text-5xl' : 'text-8xl'} font-extrabold mb-12 tracking-widest leading-tight`}>
-                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-white">
-                        MemeR0t
-                    </span>
-                </h1>
-                <p className={`text-white mb-12 ${isMobile ? 'text-base' : 'text-lg'} max-w-2xl mx-auto`}>
-                User-friendly multi-swap router built for easy token diversification. With just one click, you can convert assets like Ethereum into a custom mix of tokens—like a 50:50 split between SPX and HPOS. Our platform offers a simple way to manage risk and diversify portfolios through customizable, shareable token presets.
-                <br />
-                <br />
-                Our goal is to help you reduce risk, avoid impulsive investments, and grow smarter with your assets. Share your allocations and contribute to a network where diversification happens naturally.
-                </p>
-                <Link to="/swap" style={{ pointerEvents: 'auto' }}>
-                    <button className={`px-8 py-4 ${isMobile ? 'text-lg' : 'text-xl'} bg-pink-600 bg-opacity-80 text-white rounded-full hover:bg-opacity-100 transition-all`}>
-                        Go to Swap Page
+          {/* Minimal Swap Interface */}
+          <div className="bg-[#191c2a] rounded-2xl p-6 w-full max-w-md mb-12">
+            <div className="space-y-4">
+              {/* Input Token */}
+              <div className="p-4 bg-[#212638] rounded-xl">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <button 
+                      onClick={() => openTokenPopup("from")}
+                      className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors min-w-[140px] max-w-[180px] truncate"
+                    >
+                      {selectedToken ? (
+                        <>
+                          <img 
+                            src={TOKENS[selectedToken].logo} 
+                            alt={selectedToken} 
+                            className="w-6 h-6 rounded-full flex-shrink-0"
+                          />
+                          <span className="truncate">{selectedToken}</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-6 h-6 rounded-full bg-gray-600 flex-shrink-0"></div>
+                          <span className="truncate">Select token</span>
+                        </>
+                      )}
+                      <ChevronDown size={20} className="flex-shrink-0" />
                     </button>
-                </Link>
+                    <input
+                      type="text"
+                      placeholder="0"
+                      className="bg-transparent text-2xl font-medium focus:outline-none text-right w-[120px] sm:w-[160px]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Split Types */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setSelectedSplitType("equal")}
+                  className={`bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-all duration-200 border ${
+                    selectedSplitType === "equal" ? "border-[#4c82fb]" : "border-[#3d4860]/50"
+                  }`}
+                >
+                  <div className="text-sm font-medium">Equal Split</div>
+                  <div className="text-xs text-gray-400 mt-1">Split tokens equally</div>
+                </button>
+                <button
+                  onClick={() => setSelectedSplitType("custom")}
+                  className={`bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-all duration-200 border ${
+                    selectedSplitType === "custom" ? "border-[#4c82fb]" : "border-[#3d4860]/50"
+                  }`}
+                >
+                  <div className="text-sm font-medium">Custom Split</div>
+                  <div className="text-xs text-gray-400 mt-1">Set custom weights</div>
+                </button>
+              </div>
+
+              {/* Token Outputs with Allocation */}
+              <div className="space-y-3">
+                {selectedOutputTokens.map((token, index) => (
+                  <div key={`output-${index}`} className="p-4 bg-[#212638] rounded-xl">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-1">
+                          <button 
+                            onClick={() => openTokenPopup("output", index)}
+                            className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors min-w-[140px] max-w-[180px] truncate"
+                          >
+                            {token ? (
+                              <>
+                                <img 
+                                  src={TOKENS[token].logo} 
+                                  alt={token} 
+                                  className="w-6 h-6 rounded-full flex-shrink-0"
+                                />
+                                <span className="truncate">{token}</span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-6 h-6 rounded-full bg-gray-600 flex-shrink-0"></div>
+                                <span className="truncate">Select token</span>
+                              </>
+                            )}
+                            <ChevronDown size={20} className="flex-shrink-0" />
+                          </button>
+                          {selectedOutputTokens.length > 1 && (
+                            <button
+                              onClick={() => handleRemoveToken(index)}
+                              className="p-2 hover:bg-[#374160] rounded-full transition-colors flex-shrink-0"
+                              aria-label="Remove token"
+                            >
+                              <X size={20} className="text-gray-400 hover:text-white" />
+                            </button>
+                          )}
+                        </div>
+                        {/* Percentage Display/Button */}
+                        <div className="relative flex-shrink-0">
+                          {selectedSplitType === "custom" ? (
+                            <button
+                              onClick={() => setActivePercentageIndex(activePercentageIndex === index ? null : index)}
+                              className="flex items-center space-x-2 px-3 py-1.5 bg-[#293249] hover:bg-[#374160] rounded-full transition-colors whitespace-nowrap"
+                            >
+                              <span className="text-base sm:text-lg font-medium">{getTokenPercentage(index).toFixed(1)}%</span>
+                              <Percent className="h-4 w-4 text-gray-400" />
+                            </button>
+                          ) : (
+                            <span className="text-base sm:text-lg font-medium whitespace-nowrap">{getTokenPercentage(index).toFixed(1)}%</span>
+                          )}
+                          
+                          {/* Percentage Selector Popover */}
+                          {selectedSplitType === "custom" && activePercentageIndex === index && (
+                            <div 
+                              ref={popoverRef}
+                              className="absolute right-0 top-full mt-2 p-4 bg-[#191c2a] rounded-xl border border-[#2d3648] shadow-lg z-50 min-w-[240px]"
+                            >
+                              <div className="space-y-4">
+                                {/* Direct Input */}
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="number"
+                                    value={customPercentages[index]?.toFixed(1) || "0"}
+                                    onChange={(e) => handlePercentageChange(index, parseFloat(e.target.value) || 0)}
+                                    className="w-20 px-2 py-1 bg-[#293249] rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-[#4c82fb]"
+                                    min="0"
+                                    max="100"
+                                    step="0.1"
+                                  />
+                                  <span className="text-gray-400">%</span>
+                                  <button
+                                    onClick={() => setActivePercentageIndex(null)}
+                                    className="ml-2 px-2 py-1 bg-[#4c82fb] hover:bg-[#3a6fd0] text-white rounded-lg text-sm transition-colors"
+                                  >
+                                    Confirm
+                                  </button>
+                                </div>
+                                
+                                {/* Slider */}
+                                <div className="space-y-2">
+                                  <input
+                                    type="range"
+                                    value={customPercentages[index] || 0}
+                                    onChange={(e) => handlePercentageChange(index, parseFloat(e.target.value))}
+                                    className="w-full appearance-none h-2 bg-[#293249] rounded-full outline-none cursor-pointer
+                                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 
+                                      [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full 
+                                      [&::-webkit-slider-thumb]:bg-[#4c82fb] [&::-webkit-slider-thumb]:cursor-pointer
+                                      [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 
+                                      [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#4c82fb] 
+                                      [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+                                    min="0"
+                                    max="100"
+                                    step="0.1"
+                                  />
+                                  <div className="flex justify-between text-xs text-gray-400">
+                                    <span>0%</span>
+                                    <span>50%</span>
+                                    <span>100%</span>
+                                  </div>
+                                </div>
+
+                                {/* Quick Select Buttons */}
+                                <div className="flex flex-wrap gap-2">
+                                  {[25, 50, 75, 100].map((value) => (
+                                    <button
+                                      key={value}
+                                      onClick={() => handlePercentageChange(index, value)}
+                                      className="px-2 py-1 bg-[#293249] hover:bg-[#374160] rounded-lg text-sm transition-colors"
+                                    >
+                                      {value}%
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {/* Allocation Bar */}
+                      <div className="w-full bg-[#293249] rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-[#4c82fb] to-[#7b3fe4] h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${getTokenPercentage(index)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add Token Button */}
+                {selectedOutputTokens.length < 4 && (
+                  <button
+                    onClick={handleAddToken}
+                    className="w-full mt-2 py-2.5 bg-[#293249] hover:bg-[#374160] rounded-xl flex items-center justify-center transition-colors border border-[#3d4860]/50"
+                  >
+                    <Plus className="h-4 w-4 mr-2 text-gray-400" />
+                    <span className="text-white">Add another token</span>
+                    <span className="text-xs text-gray-400 ml-2">
+                      ({4 - selectedOutputTokens.length} remaining)
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {/* Review Swap Button */}
+              <button
+                onClick={handleGetStarted}
+                className="w-full bg-gradient-to-r from-[#4c82fb] to-[#7b3fe4] hover:from-[#3a6fd0] hover:to-[#6a36c7] text-white rounded-xl py-3 font-medium transition-colors"
+              >
+                Review Swap
+              </button>
+            </div>
+          </div>
+
+          {/* Scroll Indicator */}
+          {showScrollIndicator && (
+            <div className="flex flex-col items-center mb-16">
+              <p className="text-gray-400 text-lg mb-2">Scroll to learn more</p>
+              <div className="w-6 h-10 border-2 border-gray-400 rounded-full flex items-center justify-center">
+                <div className="w-1 h-3 bg-gray-400 rounded-full animate-bounce"></div>
+              </div>
+            </div>
+          )}
+
+          {/* Feature Cards Section */}
+          <div className="w-full max-w-7xl mx-auto px-4 py-24">
+            {/* MultiSwap Feature */}
+            <div className="flex flex-col md:flex-row items-center gap-12 mb-32">
+              <div className="flex-1">
+                <h2 className="text-4xl font-bold mb-6">Multi-Token Swaps</h2>
+                <p className="text-xl text-gray-400">
+                  Diversify your portfolio in a single transaction. Swap any token into multiple tokens with customizable allocations, saving time and gas fees.
+                </p>
+              </div>
+              <div className="flex-1 bg-[#191c2a] rounded-2xl p-8">
+                {/* Placeholder for MultiSwap illustration */}
+                <div className="aspect-video bg-[#212638] rounded-xl"></div>
+              </div>
+            </div>
+
+            {/* Discover Narratives Feature */}
+            <div className="flex flex-col md:flex-row-reverse items-center gap-12 mb-32">
+              <div className="flex-1">
+                <h2 className="text-4xl font-bold mb-6">Discover Narratives</h2>
+                <p className="text-xl text-gray-400">
+                  Explore and invest in trending narratives across DeSci, DeFi, Memes, DePIN, and more. Our curated token baskets make it easy to gain exposure to emerging sectors.
+                </p>
+                <div className="flex flex-wrap gap-3 mt-6">
+                  <span className="px-4 py-2 bg-[#212638] rounded-full text-sm text-gray-300">DeSci</span>
+                  <span className="px-4 py-2 bg-[#212638] rounded-full text-sm text-gray-300">DeFi</span>
+                  <span className="px-4 py-2 bg-[#212638] rounded-full text-sm text-gray-300">Memes</span>
+                  <span className="px-4 py-2 bg-[#212638] rounded-full text-sm text-gray-300">DePIN</span>
+                  <span className="px-4 py-2 bg-[#212638] rounded-full text-sm text-gray-300">AI</span>
+                </div>
+              </div>
+              <div className="flex-1 bg-[#191c2a] rounded-2xl p-8">
+                {/* Placeholder for Narratives illustration */}
+                <div className="aspect-video bg-[#212638] rounded-xl"></div>
+              </div>
+            </div>
+
+            {/* Lower Fees Feature */}
+            <div className="flex flex-col md:flex-row items-center gap-12 mb-32">
+              <div className="flex-1">
+                <h2 className="text-4xl font-bold mb-6">Lower Fees & MEV Protection</h2>
+                <p className="text-xl text-gray-400">
+                  Our optimized routing ensures you get the best rates while protecting your trades from MEV attacks. Save on gas and trade with confidence.
+                </p>
+              </div>
+              <div className="flex-1 bg-[#191c2a] rounded-2xl p-8">
+                {/* Placeholder for Fees illustration */}
+                <div className="aspect-video bg-[#212638] rounded-xl"></div>
+              </div>
+            </div>
+
+            {/* D/acc Funding Feature */}
+            <div className="flex flex-col md:flex-row-reverse items-center gap-12 mb-32">
+              <div className="flex-1">
+                <h2 className="text-4xl font-bold mb-6">D/acc Project Funding</h2>
+                <p className="text-xl text-gray-400">
+                  Supporting innovation through decentralized acceleration. A portion of trading fees goes directly to fund DeSci and other d/acc projects, creating a sustainable ecosystem for technological advancement.
+                </p>
+              </div>
+              <div className="flex-1 bg-[#191c2a] rounded-2xl p-8">
+                {/* Placeholder for Funding illustration */}
+                <div className="aspect-video bg-[#212638] rounded-xl"></div>
+              </div>
+            </div>
+
+            {/* AI-Driven Feature */}
+            <div className="flex flex-col md:flex-row items-center gap-12 mb-16">
+              <div className="flex-1">
+                <h2 className="text-4xl font-bold mb-6">AI-Driven Discovery <span className="text-sm font-normal text-gray-400 ml-2">Coming Soon</span></h2>
+                <p className="text-xl text-gray-400">
+                  Let AI help you discover the best token combinations based on market trends, sentiment analysis, and historical data.
+                </p>
+              </div>
+              <div className="flex-1 bg-[#191c2a] rounded-2xl p-8">
+                {/* Placeholder for AI illustration */}
+                <div className="aspect-video bg-[#212638] rounded-xl"></div>
+              </div>
+            </div>
+
+            {/* Social Links */}
+            <div className="flex justify-center items-center space-x-6 mb-8">
+              <a
+                href="https://twitter.com/memer0t"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+              </a>
+              <a
+                href="https://t.me/+igL2Cj91n1syMWRl"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+              </a>
+            </div>
             </div>
         </div>
-        </>
+      </div>
+
+      {/* Token Selection Popup */}
+      <TokenSelectionPopup
+        isOpen={isTokenPopupOpen}
+        onClose={closeTokenPopup}
+        onSelect={handleTokenSelect}
+        tokens={activeTokenSelection?.type === "output" ? OUTPUT_TOKENS : TOKENS}
+        balances={tokenBalances}
+        disabledTokens={disabledTokens.map(String)}
+        tokenPriceData={{}}
+        selectedOutputTokens={selectedOutputTokens.map(token => token?.toString() || "")}
+        allowMultiSelect={activeTokenSelection?.type === "output"}
+      />
+    </div>
     );
 };
 

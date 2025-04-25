@@ -1,12 +1,23 @@
+import React, { useState, useEffect, memo } from 'react';
 import { X, Search } from "lucide-react";
-import { useMemo, useState, memo, useEffect, useCallback } from "react";
-import { TokenSymbol } from "../../utils/Modal";
-import {TokenSelectionPopupProps} from "../../utils/Modal";
+import { TokenConfig, CoinPriceData, TokenSymbol } from '../../utils/Modal';
 import { toast } from "react-toastify";
+import { TOKENS } from "../../config/tokens";
+import { MOCK_BALANCES } from "../../utils/Modal";
 
-
-
-//TODO: change Price_usd to bigint
+interface TokenSelectionPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (tokens: string[]) => void;
+  tokens: Record<string, TokenConfig>;
+  balances: Record<string, string>;
+  disabledTokens: string[];
+  tokenPriceData: Record<string, CoinPriceData>;
+  selectedOutputTokens: string[];
+  maxSelections?: number;
+  allowMultiSelect?: boolean;
+  selectedToken?: string | null;
+}
 
 const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
   isOpen,
@@ -18,31 +29,23 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
   tokenPriceData,
   maxSelections = 4,
   selectedOutputTokens = [],
-  allowMultiSelect = false
-}: TokenSelectionPopupProps) => {
+  allowMultiSelect = false,
+  selectedToken = null,
+  tokenBalances = MOCK_BALANCES
+}) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [newSelections, setNewSelections] = useState<Set<string>>(new Set());
 
-  // Reset selections when popup opens
   useEffect(() => {
     if (isOpen) {
-      console.log('Resetting new selections');
       setNewSelections(new Set());
       setSearchTerm("");
     }
   }, [isOpen]);
 
-  const currentOutputTokens = useMemo(() => 
-    selectedOutputTokens.filter(token => token !== ''),
-    [selectedOutputTokens]
-  );
+  const currentOutputTokens = selectedOutputTokens.filter(token => token !== '');
 
-  // Helper function to check if a token is selected
-  const isTokenSelected = useCallback((symbol: string) => {
-    return currentOutputTokens.includes(symbol) || newSelections.has(symbol);
-  }, [currentOutputTokens, newSelections]);
-
-  const handleTokenClick = useCallback((symbol: string) => {
+  const handleTokenClick = (symbol: string) => {
     if (allowMultiSelect) {
       const isAlreadySelected = currentOutputTokens.includes(symbol);
       const isNewlySelected = newSelections.has(symbol);
@@ -71,9 +74,9 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
       onSelect([symbol]);
       onClose();
     }
-  }, [currentOutputTokens, maxSelections, allowMultiSelect, onSelect, onClose]);
+  };
 
-  const handleConfirmSelection = useCallback(() => {
+  const handleConfirmSelection = () => {
     const updatedTokens = [...currentOutputTokens];
     Array.from(newSelections).forEach(token => {
       if (updatedTokens.length < maxSelections) {
@@ -84,114 +87,98 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
     onSelect(updatedTokens);
     setNewSelections(new Set());
     onClose();
-  }, [currentOutputTokens, newSelections, maxSelections, onSelect, onClose]);
+  };
 
-  const filteredTokens = useMemo(() => {
-    return Object.entries(tokens).filter(([symbol, config]) => {
-      const matchesSearch = symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        config.name?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      if (allowMultiSelect) {
-        // For buy section: disable tokens that are already selected in sell section
-        return matchesSearch && !disabledTokens.includes(symbol);
-      } else {
-        // For sell section: don't disable tokens that are selected in buy section
-        return matchesSearch && !selectedOutputTokens.includes(symbol);
-      }
-    });
-  }, [tokens, searchTerm, disabledTokens, allowMultiSelect, selectedOutputTokens]);
+  const filteredTokens = Object.entries(tokens).filter(([symbol, config]) => {
+    const matchesSearch = symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      config.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (allowMultiSelect) {
+      return matchesSearch && !disabledTokens.includes(symbol);
+    } else {
+      return matchesSearch && !selectedOutputTokens.includes(symbol);
+    }
+  });
 
   const getTokenPrice = (symbol: TokenSymbol) => {
     const coinId = tokens[symbol]?.coingeckoId;
-    if (!coinId) {
-      console.log(`No coinId found for ${symbol}`);
-      return 0;
-    }
-
-    // Debug logs
-    console.log({
-      symbol,
-      coinId,
-      priceData: tokenPriceData[coinId],
-      allPriceData: tokenPriceData
-    });
-
-    const price = tokenPriceData[coinId]?.price_usd;
-    if (typeof price === 'number' && !isNaN(price)) {
-      return price;
-    }
-
+    if (!coinId || !tokenPriceData[coinId]) return 0;
+    return tokenPriceData[coinId].price_usd || 0;
   };
 
   const getTokenBalance = (symbol: string) => {
     return parseFloat(balances[symbol] || "0");
   };
 
-  // Add cleanup when component unmounts
-  useEffect(() => {
-    return () => {
-      setNewSelections(new Set());
-      setSearchTerm("");
-    };
-  }, []);
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-lg w-96 max-h-[80vh] flex flex-col">
-        <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+      <div className="bg-[#191c2a] rounded-2xl w-96 max-h-[80vh] flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-[#293249] flex justify-between items-center">
           <div className="flex flex-col">
-            <h2 className="text-xl font-bold">Select tokens</h2>
+            <h2 className="text-xl font-bold text-white">Select tokens</h2>
             <span className="text-sm text-gray-400">
               {maxSelections - currentOutputTokens.length > 0 
                 ? `Select up to ${maxSelections - currentOutputTokens.length} more token${maxSelections - currentOutputTokens.length === 1 ? '' : 's'}`
                 : 'Maximum tokens selected'}
             </span>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
             <X size={24} />
           </button>
         </div>
+
         <div className="flex-1 overflow-hidden flex flex-col">
-          <div className="p-4 bg-gray-900 border-b border-gray-800">
-            <div className="flex items-center bg-gray-800 rounded-lg px-3 py-2 mb-4">
+          {/* Search */}
+          <div className="p-4 border-b border-[#293249]">
+            <div className="flex items-center bg-[#212638] rounded-xl px-4 py-3">
               <Search className="h-4 w-4 text-gray-400 mr-2" />
               <input
                 type="text"
                 placeholder="Search tokens"
-                className="bg-transparent border-none focus:outline-none text-white w-full"
+                className="bg-transparent border-none focus:outline-none text-white w-full placeholder-gray-400"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mt-4">
               {['ETH', 'USDC', 'USDT', 'WETH', 'SPX6900', 'MOG', 'HPOS', 'WOJAK', 'PEIPEI'].map((symbol) => (
                 <button
                   key={symbol}
-                  className={`bg-gray-800 rounded-full px-3 py-1 text-sm ${
-                    newSelections.has(symbol) ? 'ring-2 ring-blue-500' : ''
-                  }`}
                   onClick={() => handleTokenClick(symbol)}
                   disabled={disabledTokens.includes(symbol)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors
+                    ${disabledTokens.includes(symbol)
+                      ? 'bg-[#212638] text-gray-500 cursor-not-allowed'
+                      : currentOutputTokens.includes(symbol) || newSelections.has(symbol)
+                      ? 'bg-[#4c82fb] text-white'
+                      : 'bg-[#293249] text-white hover:bg-[#374160]'
+                    }`}
                 >
                   {symbol}
                 </button>
               ))}
             </div>
           </div>
+
+          {/* Token List */}
           <div className="flex-1 overflow-y-auto">
             <div className="p-4">
-              <h3 className="text-sm text-gray-400 mb-2">Your tokens</h3>
               <div className="space-y-2">
                 {filteredTokens.map(([symbol, config]) => (
                   <button
                     key={symbol}
-                    className={`flex items-center justify-between w-full px-3 py-2 hover:bg-gray-800 rounded-lg ${
-                      isTokenSelected(symbol) ? 'bg-gray-800 ring-2 ring-blue-500' : ''
-                    }`}
                     onClick={() => handleTokenClick(symbol)}
                     disabled={disabledTokens.includes(symbol)}
+                    className={`w-full p-3 rounded-xl transition-colors flex items-center justify-between
+                      ${disabledTokens.includes(symbol)
+                        ? 'bg-[#212638] cursor-not-allowed opacity-50'
+                        : currentOutputTokens.includes(symbol) || newSelections.has(symbol)
+                        ? 'bg-[#293249] ring-2 ring-[#4c82fb]'
+                        : 'bg-[#212638] hover:bg-[#293249]'
+                      }`}
                   >
                     <div className="flex items-center space-x-3">
                       <img
@@ -199,27 +186,20 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
                         alt={`${symbol} logo`}
                         className="w-8 h-8 rounded-full"
                         onError={(e) => {
-                          // Fallback to config.logo if the image fails to load
                           (e.target as HTMLImageElement).src = config.logo;
                         }}
                       />
-                      <div className="flex flex-col items-start">
-                        <span className="font-medium">{symbol}</span>
-                        <span className="text-sm text-gray-400">{config.name}</span>
+                      <div className="text-left">
+                        <div className="font-medium text-white">{symbol}</div>
+                        <div className="text-sm text-gray-400">{config.name}</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm text-gray-400">
-                        {(() => {
-                          const price = getTokenPrice(symbol as TokenSymbol);
-                          if (price === 0) {
-                            return 'Price loading...';
-                          }
-                          return `$${price?.toFixed(price < 0.01 ? 8 : 2)} USD`;
-                        })()}
-                      </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-white">
                         {getTokenBalance(symbol).toFixed(4)} {symbol}
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        ${(getTokenBalance(symbol) * getTokenPrice(symbol as TokenSymbol)).toFixed(2)} USD
                       </div>
                     </div>
                   </button>
@@ -228,14 +208,16 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
             </div>
           </div>
         </div>
+
+        {/* Footer */}
         {allowMultiSelect && newSelections.size > 0 && (
-          <div className="p-4 border-t border-gray-800 bg-gray-900">
+          <div className="p-4 border-t border-[#293249]">
             <div className="text-sm text-gray-400 mb-2">
               New selections: {Array.from(newSelections).join(', ')}
             </div>
             <button
               onClick={handleConfirmSelection}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded transition-colors duration-200"
+              className="w-full bg-gradient-to-r from-[#4c82fb] to-[#7b3fe4] hover:from-[#3a6fd0] hover:to-[#6a36c7] text-white font-medium py-3 px-4 rounded-xl transition-colors"
             >
               Confirm Selection ({currentOutputTokens.length + newSelections.size}/{maxSelections})
             </button>
@@ -247,7 +229,9 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
 }, (prevProps, nextProps) => {
   return prevProps.isOpen === nextProps.isOpen &&
     prevProps.tokenPriceData === nextProps.tokenPriceData &&
-    prevProps.balances === nextProps.balances;
+    prevProps.balances === nextProps.balances &&
+    prevProps.selectedOutputTokens === nextProps.selectedOutputTokens &&
+    prevProps.selectedToken === nextProps.selectedToken;
 });
 
 export default TokenSelectionPopup;

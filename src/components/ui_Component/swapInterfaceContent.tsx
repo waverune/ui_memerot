@@ -8,12 +8,15 @@ import React, {
 import { useNavigate, useLocation } from "react-router-dom";
 import { ethers } from "ethers";
 import { ArrowDownUp, ChevronDown, Plus, Copy, X } from "lucide-react";
+import telegramIcon from "../../assets/Telegram.png";
+import xIcon from "../../assets/X.png";
 import {
   useAccount,
   useBalance,
   usePublicClient,
   useWalletClient,
 } from "wagmi";
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 import TokenSelectionPopup from "./tokenSelectionPopup";
 import { Button } from "../ui/button";
 import { useToast } from "../../hooks/useToast";
@@ -173,14 +176,9 @@ function SwapInterfaceContent() {
   const hasInitialized = useRef(false);
   const location = useLocation();
   const [fromAmount, setFromAmount] = useState("");
-  const [selectedToken, setSelectedToken] = useState<TokenSymbol>("ETH");
-  const [selectedOutputTokens, setSelectedOutputTokens] = useState<
-    TokenSymbol[]
-  >([]);
-  const [toAmounts, setToAmounts] = useState<Record<TokenSymbol, string>>({
-    SPX6900: "0",
-    MOG: "0",
-  });
+  const [selectedToken, setSelectedToken] = useState<TokenSymbol | null>(null);
+  const [selectedOutputTokens, setSelectedOutputTokens] = useState<Array<TokenSymbol | null>>([null]);
+  const [toAmounts, setToAmounts] = useState<Record<TokenSymbol, string>>({});
   const [areFieldsValid, setAreFieldsValid] = useState(false);
   const [quoteResult, setQuoteResult] = useState<readonly bigint[]>([]);
   const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
@@ -200,14 +198,13 @@ function SwapInterfaceContent() {
   const [simulatedOutputs, setSimulatedOutputs] = useState<
     Record<TokenSymbol, SimulatedOutput>
   >({});
-  const [allocationType, setAllocationType] = useState<"ratio" | "percentage">(
-    "ratio"
-  );
-  const [allocationValues, setAllocationValues] = useState(["1"]);
-  const [selectedTemplate, setSelectedTemplate] = useState("1");
+  const [allocationType, setAllocationType] = useState<"ratio" | "percentage">("percentage");
+  const [allocationValues, setAllocationValues] = useState<string[]>(["100"]);
+  const [selectedTemplate, setSelectedTemplate] = useState("100");
   const [tokenPriceData, setTokenPriceData] = useState<
     Record<string, CoinPriceData>
   >({});
+  const { openConnectModal } = useConnectModal();
   const getDogeCoinMarketCap = async () => {
     const data = await fetchCoinData("dogecoin");
     setDogeMarketCap(data.market_cap_usd);
@@ -400,19 +397,18 @@ function SwapInterfaceContent() {
   const updateDisabledTokens = useCallback(
     (tokens: TokenSymbol[] = selectedOutputTokens) => {
       const disabled = [selectedToken, ...tokens].filter(
-        (token) => token !== ""
+        (token) => token !== null
       );
       setDisabledTokens(disabled);
     },
     [selectedToken]
   );
 
-  // Modify the removeOutputToken function to handle empty slots
   const removeOutputToken = useCallback(
-    (tokenToRemove: TokenSymbol | "", index: number) => {
+    (tokenToRemove: TokenSymbol, index: number) => {
       // If this is the only slot, just clear the selection instead of removing it
       if (selectedOutputTokens.length === 1) {
-        setSelectedOutputTokens([""]); // Keep one empty slot
+        setSelectedOutputTokens([null]); // Keep one empty slot
         setToAmounts({});
 
         // Keep allocation values as is for single slot
@@ -424,27 +420,26 @@ function SwapInterfaceContent() {
           setSelectedTemplate("1");
         }
 
-        updateDisabledTokens([""]);
+        updateDisabledTokens([]);
         return;
       }
 
-      // For multiple slots, remove the slot completely
+      // For multiple slots, remove the token completely
       const newSelectedOutputTokens = selectedOutputTokens.filter(
         (_, i) => i !== index
-      );
+      ).filter(token => token !== null) as TokenSymbol[];
+
       setSelectedOutputTokens(newSelectedOutputTokens);
 
-      if (tokenToRemove) {
-        const newToAmounts = { ...toAmounts };
-        delete newToAmounts[tokenToRemove];
-        setToAmounts(newToAmounts);
-      }
+      // Update toAmounts by removing the removed token
+      const newToAmounts = { ...toAmounts };
+      delete newToAmounts[tokenToRemove];
+      setToAmounts(newToAmounts);
 
-      const newLength = allocationValues.length - 1;
+      // Update allocation values
+      const newLength = newSelectedOutputTokens.length;
       if (allocationType === "ratio") {
-        const newAllocationValues = allocationValues.filter(
-          (_, i) => i !== index
-        );
+        const newAllocationValues = Array(newLength).fill("1");
         setAllocationValues(newAllocationValues);
         setSelectedTemplate(newAllocationValues.join(":"));
       } else {
@@ -456,20 +451,14 @@ function SwapInterfaceContent() {
 
       updateDisabledTokens(newSelectedOutputTokens);
     },
-    [
-      selectedOutputTokens,
-      toAmounts,
-      allocationValues,
-      allocationType,
-      updateDisabledTokens,
-    ]
+    [selectedOutputTokens, toAmounts, allocationType, updateDisabledTokens]
   );
 
   const checkApproval = useCallback(async () => {
-    if (isConnected && address && selectedToken !== "ETH" && fromAmount) {
+    if (isConnected && address && selectedToken !== "ETH" && selectedToken !== "WETH" && fromAmount) {
       try {
         const signer = await getSigner();
-        const tokenAddress = TOKENS[selectedToken].address;
+        const tokenAddress = TOKENS[selectedToken]?.address;
         const amount = fromAmount;
 
         const tokenContract = new ethers.Contract(
@@ -520,7 +509,7 @@ function SwapInterfaceContent() {
   ]);
 
   const handleApprove = async () => {
-    if (!isConnected || selectedToken === "ETH") {
+    if (!isConnected || selectedToken === "ETH" || selectedToken === "WETH") {
       return;
     }
 
@@ -609,40 +598,49 @@ function SwapInterfaceContent() {
     if (activeTokenSelection?.type === "from") {
       setSelectedToken(tokens[0] as TokenSymbol);
     } else if (activeTokenSelection?.type === "output") {
-      const currentTokens = selectedOutputTokens.filter(
-        (token) => token !== ""
-      );
-      console.log(">>> current tokens:", currentTokens);
-
-      // Filter out tokens that are already selected
-      const newUniqueTokens = tokens.filter(
-        (token) => !currentTokens.includes(token)
-      );
-      console.log(">>> new unique tokens:", newUniqueTokens);
-
-      // Create new array with existing tokens
-      const newTokens = [...currentTokens];
-
-      // Add only the new unique tokens
-      newUniqueTokens.forEach((token) => {
-        if (newTokens.length < 4) {
-          newTokens.push(token as TokenSymbol);
+      // Get the current tokens array
+      const currentTokens = [...selectedOutputTokens];
+      
+      // If we have an index, update that specific slot
+      if (activeTokenSelection.index !== undefined) {
+        // If multiple tokens are selected, add them to new slots
+        if (tokens.length > 1) {
+          // First, update the current slot with the first token
+          currentTokens[activeTokenSelection.index] = tokens[0] as TokenSymbol;
+          
+          // Then add remaining tokens to new slots
+          for (let i = 1; i < tokens.length; i++) {
+            if (currentTokens.length < 4) {
+              currentTokens.push(tokens[i] as TokenSymbol);
+            }
+          }
+        } else {
+          // Single token selection
+          currentTokens[activeTokenSelection.index] = tokens[0] as TokenSymbol;
         }
-      });
-
-      console.log(">>> final tokens array:", newTokens);
+      } else {
+        // If no index specified, add tokens to empty slots or create new ones
+        tokens.forEach(token => {
+          const emptySlotIndex = currentTokens.findIndex(t => t === null);
+          if (emptySlotIndex !== -1) {
+            currentTokens[emptySlotIndex] = token as TokenSymbol;
+          } else if (currentTokens.length < 4) {
+            currentTokens.push(token as TokenSymbol);
+          }
+        });
+      }
 
       // Update allocation values based on number of actual tokens
-      const actualTokenCount = newTokens.filter((token) => token !== "").length;
+      const actualTokenCount = currentTokens.filter(token => token !== null).length;
       const newAllocationValues =
         allocationType === "percentage"
           ? Array(actualTokenCount).fill((100 / actualTokenCount).toFixed(0))
           : Array(actualTokenCount).fill("1");
 
-      setSelectedOutputTokens(newTokens);
+      setSelectedOutputTokens(currentTokens);
       setAllocationValues(newAllocationValues);
       setSelectedTemplate(newAllocationValues.join(":"));
-      updateDisabledTokens(newTokens);
+      updateDisabledTokens(currentTokens.filter(token => token !== null) as TokenSymbol[]);
     }
     closeTokenPopup();
   };
@@ -713,7 +711,7 @@ function SwapInterfaceContent() {
   // Modify the handleAddToken function to automatically open the token selection popup when adding a new token slot
   const handleAddToken = useCallback(() => {
     const currentTokenCount = selectedOutputTokens.filter(
-      (token) => token !== ""
+      (token) => token !== null
     ).length;
 
     if (currentTokenCount >= 4) {
@@ -723,7 +721,7 @@ function SwapInterfaceContent() {
 
     // Find the next empty slot
     const nextEmptyIndex = selectedOutputTokens.findIndex(
-      (token) => token === ""
+      (token) => token === null
     );
 
     // Open token selection popup with the correct index
@@ -741,8 +739,8 @@ function SwapInterfaceContent() {
 
       // Preserve existing token selections up to the new template length
       const adjustedTokens = Array(newValues.length)
-        .fill("")
-        .map((_, index) => currentTokens[index] || "");
+        .fill(null)
+        .map((_, index) => currentTokens[index] || null);
 
       setSelectedTemplate(newTemplate);
       setAllocationValues(newValues);
@@ -751,7 +749,7 @@ function SwapInterfaceContent() {
       // Preserve amounts for existing tokens
       const newToAmounts = Object.fromEntries(
         Object.entries(toAmounts).filter(([token]) =>
-          adjustedTokens.includes(token)
+          adjustedTokens.includes(token as TokenSymbol)
         )
       );
       setToAmounts(newToAmounts);
@@ -798,31 +796,40 @@ function SwapInterfaceContent() {
   useEffect(() => {
     const updateEffects = async () => {
       // Only proceed if still mounted and on swap page
-      // Check only the base path
-      if (!mounted.current) {
-        console.log("4a. Not mounted, returning");
-        return;
-      }
-
-      if (!location.pathname.startsWith("/swap")) {
-        console.log("4b. Not on swap page, returning");
-        return;
-      }
-      console.log("5. Proceeding with effects...");
+      if (!mounted.current) return;
 
       try {
-        // Effect 1: Fetch balances and update token balances
-        console.log("isConnected", isConnected);
-        console.log("address", address);
+        // Parse URL parameters
+        const params = new URLSearchParams(location.search);
+        const fromToken = params.get('from');
+        const toTokens = params.get('to')?.split('-') || [];
+        const ratio = params.get('ratio')?.split('-') || [];
+        const urlAllocationType = params.get('allocationType');
+
+        // Initialize state with URL parameters if they exist
+        if (fromToken) {
+          setSelectedToken(fromToken as TokenSymbol);
+        }
+        if (toTokens.length > 0) {
+          setSelectedOutputTokens(toTokens as Array<TokenSymbol | null>);
+        }
+        if (ratio.length > 0) {
+          setAllocationValues(ratio);
+          // Only set allocation type to ratio if explicitly specified in URL
+          if (urlAllocationType === 'ratio') {
+            setAllocationType('ratio');
+          }
+        }
+
+        // Fetch balances and update token balances
         if (isConnected && address) {
-          console.log("fetching balances");
           await fetchBalances();
           await refetchEthBalance();
         } else {
           setTokenBalances(MOCK_BALANCES);
         }
 
-        // Effect 2: Update ETH balance in token balances
+        // Update ETH balance in token balances
         if (ethBalanceData) {
           setTokenBalances((prev) => ({
             ...prev,
@@ -830,69 +837,14 @@ function SwapInterfaceContent() {
           }));
         }
 
-        // Effect 4: Simulate swap
-        if (fromAmount && selectedToken && selectedOutputTokens.length > 0) {
+        // Simulate swap if we have all required parameters
+        if (fromToken && toTokens.length > 0 && ratio.length > 0) {
           simulateAndLogSwap();
         }
 
-        // Effect 5: Check approval status
-        if (isConnected && address && selectedToken !== "ETH" && fromAmount) {
+        // Check approval status
+        if (isConnected && address && selectedToken !== "ETH" && selectedToken !== "WETH" && fromAmount) {
           await checkApproval();
-        }
-
-        // Effect 6: Update URL - Only if we're still on swap page
-        if (mounted.current && location.pathname === "/swap") {
-          const searchParams = new URLSearchParams();
-          if (fromAmount) searchParams.set("amount", fromAmount);
-          if (selectedToken) searchParams.set("from", selectedToken as string);
-          if (selectedOutputTokens.length > 0)
-            searchParams.set("to", selectedOutputTokens.join("-"));
-          if (allocationType === "ratio") {
-            searchParams.set("ratio", allocationValues.join("-"));
-          } else {
-            searchParams.set("percentage", allocationValues.join("-"));
-          }
-          navigate(`?${searchParams.toString()}`, { replace: true });
-        }
-
-        // Effect 7: Parse URL parameters (only on mount)
-        if (!hasInitialized.current && mounted.current) {
-          const params = new URLSearchParams(location.search);
-          const sellToken = params.get("sellToken");
-          const allocationTypeParam = params.get("allocationType");
-          const allocationValuesParam = params.get("allocationValues");
-          const selectedOutputTokensParam = params.get("selectedOutputTokens");
-          const fromAmountParam = params.get("fromAmount");
-
-          if (sellToken) {
-            setSelectedToken(sellToken as TokenSymbol);
-            updateDisabledTokens();
-          }
-          if (allocationTypeParam) {
-            setAllocationType(allocationTypeParam as "ratio" | "percentage");
-          }
-          if (allocationValuesParam) {
-            setAllocationValues(allocationValuesParam.split(","));
-          }
-          if (selectedOutputTokensParam) {
-            setSelectedOutputTokens(
-              selectedOutputTokensParam.split(",") as TokenSymbol[]
-            );
-          } else {
-            setSelectedOutputTokens([""]);
-          }
-          if (fromAmountParam) {
-            setFromAmount(fromAmountParam);
-          }
-          hasInitialized.current = true;
-        }
-
-        // Effect 8: Handle allocation updates after adding new token
-        if (selectedOutputTokens.length > 0) {
-          updateDisabledTokens();
-          if (fromAmount && selectedToken) {
-            simulateAndLogSwap();
-          }
         }
       } catch (error) {
         console.error("Error in updateEffects:", error);
@@ -900,18 +852,7 @@ function SwapInterfaceContent() {
     };
 
     updateEffects();
-  }, [
-    isConnected,
-    address,
-    ethBalanceData,
-    fromAmount,
-    selectedToken,
-    selectedOutputTokens,
-    formattedAllocationRatio,
-    checkApproval,
-    location.search,
-    selectedOutputTokens.length,
-  ]);
+  }, [location.search, isConnected, address, ethBalanceData, fromAmount, selectedToken]);
 
   // Add cleanup in a separate useEffect
   useEffect(() => {
@@ -927,7 +868,7 @@ function SwapInterfaceContent() {
 
   // Function to get the number of selected output tokens
   const getSelectedTokenCount = () => {
-    return selectedOutputTokens.filter((token) => token !== "").length;
+    return selectedOutputTokens.filter((token) => token !== null).length;
   };
 
   // Add this function to handle sharing the URL
@@ -1040,9 +981,9 @@ function SwapInterfaceContent() {
     // Only reset output tokens if there are none selected
     if (
       selectedOutputTokens.length === 0 ||
-      (selectedOutputTokens.length === 1 && selectedOutputTokens[0] === "")
+      (selectedOutputTokens.length === 1 && selectedOutputTokens[0] === null)
     ) {
-      setSelectedOutputTokens([""]);
+      setSelectedOutputTokens([null]);
     }
   };
 
@@ -1241,7 +1182,7 @@ function SwapInterfaceContent() {
       fromAmount &&
       selectedToken &&
       selectedOutputTokens.length > 0 &&
-      selectedOutputTokens[0] !== ""
+      selectedOutputTokens[0] !== null
     ) {
       setAreFieldsValid(true);
       simulateQuote();
@@ -1258,393 +1199,549 @@ function SwapInterfaceContent() {
     ) as Record<string, TokenConfig>;
   }, []);
 
+  const [activePercentageIndex, setActivePercentageIndex] = useState<number | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setActivePercentageIndex(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Function to handle percentage change
+  const handlePercentageChange = (index: number, value: number) => {
+    const newValues = [...allocationValues];
+    newValues[index] = Math.min(100, Math.max(0, value)).toString();
+    
+    // Calculate total of other percentages
+    const otherTotal = newValues
+      .filter((_, i) => i !== index)
+      .reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+
+    // If total exceeds 100%, adjust other values proportionally
+    if (parseFloat(newValues[index]) + otherTotal > 100) {
+      const excess = parseFloat(newValues[index]) + otherTotal - 100;
+      const otherIndices = newValues
+        .map((_, i) => i)
+        .filter(i => i !== index);
+      
+      otherIndices.forEach(idx => {
+        const currentVal = parseFloat(newValues[idx]) || 0;
+        const proportion = currentVal / otherTotal;
+        newValues[idx] = Math.max(0, currentVal - (excess * proportion)).toString();
+      });
+    }
+
+    setAllocationValues(newValues);
+  };
+
+  // Initialize percentages when tokens change
+  useEffect(() => {
+    if (allocationType === "percentage") {
+      const newValues = Array(selectedOutputTokens.length).fill(
+        (100 / selectedOutputTokens.length).toFixed(2)
+      );
+      setAllocationValues(newValues);
+      setSelectedTemplate(newValues.join(":"));
+    }
+  }, [selectedOutputTokens.length, allocationType]);
+
   return (
-    <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8">
-      <div className="w-full lg:w-1/2 space-y-4">
-        {/* Input (Sell) section */}
-        <div className="bg-gray-800 rounded-lg p-4 space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm text-gray-400">Sell</label>
-            <div className="bg-gray-700 rounded-lg p-3 flex items-center">
-              <div className="flex-grow">
-                <input
-                  type="number"
-                  value={fromAmount}
-                  onChange={handleFromAmountChange}
-                  placeholder="0"
-                  className="bg-transparent border-none text-left w-full placeholder-gray-500 focus:outline-none focus:ring-0"
-                />
-                <span className="text-xs text-gray-400">
-                  {getUsdValue(
-                    fromAmount || "0",
-                    selectedToken,
-                    tokenPriceData
-                  )}
-                </span>
-              </div>
-              <div className="flex flex-col items-end">
-                <button
-                  onClick={() => openTokenPopup("from")}
-                  className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
-                >
-                  {selectedToken ? (
-                    <>
-                      <img
-                        src={TOKENS[selectedToken].logo}
-                        alt={`${selectedToken} logo`}
-                        className="w-6 h-6 rounded-full"
-                      />
-                      <span>{selectedToken}</span>
-                    </>
-                  ) : (
-                    <span>Select a token</span>
-                  )}
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-                <span className="text-xs text-gray-400 mt-1">
-                  Balance:{" "}
-                  {parseFloat(
-                    tokenBalances[selectedToken as string] || "0"
-                  ).toFixed(4)}{" "}
-                  {selectedToken}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Swap arrow */}
-          <div className="flex justify-center">
-            <div className="bg-gray-700 rounded-full p-2">
-              <ArrowDownUp className="h-6 w-6 text-gray-400" />
-            </div>
-          </div>
-
-          {/* Output (Buy) section */}
-          <div className="space-y-2">
-            <label className="text-sm text-gray-400">Buy</label>
-            {allocationValues.map((_, index) => (
-              <div
-                key={index}
-                className="bg-gray-700 rounded-lg p-3 flex flex-col"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-grow">
-                    <input
-                      type="number"
-                      value={
-                        selectedOutputTokens[index]
-                          ? simulatedOutputs[selectedOutputTokens[index]]
-                              ?.amount || "0"
-                          : "0"
-                      }
-                      readOnly
-                      className="bg-transparent border-none text-left w-full focus:outline-none focus:ring-0 text-lg"
-                    />
-                    <div className="flex flex-col space-y-1">
-                      <span className="text-xs text-gray-400">
-                        {selectedOutputTokens[index] &&
-                        simulatedOutputs[selectedOutputTokens[index]]
-                          ?.loading ? (
-                          "Calculating..."
-                        ) : selectedOutputTokens[index] &&
-                          simulatedOutputs[selectedOutputTokens[index]]
-                            ?.error ? (
-                          <span className="text-red-400">
-                            {
-                              simulatedOutputs[selectedOutputTokens[index]]
-                                ?.error
-                            }
-                          </span>
-                        ) : (
-                          getUsdValue(
-                            simulatedOutputs[selectedOutputTokens[index]]
-                              ?.amount || "0",
-                            selectedOutputTokens[index],
-                            tokenPriceData
-                          )
-                        )}
-                      </span>
-                      {selectedOutputTokens[index] &&
-                        simulatedOutputs[selectedOutputTokens[index]]
-                          ?.priceImpact && (
-                          <span
-                            className={`text-xs ${
-                              parseFloat(
-                                simulatedOutputs[selectedOutputTokens[index]]
-                                  ?.priceImpact || "0"
-                              ) > 5
-                                ? "text-red-400"
-                                : "text-green-400"
-                            }`}
-                          >
-                            {/* // TODO FIX Price Impact// Price Impact: {simulatedOutputs[selectedOutputTokens[index]]?.priceImpact}  */}
-                          </span>
-                        )}
+    <div className="min-h-screen bg-[#0d111c] relative overflow-x-hidden">
+      {/* Background blur effect */}
+      <div className="fixed inset-0 bg-[#0d111c]">
+        <div className="absolute inset-0 backdrop-blur-[150px]" />
+      </div>
+      
+      {/* Main content */}
+      <div className="relative w-full max-w-[1000px] mx-auto px-4 py-8 min-h-screen flex flex-col">
+        {/* Main container box */}
+        <div className="flex-grow flex items-center">
+          <div className="w-full bg-[#191c2a]/80 backdrop-blur-xl rounded-2xl border border-[#2d3648]/50 p-6">
+            <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Left column - Swap Interface */}
+              <div className="space-y-3">
+                {/* Input (Sell) section */}
+                <div className="bg-[#212638]/80 backdrop-blur-xl rounded-xl p-3 border border-[#2d3648]/30">
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400">Sell</label>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-grow">
+                        <input
+                          type="number"
+                          value={fromAmount}
+                          onChange={handleFromAmountChange}
+                          placeholder="0"
+                          className="bg-transparent border-none text-left w-full placeholder-gray-500 focus:outline-none focus:ring-0 text-white text-xl"
+                        />
+                        <span className="text-xs text-gray-400">
+                          {getUsdValue(fromAmount || "0", selectedToken, tokenPriceData)}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <button
+                          onClick={() => openTokenPopup("from")}
+                          className="flex items-center justify-between bg-[#293249]/80 hover:bg-[#374160] rounded-full px-3 py-1.5 transition-all duration-200 min-w-[140px] max-w-[180px] truncate border border-[#3d4860]/50"
+                        >
+                          <div className="flex items-center space-x-2">
+                            {selectedToken ? (
+                              <>
+                                <img
+                                  src={TOKENS[selectedToken].logo}
+                                  alt={`${selectedToken} logo`}
+                                  className="w-5 h-5 rounded-full flex-shrink-0"
+                                />
+                                <span className="text-sm text-white truncate">{selectedToken}</span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-5 h-5 rounded-full bg-[#374160] flex items-center justify-center flex-shrink-0">
+                                  <ChevronDown className="h-3 w-3 text-gray-400" />
+                                </div>
+                                <span className="text-sm text-gray-400 truncate">Select token</span>
+                              </>
+                            )}
+                          </div>
+                          <ChevronDown className="h-3 w-3 text-gray-400 ml-1 flex-shrink-0" />
+                        </button>
+                        <span className="text-xs text-gray-400 mt-1">
+                          {selectedToken ? `Balance: ${parseFloat(tokenBalances[selectedToken] || "0").toFixed(4)} ${selectedToken}` : "Select a token to view balance"}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => openTokenPopup("output", index)}
-                      className="flex items-center space-x-2 bg-gray-800 rounded-full px-3 py-2"
-                    >
-                      {selectedOutputTokens[index] &&
-                      selectedOutputTokens[index] !== "" ? (
-                        <>
-                          <img
-                            src={TOKENS[selectedOutputTokens[index]].logo}
-                            alt={`${selectedOutputTokens[index]} logo`}
-                            className="w-5 h-5 rounded-full"
-                          />
-                          <span>{selectedOutputTokens[index]}</span>
-                        </>
-                      ) : (
-                        <span>Select a token</span>
-                      )}
-                      <ChevronDown className="h-4 w-4" />
-                    </button>
-                    {/* Show remove button based on conditions */}
-                    {(selectedOutputTokens.length > 1 ||
-                      selectedOutputTokens[index]) && (
-                      <button
-                        onClick={() =>
-                          removeOutputToken(
-                            selectedOutputTokens[index] as string,
-                            index
-                          )
-                        }
-                        className="bg-gray-800 rounded-full p-1 hover:bg-gray-600 transition-colors duration-200"
-                        title={
-                          selectedOutputTokens.length === 1
-                            ? "Clear selection"
-                            : "Remove slot"
-                        }
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
                   </div>
                 </div>
-                {selectedOutputTokens[index] &&
-                  selectedOutputTokens[index] !== "" && (
-                    <div className="text-xs text-gray-400 mt-1 text-right">
-                      Doge ratio:{" "}
-                      {calculateDogeRatio(
-                        selectedOutputTokens[index],
-                        tokenPriceData,
-                        dogeMarketCap
-                      )}
-                      x Balance:{" "}
-                      {parseFloat(
-                        tokenBalances[selectedOutputTokens[index] as string] ||
-                          "0"
-                      ).toFixed(2)}
+
+                {/* Swap arrow */}
+                <div className="flex justify-center -my-1">
+                  <div className="bg-[#293249]/80 backdrop-blur-sm rounded-full p-2 border border-[#3d4860]/50">
+                    <ArrowDownUp className="h-4 w-4 text-gray-400" />
+                  </div>
+                </div>
+
+                {/* Output (Buy) section */}
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-400">Buy</label>
+                  {(selectedOutputTokens.length > 0 ? selectedOutputTokens : [null]).map((token, index) => (
+                    <div
+                      key={index}
+                      className="bg-[#212638]/80 backdrop-blur-sm rounded-xl p-3 border border-[#2d3648]/30"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-grow">
+                          <input
+                            type="number"
+                            value={token ? simulatedOutputs[token]?.amount || "0" : "0"}
+                            readOnly
+                            className="bg-transparent border-none text-left w-full focus:outline-none focus:ring-0 text-white text-xl"
+                          />
+                          <span className="text-xs text-gray-400">
+                            {token && simulatedOutputs[token]?.loading
+                              ? "Calculating..."
+                              : token && simulatedOutputs[token]?.error
+                              ? simulatedOutputs[token]?.error
+                              : token
+                              ? getUsdValue(
+                                  simulatedOutputs[token]?.amount || "0",
+                                  token,
+                                  tokenPriceData
+                                )
+                              : "$0.00"}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => openTokenPopup("output", index)}
+                            className="flex items-center justify-between bg-[#293249]/80 hover:bg-[#374160] rounded-full px-3 py-1.5 transition-all duration-200 min-w-[140px] max-w-[180px] truncate border border-[#3d4860]/50"
+                          >
+                            <div className="flex items-center space-x-2">
+                              {token ? (
+                                <>
+                                  <img
+                                    src={TOKENS[token].logo}
+                                    alt={`${token} logo`}
+                                    className="w-5 h-5 rounded-full flex-shrink-0"
+                                  />
+                                  <span className="text-sm text-white truncate">{token}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="w-5 h-5 rounded-full bg-[#374160] flex items-center justify-center flex-shrink-0">
+                                    <ChevronDown className="h-3 w-3 text-gray-400" />
+                                  </div>
+                                  <span className="text-sm text-gray-400 truncate">Select token</span>
+                                </>
+                              )}
+                            </div>
+                            <ChevronDown className="h-3 w-3 text-gray-400 ml-1 flex-shrink-0" />
+                          </button>
+                          {selectedOutputTokens.length > 1 && token && (
+                            <button
+                              onClick={() => removeOutputToken(token, index)}
+                              className="bg-[#293249]/80 hover:bg-[#374160] rounded-full p-1.5 transition-all duration-200 border border-[#3d4860]/50 flex-shrink-0"
+                            >
+                              <X className="h-3 w-3 text-gray-400" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                  ))}
+                  {getSelectedTokenCount() < 4 && (
+                    <button
+                      onClick={handleAddToken}
+                      className="w-full mt-2 py-2.5 bg-[#293249]/80 hover:bg-[#374160] backdrop-blur-sm rounded-xl flex items-center justify-center transition-all duration-200 border border-[#3d4860]/50"
+                    >
+                      <Plus className="h-4 w-4 mr-2 text-gray-400" />
+                      <span className="text-white">Add another token</span>
+                      <span className="text-xs text-gray-400 ml-2">
+                        ({4 - getSelectedTokenCount()} remaining)
+                      </span>
+                    </button>
                   )}
+                </div>
+
+                {/* Transaction Button Section */}
+                <div className="mt-4">
+                  {!isConnected ? (
+                    <button
+                      onClick={openConnectModal}
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
+                    >
+                      <span>Connect Wallet</span>
+                    </button>
+                  ) : !fromAmount ? (
+                    <button
+                      disabled
+                      className="w-full bg-[#293249]/50 text-gray-400 font-medium py-3 px-4 rounded-xl cursor-not-allowed"
+                    >
+                      Enter amount to sell
+                    </button>
+                  ) : selectedOutputTokens.filter(token => token !== null).length === 0 ? (
+                    <button
+                      disabled
+                      className="w-full bg-[#293249]/50 text-gray-400 font-medium py-3 px-4 rounded-xl cursor-not-allowed"
+                    >
+                      Select output tokens
+                    </button>
+                  ) : !isBalanceSufficient ? (
+                    <button
+                      disabled
+                      className="w-full bg-[#293249]/50 text-gray-400 font-medium py-3 px-4 rounded-xl cursor-not-allowed"
+                    >
+                      Insufficient balance
+                    </button>
+                  ) : needsApproval && selectedToken !== "ETH" && selectedToken !== "WETH" ? (
+                    <button
+                      onClick={handleApprove}
+                      disabled={isApproving}
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isApproving ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>Approving...</span>
+                        </>
+                      ) : (
+                        <span>Approve {selectedToken}</span>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSwap}
+                      disabled={isSwapping || !isQuoteSucess}
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSwapping ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>Swapping...</span>
+                        </>
+                      ) : !isQuoteSucess ? (
+                        <span>Price Impact Too High</span>
+                      ) : (
+                        <span>Swap</span>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
-            ))}
-            {/* Show Add another token button only if we have less than 4 tokens */}
-            {getSelectedTokenCount() < 4 && (
-              <button
-                onClick={handleAddToken}
-                className="w-full mt-2 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center justify-center transition-colors duration-200"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add another token
-                <span className="text-xs text-gray-400 ml-2">
-                  ({4 - getSelectedTokenCount()} remaining)
-                </span>
-              </button>
-            )}
+
+              {/* Right column - Allocation Controls */}
+              <div className="space-y-3">
+                <div className="bg-[#212638]/80 backdrop-blur-xl rounded-xl p-4 border border-[#2d3648]/30">
+                  {/* Split Options */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm text-gray-400 font-medium">Split Type</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => {
+                            if (selectedOutputTokens.filter(t => t !== null).length < 2) {
+                              toast.error("Please select at least 2 tokens first");
+                              return;
+                            }
+                            setAllocationType("percentage");
+                            const count = selectedOutputTokens.filter(t => t !== null).length;
+                            const equalValue = (100 / count).toFixed(2);
+                            setAllocationValues(Array(count).fill(equalValue));
+                          }}
+                          className={`bg-[#293249]/80 hover:bg-[#374160] text-white py-3 px-4 rounded-xl transition-all duration-200 border ${
+                            allocationValues.every((v, i, arr) => v === arr[0])
+                              ? "border-[#4c82fb]"
+                              : "border-[#3d4860]/50"
+                          }`}
+                        >
+                          <div className="font-medium">Equal Split</div>
+                          <div className="text-xs text-gray-400">Split tokens equally</div>
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (selectedOutputTokens.filter(t => t !== null).length < 2) {
+                              toast.error("Please select at least 2 tokens first");
+                              return;
+                            }
+                            setAllocationType("percentage");
+                          }}
+                          className={`bg-[#293249]/80 hover:bg-[#374160] text-white py-3 px-4 rounded-xl transition-all duration-200 border ${
+                            !allocationValues.every((v, i, arr) => v === arr[0])
+                              ? "border-[#4c82fb]"
+                              : "border-[#3d4860]/50"
+                          }`}
+                        >
+                          <div className="font-medium">Custom Split</div>
+                          <div className="text-xs text-gray-400">Set custom weights</div>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Allocation Type Toggle */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-gray-400 font-medium">Input Type</label>
+                      <div className="flex items-center justify-center p-1 bg-[#212638]/80 backdrop-blur-sm rounded-xl border border-[#2d3648]/30">
+                        <button
+                          onClick={() => handleAllocationTypeChange("ratio")}
+                          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            allocationType === "ratio"
+                              ? "bg-[#4c82fb] text-white"
+                              : "text-gray-400 hover:text-white"
+                          }`}
+                        >
+                          Ratio
+                        </button>
+                        <button
+                          onClick={() => handleAllocationTypeChange("percentage")}
+                          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            allocationType === "percentage"
+                              ? "bg-[#4c82fb] text-white"
+                              : "text-gray-400 hover:text-white"
+                          }`}
+                        >
+                          Percentage
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Custom Allocation */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-gray-400 font-medium">
+                        Token Allocation ({allocationType === "percentage" ? "%" : "ratio"})
+                      </label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {Array(4).fill(null).map((_, index) => {
+                          const hasToken = selectedOutputTokens[index] && selectedOutputTokens[index] !== null;
+                          return (
+                            <div
+                              key={index}
+                              className="relative group w-full"
+                            >
+                              {allocationType === "percentage" ? (
+                                <button
+                                  onClick={() => hasToken && setActivePercentageIndex(activePercentageIndex === index ? null : index)}
+                                  className={`w-full bg-[#212638]/80 backdrop-blur-sm rounded-xl p-2.5 text-white border ${
+                                    hasToken ? "border-[#2d3648]/30" : "border-[#2d3648]/10"
+                                  } focus:ring-2 focus:ring-[#4c82fb] focus:border-transparent ${
+                                    !hasToken && "opacity-50 cursor-not-allowed"
+                                  } truncate`}
+                                >
+                                  {hasToken ? `${parseFloat(allocationValues[index] || "0").toFixed(1)}%` : ""}
+                                </button>
+                              ) : (
+                                <input
+                                  type="number"
+                                  value={hasToken ? allocationValues[index] || "" : ""}
+                                  onChange={(e) => {
+                                    if (hasToken) {
+                                      handleAllocationValueChange(index, e.target.value);
+                                    }
+                                  }}
+                                  disabled={!hasToken}
+                                  placeholder=""
+                                  className={`w-full bg-[#212638]/80 backdrop-blur-sm rounded-xl p-2.5 text-white border ${
+                                    hasToken ? "border-[#2d3648]/30" : "border-[#2d3648]/10"
+                                  } focus:ring-2 focus:ring-[#4c82fb] focus:border-transparent ${
+                                    !hasToken && "opacity-50 cursor-not-allowed"
+                                  } truncate`}
+                                />
+                              )}
+                              {!hasToken && (
+                                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                                  <div className="absolute left-1/2 -translate-x-1/2 -top-8 bg-[#293249] text-white text-sm px-2 py-1 rounded whitespace-nowrap">
+                                    Select token to customize allocation
+                                  </div>
+                                </div>
+                              )}
+                              {allocationType === "percentage" && activePercentageIndex === index && (
+                                <div 
+                                  ref={popoverRef}
+                                  className="absolute right-0 top-full mt-2 p-4 bg-[#191c2a] rounded-xl border border-[#2d3648] shadow-lg z-50 min-w-[240px]"
+                                >
+                                  <div className="space-y-4">
+                                    {/* Direct Input */}
+                                    <div className="flex items-center space-x-2">
+                                      <input
+                                        type="number"
+                                        value={parseFloat(allocationValues[index] || "0").toFixed(1)}
+                                        onChange={(e) => handlePercentageChange(index, parseFloat(e.target.value) || 0)}
+                                        className="w-20 px-2 py-1 bg-[#293249] rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-[#4c82fb]"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                      />
+                                      <span className="text-gray-400">%</span>
+                                      <button
+                                        onClick={() => setActivePercentageIndex(null)}
+                                        className="ml-2 px-2 py-1 bg-[#4c82fb] hover:bg-[#3a6fd0] text-white rounded-lg text-sm transition-colors"
+                                      >
+                                        Confirm
+                                      </button>
+                                    </div>
+                                    
+                                    {/* Slider */}
+                                    <div className="space-y-2">
+                                      <input
+                                        type="range"
+                                        value={parseFloat(allocationValues[index] || "0")}
+                                        onChange={(e) => handlePercentageChange(index, parseFloat(e.target.value))}
+                                        className="w-full appearance-none h-2 bg-[#293249] rounded-full outline-none cursor-pointer
+                                          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 
+                                          [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full 
+                                          [&::-webkit-slider-thumb]:bg-[#4c82fb] [&::-webkit-slider-thumb]:cursor-pointer
+                                          [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 
+                                          [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#4c82fb] 
+                                          [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                      />
+                                      <div className="flex justify-between text-xs text-gray-400">
+                                        <span>0%</span>
+                                        <span>50%</span>
+                                        <span>100%</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Quick Select Buttons */}
+                                    <div className="flex flex-wrap gap-2">
+                                      {[25, 50, 75, 100].map((value) => (
+                                        <button
+                                          key={value}
+                                          onClick={() => handlePercentageChange(index, value)}
+                                          className="px-2 py-1 bg-[#293249] hover:bg-[#374160] rounded-lg text-sm transition-colors"
+                                        >
+                                          {value}%
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        Current Allocation: {getAllocationString()}
+                      </div>
+                    </div>
+
+                    {/* Token Allocations Bar */}
+                    {selectedOutputTokens.length > 0 && selectedOutputTokens[0] !== null && (
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-400">Token Allocations</div>
+                        <div className="relative h-2.5 bg-[#212638]/80 rounded-full overflow-hidden border border-[#2d3648]/30">
+                          {allocationPercentages.map((percentage, index) => {
+                            const leftPosition = allocationPercentages
+                              .slice(0, index)
+                              .reduce((a, b) => a + b, 0);
+                            return (
+                              <div
+                                key={index}
+                                className={`absolute h-full ${TOKEN_COLORS[index % TOKEN_COLORS.length]}`}
+                                style={{
+                                  width: `${percentage}%`,
+                                  left: `${leftPosition}%`,
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-xs text-gray-400">
+                          {allocationValues.map((value, index) => {
+                            const tokenSymbol = TOKENS[selectedOutputTokens[index] as TokenSymbol]?.symbol;
+                            return tokenSymbol ? (
+                              <span key={index} className="bg-[#212638]/50 px-2 py-1 rounded-full">
+                                {`${value} (${allocationPercentages[index].toFixed(2)}%) ${tokenSymbol}`}
+                              </span>
+                            ) : null;
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Share Button */}
+                    <button
+                      onClick={handleShareUrl}
+                      className="w-full flex items-center justify-center space-x-2 bg-[#293249]/80 hover:bg-[#374160] text-white py-2.5 rounded-xl transition-all duration-200 border border-[#3d4860]/50"
+                    >
+                      <Copy className="h-4 w-4" />
+                      <span>Share Allocation</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Swap button */}
-        <Button
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-          onClick={needsApproval ? handleApprove : handleSwap}
-          disabled={
-            !isConnected ||
-            !areFieldsValid ||
-            isSwapping ||
-            (needsApproval && isApproving) ||
-            !isBalanceSufficient ||
-            !isQuoteSucess
-          }
-        >
-          {!isConnected
-            ? "Connect Wallet"
-            : !isBalanceSufficient
-            ? `Insufficient ${selectedToken}`
-            : needsApproval
-            ? "Approve"
-            : isSwapping
-            ? "Swapping..."
-            : !isQuoteSucess
-            ? "Quote failed, please retry"
-            : "Swap"}
-        </Button>
-      </div>
-
-      <div className="w-full lg:w-1/2 space-y-4 mt-8 lg:mt-0">
-        <div className="bg-gray-800 rounded-lg p-4 space-y-6">
-          {/* Allocation Type and Templates in a horizontal layout */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Allocation Type Section */}
-            <div className="space-y-3">
-              <label className="text-sm text-gray-400 font-medium">
-                Allocation Type
-              </label>
-              <div className="flex flex-col space-y-2">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    value="ratio"
-                    checked={allocationType === "ratio"}
-                    onChange={() => handleAllocationTypeChange("ratio")}
-                    className="text-blue-600 focus:ring-blue-500 h-4 w-4"
-                  />
-                  <span className="text-sm">Ratio</span>
-                </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    value="percentage"
-                    checked={allocationType === "percentage"}
-                    onChange={() => handleAllocationTypeChange("percentage")}
-                    className="text-blue-600 focus:ring-blue-500 h-4 w-4"
-                  />
-                  <span className="text-sm">Percentage</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Templates Section with compact oval buttons */}
-            <div className="space-y-3">
-              <label className="text-sm text-gray-400 font-medium">
-                Multiswap Presets
-              </label>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {allocationType === "ratio" ? (
-                  <>
-                    {["1", "1:1", "1:2", "1:1:2", "1:2:2", "1:1:1:1"].map(
-                      (template) => (
-                        <button
-                          key={template}
-                          onClick={() => handleTemplateChange(template)}
-                          className={`px-2.5 py-0.5 text-xs rounded-full transition-all duration-200 whitespace-nowrap ${
-                            selectedTemplate === template
-                              ? "bg-blue-600 text-white ring-2 ring-blue-400 ring-opacity-50"
-                              : "bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white"
-                          }`}
-                        >
-                          {template}
-                        </button>
-                      )
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {[
-                      "100",
-                      "50:50",
-                      "33:33:33",
-                      "25:25:25:25",
-                      "40:30:30",
-                      "50:25:25",
-                    ].map((template) => (
-                      <button
-                        key={template}
-                        onClick={() => handleTemplateChange(template)}
-                        className={`px-2.5 py-0.5 text-xs rounded-full transition-all duration-200 whitespace-nowrap ${
-                          selectedTemplate === template
-                            ? "bg-blue-600 text-white ring-2 ring-blue-400 ring-opacity-50"
-                            : "bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white"
-                        }`}
-                      >
-                        {template}
-                      </button>
-                    ))}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Custom Allocation Input */}
-          <div className="space-y-3">
-            <label className="text-sm text-gray-400 font-medium">
-              Custom Allocation
-            </label>
-            <div className="flex space-x-2">
-              {allocationValues.map((value, index) => (
-                <input
-                  key={index}
-                  type="number"
-                  value={value}
-                  onChange={(e) =>
-                    handleAllocationValueChange(index, e.target.value)
-                  }
-                  className="w-full bg-gray-700 rounded-lg p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder={
-                    allocationType === "ratio" ? "Ratio" : "Percentage"
-                  }
-                />
-              ))}
-            </div>
-            <div className="text-sm text-gray-400">
-              Current Allocation: {getAllocationString()}
-            </div>
-          </div>
-
-          {/* Share Button */}
-          <button
-            onClick={handleShareUrl}
-            className="w-full flex items-center justify-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors duration-200"
+        {/* Social Links */}
+        <div className="flex justify-center items-center space-x-6 mb-8">
+          <a
+            href="https://twitter.com/memer0t"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-400 hover:text-white transition-colors"
           >
-            <Copy className="h-4 w-4" />
-            <span>Share Allocation</span>
-          </button>
-
-          {/* Percentage Bar for Token Allocations */}
-          {selectedOutputTokens.length > 0 &&
-            selectedOutputTokens[0] !== "" && (
-              <div className="mt-4">
-                <div className="text-sm text-gray-400">Token Allocations</div>
-                <div className="relative w-full h-4 bg-gray-700 rounded">
-                  {allocationPercentages.map((percentage, index) => {
-                    const leftPosition = allocationPercentages
-                      .slice(0, index)
-                      .reduce((a, b) => a + b, 0); // Calculate left position for the segment
-
-                    return (
-                      <div
-                        key={index}
-                        className={`absolute h-full ${
-                          TOKEN_COLORS[index % TOKEN_COLORS.length]
-                        } rounded`}
-                        style={{
-                          width: `${percentage}%`,
-                          left: `${leftPosition}%`,
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="flex justify-between text-xs text-gray-400 mt-1">
-                  {allocationValues.map((value, index) => {
-                    const tokenSymbol =
-                      TOKENS[selectedOutputTokens[index]]?.symbol; // Safely access symbol
-                    return (
-                      <span key={index}>
-                        {`${value} (${allocationPercentages[index].toFixed(
-                          2
-                        )}%) ${tokenSymbol || "N/A"}`}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+          </a>
+          <a
+            href="https://t.me/+igL2Cj91n1syMWRl"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+            </svg>
+          </a>
         </div>
       </div>
 
@@ -1652,16 +1749,13 @@ function SwapInterfaceContent() {
         isOpen={isTokenPopupOpen}
         onClose={closeTokenPopup}
         onSelect={handleTokenSelect}
-        tokens={
-          activeTokenSelection?.type === "output"
-            ? (OUTPUT_TOKENS as Record<string, TokenConfig>)
-            : (TOKENS as Record<string, TokenConfig>)
-        }
+        tokens={activeTokenSelection?.type === "output" ? OUTPUT_TOKENS : TOKENS}
         balances={tokenBalances}
         disabledTokens={disabledTokens as string[]}
         tokenPriceData={tokenPriceData}
-        selectedOutputTokens={selectedOutputTokens as string[]}
+        selectedOutputTokens={selectedOutputTokens.filter(token => token !== null) as string[]}
         allowMultiSelect={activeTokenSelection?.type === "output"}
+        selectedToken={activeTokenSelection?.type === "from" ? selectedToken : null}
       />
     </div>
   );
