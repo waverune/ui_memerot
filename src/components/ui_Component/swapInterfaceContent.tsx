@@ -1348,12 +1348,19 @@ function SwapInterfaceContent() {
                   >
                     <span>Connect Wallet</span>
                   </button>
-                ) : !areFieldsValid ? (
+                ) : !fromAmount ? (
                   <button
                     disabled
                     className="w-full bg-[#293249]/50 text-gray-400 font-medium py-3 px-4 rounded-xl cursor-not-allowed"
                   >
-                    Enter an amount
+                    Enter amount to sell
+                  </button>
+                ) : selectedOutputTokens.filter(token => token !== "").length === 0 ? (
+                  <button
+                    disabled
+                    className="w-full bg-[#293249]/50 text-gray-400 font-medium py-3 px-4 rounded-xl cursor-not-allowed"
+                  >
+                    Select output tokens
                   </button>
                 ) : !isBalanceSufficient ? (
                   <button
@@ -1446,10 +1453,37 @@ function SwapInterfaceContent() {
                     </div>
                   </div>
 
+                  {/* Allocation Type Toggle */}
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400 font-medium">Input Type</label>
+                    <div className="flex items-center justify-center p-1 bg-[#212638]/80 backdrop-blur-sm rounded-xl border border-[#2d3648]/30">
+                      <button
+                        onClick={() => handleAllocationTypeChange("ratio")}
+                        className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          allocationType === "ratio"
+                            ? "bg-[#4c82fb] text-white"
+                            : "text-gray-400 hover:text-white"
+                        }`}
+                      >
+                        Ratio
+                      </button>
+                      <button
+                        onClick={() => handleAllocationTypeChange("percentage")}
+                        className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          allocationType === "percentage"
+                            ? "bg-[#4c82fb] text-white"
+                            : "text-gray-400 hover:text-white"
+                        }`}
+                      >
+                        Percentage
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Custom Allocation */}
                   <div className="space-y-2">
                     <label className="text-sm text-gray-400 font-medium">
-                      Token Allocation
+                      Token Allocation ({allocationType === "percentage" ? "%" : "ratio"})
                     </label>
                     <div className="grid grid-cols-4 gap-2">
                       {Array(4).fill(0).map((_, index) => {
