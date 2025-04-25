@@ -6,6 +6,10 @@ import { ChevronDown, Plus, X, Percent } from "lucide-react";
 import TokenSelectionPopup from "./ui_Component/tokenSelectionPopup";
 import { TOKENS } from "../config/tokens";
 import { TokenConfig, TokenSymbol, TokenSelectionType } from "../utils/Modal";
+import { useAccount, useBalance } from "wagmi";
+import { ethers } from "ethers";
+import { multicallTokenBalances } from "../lib/tx_utils";
+import { MOCK_BALANCES } from "../utils/Modal";
 
 const HomeLogo: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -20,10 +24,64 @@ const HomeLogo: React.FC = () => {
   const [customPercentages, setCustomPercentages] = useState<Record<number, number>>({});
   const [activePercentageIndex, setActivePercentageIndex] = useState<number | null>(null);
   const [tempPercentages, setTempPercentages] = useState<Record<number, number>>({});
+  const [tokenBalances, setTokenBalances] = useState(MOCK_BALANCES);
   const popoverRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { address, isConnected } = useAccount();
+  const { data: ethBalanceData, refetch: refetchEthBalance } = useBalance({
+    address,
+  });
 
-    useEffect(() => {
+  const getProvider = () => {
+    return new ethers.JsonRpcProvider("https://rpc.buildbear.io/devoted-goose-2543c510");
+  };
+
+  const fetchBalances = async () => {
+    if (address) {
+      try {
+        const provider = getProvider();
+        const newBalances = { ...MOCK_BALANCES };
+
+        // Update ETH balance
+        if (ethBalanceData) {
+          newBalances.ETH = ethers.formatUnits(ethBalanceData.value, 18);
+        }
+
+        // Prepare tokens array for multicall
+        const tokensToFetch = Object.entries(TOKENS)
+          .filter(([symbol]) => symbol !== "ETH" && symbol !== "WETH")
+          .map(([symbol, config]) => ({
+            address: config.address,
+            decimals: config.decimals,
+            symbol,
+          }));
+
+        // Fetch all balances in a single multicall
+        const balanceResults = await multicallTokenBalances(
+          tokensToFetch,
+          address,
+          provider
+        );
+
+        // Process results
+        tokensToFetch.forEach(({ symbol, address }) => {
+          newBalances[symbol as TokenSymbol] = balanceResults[address] || "0";
+        });
+
+        setTokenBalances(newBalances);
+      } catch (error) {
+        console.error("Error fetching token balances:", error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isConnected) {
+      fetchBalances();
+    }
+  }, [isConnected, address, ethBalanceData]);
+
+  useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
@@ -530,7 +588,7 @@ const HomeLogo: React.FC = () => {
         onClose={closeTokenPopup}
         onSelect={handleTokenSelect}
         tokens={activeTokenSelection?.type === "output" ? OUTPUT_TOKENS : TOKENS}
-        balances={{}}
+        balances={tokenBalances}
         disabledTokens={disabledTokens.map(String)}
         tokenPriceData={{}}
         selectedOutputTokens={selectedOutputTokens.map(token => token?.toString() || "")}

@@ -2,6 +2,8 @@ import React, { useState, useEffect, memo } from 'react';
 import { X, Search } from "lucide-react";
 import { TokenConfig, CoinPriceData, TokenSymbol } from '../../utils/Modal';
 import { toast } from "react-toastify";
+import { TOKENS } from "../../config/tokens";
+import { MOCK_BALANCES } from "../../utils/Modal";
 
 interface TokenSelectionPopupProps {
   isOpen: boolean;
@@ -14,6 +16,7 @@ interface TokenSelectionPopupProps {
   selectedOutputTokens: string[];
   maxSelections?: number;
   allowMultiSelect?: boolean;
+  tokenBalances?: Record<TokenSymbol, string>;
 }
 
 const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
@@ -26,7 +29,8 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
   tokenPriceData,
   maxSelections = 4,
   selectedOutputTokens = [],
-  allowMultiSelect = false
+  allowMultiSelect = false,
+  tokenBalances = MOCK_BALANCES
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [newSelections, setNewSelections] = useState<Set<string>>(new Set());
@@ -194,7 +198,7 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
                         {getTokenBalance(symbol).toFixed(4)} {symbol}
                       </div>
                       <div className="text-sm text-gray-400">
-                        ${getTokenPrice(symbol as TokenSymbol).toFixed(getTokenPrice(symbol as TokenSymbol) < 0.01 ? 8 : 2)} USD
+                        ${(getTokenBalance(symbol) * getTokenPrice(symbol as TokenSymbol)).toFixed(2)} USD
                       </div>
                     </div>
                   </button>
