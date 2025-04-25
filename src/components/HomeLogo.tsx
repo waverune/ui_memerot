@@ -94,11 +94,14 @@ const HomeLogo: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d111c] text-white">
+    <div className="min-h-screen bg-[#0d111c] text-white overflow-hidden">
       <TopNavBar />
       
       {/* Hero Section */}
       <div className="relative min-h-screen">
+        {/* Fixed background */}
+        <div className="fixed inset-0 bg-[#0d111c] -z-20" />
+        
         <FloatingElements />
         
         {/* Main Content */}
