@@ -204,7 +204,7 @@ function SwapInterfaceContent() {
     Record<TokenSymbol, SimulatedOutput>
   >({});
   const [allocationType, setAllocationType] = useState<"ratio" | "percentage">(
-    "ratio"
+    "percentage"
   );
   const [allocationValues, setAllocationValues] = useState(["1"]);
   const [selectedTemplate, setSelectedTemplate] = useState("1");
@@ -470,7 +470,7 @@ function SwapInterfaceContent() {
   );
 
   const checkApproval = useCallback(async () => {
-    if (isConnected && address && selectedToken !== "ETH" && fromAmount) {
+    if (isConnected && address && selectedToken !== "ETH" && selectedToken !== "WETH" && fromAmount) {
       try {
         const signer = await getSigner();
         const tokenAddress = TOKENS[selectedToken].address;
@@ -524,7 +524,7 @@ function SwapInterfaceContent() {
   ]);
 
   const handleApprove = async () => {
-    if (!isConnected || selectedToken === "ETH") {
+    if (!isConnected || selectedToken === "ETH" || selectedToken === "WETH") {
       return;
     }
 
@@ -845,7 +845,7 @@ function SwapInterfaceContent() {
         }
 
         // Check approval status
-        if (isConnected && address && selectedToken !== "ETH" && fromAmount) {
+        if (isConnected && address && selectedToken !== "ETH" && selectedToken !== "WETH" && fromAmount) {
           await checkApproval();
         }
       } catch (error) {
@@ -1201,6 +1201,58 @@ function SwapInterfaceContent() {
     ) as Record<string, TokenConfig>;
   }, []);
 
+  const [activePercentageIndex, setActivePercentageIndex] = useState<number | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setActivePercentageIndex(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Function to handle percentage change
+  const handlePercentageChange = (index: number, value: number) => {
+    const newValues = [...allocationValues];
+    newValues[index] = Math.min(100, Math.max(0, value)).toString();
+    
+    // Calculate total of other percentages
+    const otherTotal = newValues
+      .filter((_, i) => i !== index)
+      .reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+
+    // If total exceeds 100%, adjust other values proportionally
+    if (parseFloat(newValues[index]) + otherTotal > 100) {
+      const excess = parseFloat(newValues[index]) + otherTotal - 100;
+      const otherIndices = newValues
+        .map((_, i) => i)
+        .filter(i => i !== index);
+      
+      otherIndices.forEach(idx => {
+        const currentVal = parseFloat(newValues[idx]) || 0;
+        const proportion = currentVal / otherTotal;
+        newValues[idx] = Math.max(0, currentVal - (excess * proportion)).toString();
+      });
+    }
+
+    setAllocationValues(newValues);
+  };
+
+  // Initialize percentages when tokens change
+  useEffect(() => {
+    if (allocationType === "percentage") {
+      const newValues = Array(selectedOutputTokens.length).fill(
+        (100 / selectedOutputTokens.length).toFixed(2)
+      );
+      setAllocationValues(newValues);
+    }
+  }, [selectedOutputTokens.length, allocationType]);
+
   return (
     <div className="min-h-screen bg-[#0d111c] relative overflow-x-hidden">
       {/* Background blur effect */}
@@ -1501,26 +1553,98 @@ function SwapInterfaceContent() {
                                 }
                               }}
                             >
-                              <input
-                                type="number"
-                                value={hasToken ? allocationValues[index] || "" : ""}
-                                onChange={(e) => {
-                                  if (hasToken) {
-                                    handleAllocationValueChange(index, e.target.value);
-                                  }
-                                }}
-                                disabled={!hasToken}
-                                placeholder=""
-                                className={`w-full bg-[#212638]/80 backdrop-blur-sm rounded-xl p-2.5 text-white border ${
-                                  hasToken ? "border-[#2d3648]/30" : "border-[#2d3648]/10"
-                                } focus:ring-2 focus:ring-[#4c82fb] focus:border-transparent ${
-                                  !hasToken && "opacity-50 cursor-not-allowed"
-                                }`}
-                              />
+                              {allocationType === "percentage" ? (
+                                <button
+                                  onClick={() => hasToken && setActivePercentageIndex(activePercentageIndex === index ? null : index)}
+                                  className={`w-full bg-[#212638]/80 backdrop-blur-sm rounded-xl p-2.5 text-white border ${
+                                    hasToken ? "border-[#2d3648]/30" : "border-[#2d3648]/10"
+                                  } focus:ring-2 focus:ring-[#4c82fb] focus:border-transparent ${
+                                    !hasToken && "opacity-50 cursor-not-allowed"
+                                  }`}
+                                >
+                                  {hasToken ? `${parseFloat(allocationValues[index] || "0").toFixed(1)}%` : ""}
+                                </button>
+                              ) : (
+                                <input
+                                  type="number"
+                                  value={hasToken ? allocationValues[index] || "" : ""}
+                                  onChange={(e) => {
+                                    if (hasToken) {
+                                      handleAllocationValueChange(index, e.target.value);
+                                    }
+                                  }}
+                                  disabled={!hasToken}
+                                  placeholder=""
+                                  className={`w-full bg-[#212638]/80 backdrop-blur-sm rounded-xl p-2.5 text-white border ${
+                                    hasToken ? "border-[#2d3648]/30" : "border-[#2d3648]/10"
+                                  } focus:ring-2 focus:ring-[#4c82fb] focus:border-transparent ${
+                                    !hasToken && "opacity-50 cursor-not-allowed"
+                                  }`}
+                                />
+                              )}
                               {!hasToken && (
                                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
                                   <div className="absolute left-1/2 -translate-x-1/2 -top-8 bg-[#293249] text-white text-sm px-2 py-1 rounded whitespace-nowrap">
                                     Select token to customize allocation
+                                  </div>
+                                </div>
+                              )}
+                              {allocationType === "percentage" && activePercentageIndex === index && (
+                                <div 
+                                  ref={popoverRef}
+                                  className="absolute right-0 top-full mt-2 p-4 bg-[#191c2a] rounded-xl border border-[#2d3648] shadow-lg z-50 min-w-[240px]"
+                                >
+                                  <div className="space-y-4">
+                                    {/* Direct Input */}
+                                    <div className="flex items-center space-x-2">
+                                      <input
+                                        type="number"
+                                        value={parseFloat(allocationValues[index] || "0").toFixed(1)}
+                                        onChange={(e) => handlePercentageChange(index, parseFloat(e.target.value) || 0)}
+                                        className="w-20 px-2 py-1 bg-[#293249] rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-[#4c82fb]"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                      />
+                                      <span className="text-gray-400">%</span>
+                                    </div>
+                                    
+                                    {/* Slider */}
+                                    <div className="space-y-2">
+                                      <input
+                                        type="range"
+                                        value={parseFloat(allocationValues[index] || "0")}
+                                        onChange={(e) => handlePercentageChange(index, parseFloat(e.target.value))}
+                                        className="w-full appearance-none h-2 bg-[#293249] rounded-full outline-none cursor-pointer
+                                          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 
+                                          [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full 
+                                          [&::-webkit-slider-thumb]:bg-[#4c82fb] [&::-webkit-slider-thumb]:cursor-pointer
+                                          [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 
+                                          [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#4c82fb] 
+                                          [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                      />
+                                      <div className="flex justify-between text-xs text-gray-400">
+                                        <span>0%</span>
+                                        <span>50%</span>
+                                        <span>100%</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Quick Select Buttons */}
+                                    <div className="flex flex-wrap gap-2">
+                                      {[25, 50, 75, 100].map((value) => (
+                                        <button
+                                          key={value}
+                                          onClick={() => handlePercentageChange(index, value)}
+                                          className="px-2 py-1 bg-[#293249] hover:bg-[#374160] rounded-lg text-sm transition-colors"
+                                        >
+                                          {value}%
+                                        </button>
+                                      ))}
+                                    </div>
                                   </div>
                                 </div>
                               )}
