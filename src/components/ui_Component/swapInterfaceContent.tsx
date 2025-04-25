@@ -1611,6 +1611,12 @@ function SwapInterfaceContent() {
                                         step="0.1"
                                       />
                                       <span className="text-gray-400">%</span>
+                                      <button
+                                        onClick={() => setActivePercentageIndex(null)}
+                                        className="ml-2 px-2 py-1 bg-[#4c82fb] hover:bg-[#3a6fd0] text-white rounded-lg text-sm transition-colors"
+                                      >
+                                        Confirm
+                                      </button>
                                     </div>
                                     
                                     {/* Slider */}
