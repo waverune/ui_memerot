@@ -1424,7 +1424,7 @@ function SwapInterfaceContent() {
                     >
                       Insufficient balance
                     </button>
-                  ) : needsApproval ? (
+                  ) : needsApproval && selectedToken !== "ETH" && selectedToken !== "WETH" ? (
                     <button
                       onClick={handleApprove}
                       disabled={isApproving}
