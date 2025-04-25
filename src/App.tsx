@@ -62,8 +62,8 @@ function App() {
           })}
         >
           <Router>
-            <div className="flex flex-col min-h-screen">
-              <div className="flex-1">
+            <div className="flex flex-col min-h-screen bg-[#0d111c]">
+              <div className="flex-1 bg-[#0d111c]">
                 <Routes>
                   <Route path="/" element={<HomeLogo key="home" />} />
                   <Route path="/swap" element={<SwapInterface key="swap" />} />

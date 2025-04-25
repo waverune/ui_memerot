@@ -116,9 +116,9 @@ const Discover: React.FC = () => {
     : presets.filter(preset => preset.category === selectedCategory);
 
   return (
-    <div className="min-h-screen bg-[#0d111c] text-white">
+    <div className="min-h-screen bg-[#0d111c] text-white overflow-hidden">
       <TopNavBar />
-      <div className="container mx-auto px-4 pt-24 pb-16">
+      <div className="container mx-auto px-4 pt-24 pb-16 overflow-y-auto h-full">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold text-white mb-8">Discover Preset Baskets</h1>
           
