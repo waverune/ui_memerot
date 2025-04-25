@@ -14,6 +14,7 @@ import {
   usePublicClient,
   useWalletClient,
 } from "wagmi";
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 import TokenSelectionPopup from "./tokenSelectionPopup";
 import { Button } from "../ui/button";
 import { useToast } from "../../hooks/useToast";
@@ -208,6 +209,7 @@ function SwapInterfaceContent() {
   const [tokenPriceData, setTokenPriceData] = useState<
     Record<string, CoinPriceData>
   >({});
+  const { openConnectModal } = useConnectModal();
   const getDogeCoinMarketCap = async () => {
     const data = await fetchCoinData("dogecoin");
     setDogeMarketCap(data.market_cap_usd);
@@ -1198,374 +1200,348 @@ function SwapInterfaceContent() {
   }, []);
 
   return (
-    <div className="p-6 lg:p-8 flex flex-col lg:flex-row lg:space-x-8 bg-[#0d111c]">
-      <div className="w-full lg:w-1/2 space-y-4">
-        {/* Input (Sell) section */}
-        <div className="bg-[#191c2a] rounded-lg p-4 space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm text-gray-400">Sell</label>
-            <div className="bg-[#212638] rounded-lg p-3 flex items-center">
-              <div className="flex-grow">
-                <input
-                  type="number"
-                  value={fromAmount}
-                  onChange={handleFromAmountChange}
-                  placeholder="0"
-                  className="bg-transparent border-none text-left w-full placeholder-gray-500 focus:outline-none focus:ring-0 text-white text-2xl"
-                />
-                <span className="text-xs text-gray-400">
-                  {getUsdValue(
-                    fromAmount || "0",
-                    selectedToken,
-                    tokenPriceData
-                  )}
-                </span>
-              </div>
-              <div className="flex flex-col items-end">
-                <button
-                  onClick={() => openTokenPopup("from")}
-                  className="flex items-center space-x-2 bg-[#293249] hover:bg-[#374160] rounded-full px-4 py-2 transition-colors min-w-[160px]"
-                >
-                  {selectedToken ? (
-                    <>
-                      <img
-                        src={TOKENS[selectedToken].logo}
-                        alt={`${selectedToken} logo`}
-                        className="w-6 h-6 rounded-full"
-                      />
-                      <span className="text-white">{selectedToken}</span>
-                    </>
-                  ) : (
-                    <span className="text-white">Select a token</span>
-                  )}
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
-                </button>
-                <span className="text-xs text-gray-400 mt-1">
-                  Balance:{" "}
-                  {parseFloat(
-                    tokenBalances[selectedToken as string] || "0"
-                  ).toFixed(4)}{" "}
-                  {selectedToken}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Swap arrow */}
-          <div className="flex justify-center">
-            <div className="bg-[#293249] rounded-full p-2">
-              <ArrowDownUp className="h-6 w-6 text-gray-400" />
-            </div>
-          </div>
-
-          {/* Output (Buy) section */}
-          <div className="space-y-2">
-            <label className="text-sm text-gray-400">Buy</label>
-            {allocationValues.map((_, index) => (
-              <div
-                key={index}
-                className="bg-[#212638] rounded-lg p-3 flex flex-col"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-grow">
-                    <input
-                      type="number"
-                      value={
-                        selectedOutputTokens[index]
-                          ? simulatedOutputs[selectedOutputTokens[index]]
-                              ?.amount || "0"
-                          : "0"
-                      }
-                      readOnly
-                      className="bg-transparent border-none text-left w-full focus:outline-none focus:ring-0 text-2xl text-white"
-                    />
-                    <div className="flex flex-col space-y-1">
-                      <span className="text-xs text-gray-400">
-                        {selectedOutputTokens[index] &&
-                        simulatedOutputs[selectedOutputTokens[index]]
-                          ?.loading ? (
-                          "Calculating..."
-                        ) : selectedOutputTokens[index] &&
-                          simulatedOutputs[selectedOutputTokens[index]]
-                            ?.error ? (
-                          <span className="text-red-400">
-                            {
-                              simulatedOutputs[selectedOutputTokens[index]]
-                                ?.error
-                            }
-                          </span>
-                        ) : (
-                          getUsdValue(
-                            simulatedOutputs[selectedOutputTokens[index]]
-                              ?.amount || "0",
-                            selectedOutputTokens[index],
-                            tokenPriceData
-                          )
-                        )}
-                      </span>
+    <div className="min-h-screen bg-[#0d111c] relative overflow-x-hidden">
+      {/* Background blur effect */}
+      <div className="fixed inset-0 bg-[#0d111c]">
+        <div className="absolute inset-0 backdrop-blur-[150px]" />
+      </div>
+      
+      {/* Main content */}
+      <div className="relative w-full max-w-[1000px] mx-auto px-4 py-8 min-h-screen flex items-center">
+        {/* Main container box */}
+        <div className="w-full bg-[#191c2a]/80 backdrop-blur-xl rounded-2xl border border-[#2d3648]/50 p-6">
+          <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Left column - Swap Interface */}
+            <div className="space-y-3">
+              {/* Input (Sell) section */}
+              <div className="bg-[#212638]/80 backdrop-blur-xl rounded-xl p-4 border border-[#2d3648]/30">
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400">Sell</label>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-grow">
+                        <input
+                          type="number"
+                          value={fromAmount}
+                          onChange={handleFromAmountChange}
+                          placeholder="0"
+                          className="bg-transparent border-none text-left w-full placeholder-gray-500 focus:outline-none focus:ring-0 text-white text-2xl"
+                        />
+                        <span className="text-sm text-gray-400">
+                          {getUsdValue(fromAmount || "0", selectedToken, tokenPriceData)}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <button
+                          onClick={() => openTokenPopup("from")}
+                          className="flex items-center space-x-2 bg-[#293249]/80 hover:bg-[#374160] rounded-full px-4 py-2 transition-all duration-200 min-w-[140px] border border-[#3d4860]/50"
+                        >
+                          {selectedToken ? (
+                            <>
+                              <img
+                                src={TOKENS[selectedToken].logo}
+                                alt={`${selectedToken} logo`}
+                                className="w-6 h-6 rounded-full"
+                              />
+                              <span className="text-white">{selectedToken}</span>
+                            </>
+                          ) : (
+                            <span className="text-white">Select a token</span>
+                          )}
+                          <ChevronDown className="h-4 w-4 text-gray-400" />
+                        </button>
+                        <span className="text-xs text-gray-400 mt-1">
+                          Balance: {parseFloat(tokenBalances[selectedToken as string] || "0").toFixed(4)} {selectedToken}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => openTokenPopup("output", index)}
-                      className="flex items-center space-x-2 bg-[#293249] hover:bg-[#374160] rounded-full px-4 py-2 transition-colors min-w-[160px]"
-                    >
-                      {selectedOutputTokens[index] &&
-                      selectedOutputTokens[index] !== "" ? (
-                        <>
-                          <img
-                            src={TOKENS[selectedOutputTokens[index]].logo}
-                            alt={`${selectedOutputTokens[index]} logo`}
-                            className="w-6 h-6 rounded-full"
-                          />
-                          <span className="text-white">{selectedOutputTokens[index]}</span>
-                        </>
-                      ) : (
-                        <span className="text-white">Select a token</span>
-                      )}
-                      <ChevronDown className="h-4 w-4 text-gray-400" />
-                    </button>
-                    {(selectedOutputTokens.length > 1 ||
-                      selectedOutputTokens[index]) && (
-                      <button
-                        onClick={() =>
-                          removeOutputToken(
-                            selectedOutputTokens[index] as string,
-                            index
-                          )
-                        }
-                        className="bg-[#293249] hover:bg-[#374160] rounded-full p-1 transition-colors"
-                        title={
-                          selectedOutputTokens.length === 1
-                            ? "Clear selection"
-                            : "Remove slot"
-                        }
-                      >
-                        <X className="h-4 w-4 text-gray-400" />
-                      </button>
-                    )}
                   </div>
                 </div>
-                {selectedOutputTokens[index] &&
-                  selectedOutputTokens[index] !== "" && (
-                    <div className="text-xs text-gray-400 mt-1 text-right">
-                      Doge ratio:{" "}
-                      {calculateDogeRatio(
-                        selectedOutputTokens[index],
-                        tokenPriceData,
-                        dogeMarketCap
-                      )}
-                      x Balance:{" "}
-                      {parseFloat(
-                        tokenBalances[selectedOutputTokens[index] as string] ||
-                          "0"
-                      ).toFixed(2)}
-                    </div>
-                  )}
               </div>
-            ))}
-            {getSelectedTokenCount() < 4 && (
-              <button
-                onClick={handleAddToken}
-                className="w-full mt-2 py-2 bg-[#293249] hover:bg-[#374160] rounded-lg flex items-center justify-center transition-colors"
-              >
-                <Plus className="h-4 w-4 mr-2 text-gray-400" />
-                <span className="text-white">Add another token</span>
-                <span className="text-xs text-gray-400 ml-2">
-                  ({4 - getSelectedTokenCount()} remaining)
-                </span>
-              </button>
-            )}
-          </div>
-        </div>
 
-        {/* Swap button */}
-        <Button
-          className="w-full bg-gradient-to-r from-[#4c82fb] to-[#7b3fe4] hover:from-[#3a6fd0] hover:to-[#6a36c7] text-white font-bold py-2 px-4 rounded-lg transition-colors"
-          onClick={needsApproval ? handleApprove : handleSwap}
-          disabled={
-            !isConnected ||
-            !areFieldsValid ||
-            isSwapping ||
-            (needsApproval && isApproving) ||
-            !isBalanceSufficient ||
-            !isQuoteSucess
-          }
-        >
-          {!isConnected
-            ? "Connect Wallet"
-            : !isBalanceSufficient
-            ? `Insufficient ${selectedToken}`
-            : needsApproval
-            ? "Approve"
-            : isSwapping
-            ? "Swapping..."
-            : !isQuoteSucess
-            ? "Quote failed, please retry"
-            : "Swap"}
-        </Button>
-      </div>
-
-      <div className="w-full lg:w-1/2 space-y-4 mt-8 lg:mt-0">
-        <div className="bg-[#191c2a] rounded-lg p-4 space-y-6">
-          {/* Allocation Type and Templates in a horizontal layout */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Allocation Type Section */}
-            <div className="space-y-3">
-              <label className="text-sm text-gray-400 font-medium">
-                Allocation Type
-              </label>
-              <div className="flex flex-col space-y-2">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    value="ratio"
-                    checked={allocationType === "ratio"}
-                    onChange={() => handleAllocationTypeChange("ratio")}
-                    className="text-[#4c82fb] focus:ring-[#4c82fb] h-4 w-4"
-                  />
-                  <span className="text-sm text-white">Ratio</span>
-                </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    value="percentage"
-                    checked={allocationType === "percentage"}
-                    onChange={() => handleAllocationTypeChange("percentage")}
-                    className="text-[#4c82fb] focus:ring-[#4c82fb] h-4 w-4"
-                  />
-                  <span className="text-sm text-white">Percentage</span>
-                </label>
+              {/* Swap arrow */}
+              <div className="flex justify-center">
+                <div className="bg-[#293249]/80 backdrop-blur-sm rounded-full p-2 border border-[#3d4860]/50">
+                  <ArrowDownUp className="h-5 w-5 text-gray-400" />
+                </div>
               </div>
-            </div>
 
-            {/* Templates Section with compact oval buttons */}
-            <div className="space-y-3">
-              <label className="text-sm text-gray-400 font-medium">
-                Multiswap Presets
-              </label>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {allocationType === "ratio" ? (
-                  <>
-                    {["1", "1:1", "1:2", "1:1:2", "1:2:2", "1:1:1:1"].map(
-                      (template) => (
+              {/* Output (Buy) section */}
+              <div className="space-y-2">
+                <label className="text-sm text-gray-400">Buy</label>
+                {allocationValues.map((_, index) => (
+                  <div
+                    key={index}
+                    className="bg-[#212638]/80 backdrop-blur-sm rounded-xl p-3 border border-[#2d3648]/30"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-grow">
+                        <input
+                          type="number"
+                          value={selectedOutputTokens[index] ? simulatedOutputs[selectedOutputTokens[index]]?.amount || "0" : "0"}
+                          readOnly
+                          className="bg-transparent border-none text-left w-full focus:outline-none focus:ring-0 text-white text-2xl"
+                        />
+                        <span className="text-sm text-gray-400">
+                          {selectedOutputTokens[index] && simulatedOutputs[selectedOutputTokens[index]]?.loading
+                            ? "Calculating..."
+                            : selectedOutputTokens[index] && simulatedOutputs[selectedOutputTokens[index]]?.error
+                            ? simulatedOutputs[selectedOutputTokens[index]]?.error
+                            : getUsdValue(
+                                simulatedOutputs[selectedOutputTokens[index]]?.amount || "0",
+                                selectedOutputTokens[index],
+                                tokenPriceData
+                              )}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
                         <button
-                          key={template}
-                          onClick={() => handleTemplateChange(template)}
-                          className={`px-2.5 py-0.5 text-xs rounded-full transition-all duration-200 whitespace-nowrap ${
-                            selectedTemplate === template
-                              ? "bg-gradient-to-r from-[#4c82fb] to-[#7b3fe4] text-white ring-2 ring-[#4c82fb] ring-opacity-50"
-                              : "bg-[#293249] text-gray-300 hover:bg-[#374160] hover:text-white"
-                          }`}
+                          onClick={() => openTokenPopup("output", index)}
+                          className="flex items-center space-x-2 bg-[#293249]/80 hover:bg-[#374160] rounded-full px-4 py-2 transition-all duration-200 min-w-[140px] border border-[#3d4860]/50"
                         >
-                          {template}
+                          {selectedOutputTokens[index] && selectedOutputTokens[index] !== "" ? (
+                            <>
+                              <img
+                                src={TOKENS[selectedOutputTokens[index]].logo}
+                                alt={`${selectedOutputTokens[index]} logo`}
+                                className="w-6 h-6 rounded-full"
+                              />
+                              <span className="text-white">{selectedOutputTokens[index]}</span>
+                            </>
+                          ) : (
+                            <span className="text-white">Select a token</span>
+                          )}
+                          <ChevronDown className="h-4 w-4 text-gray-400" />
                         </button>
-                      )
+                        {(selectedOutputTokens.length > 1 || selectedOutputTokens[index]) && (
+                          <button
+                            onClick={() => removeOutputToken(selectedOutputTokens[index] as string, index)}
+                            className="bg-[#293249]/80 hover:bg-[#374160] rounded-full p-2 transition-all duration-200 border border-[#3d4860]/50"
+                          >
+                            <X className="h-4 w-4 text-gray-400" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {getSelectedTokenCount() < 4 && (
+                  <button
+                    onClick={handleAddToken}
+                    className="w-full mt-2 py-2.5 bg-[#293249]/80 hover:bg-[#374160] backdrop-blur-sm rounded-xl flex items-center justify-center transition-all duration-200 border border-[#3d4860]/50"
+                  >
+                    <Plus className="h-4 w-4 mr-2 text-gray-400" />
+                    <span className="text-white">Add another token</span>
+                    <span className="text-xs text-gray-400 ml-2">
+                      ({4 - getSelectedTokenCount()} remaining)
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {/* Transaction Button Section */}
+              <div className="mt-4">
+                {!isConnected ? (
+                  <button
+                    onClick={openConnectModal}
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
+                  >
+                    <span>Connect Wallet</span>
+                  </button>
+                ) : !areFieldsValid ? (
+                  <button
+                    disabled
+                    className="w-full bg-[#293249]/50 text-gray-400 font-medium py-3 px-4 rounded-xl cursor-not-allowed"
+                  >
+                    Enter an amount
+                  </button>
+                ) : !isBalanceSufficient ? (
+                  <button
+                    disabled
+                    className="w-full bg-[#293249]/50 text-gray-400 font-medium py-3 px-4 rounded-xl cursor-not-allowed"
+                  >
+                    Insufficient balance
+                  </button>
+                ) : needsApproval ? (
+                  <button
+                    onClick={handleApprove}
+                    disabled={isApproving}
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isApproving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>Approving...</span>
+                      </>
+                    ) : (
+                      <span>Approve {selectedToken}</span>
                     )}
-                  </>
+                  </button>
                 ) : (
-                  <>
-                    {[
-                      "100",
-                      "50:50",
-                      "33:33:33",
-                      "25:25:25:25",
-                      "40:30:30",
-                      "50:25:25",
-                    ].map((template) => (
-                      <button
-                        key={template}
-                        onClick={() => handleTemplateChange(template)}
-                        className={`px-2.5 py-0.5 text-xs rounded-full transition-all duration-200 whitespace-nowrap ${
-                          selectedTemplate === template
-                            ? "bg-gradient-to-r from-[#4c82fb] to-[#7b3fe4] text-white ring-2 ring-[#4c82fb] ring-opacity-50"
-                            : "bg-[#293249] text-gray-300 hover:bg-[#374160] hover:text-white"
-                          }`}
-                      >
-                        {template}
-                      </button>
-                    ))}
-                  </>
+                  <button
+                    onClick={handleSwap}
+                    disabled={isSwapping || !isQuoteSucess}
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSwapping ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>Swapping...</span>
+                      </>
+                    ) : !isQuoteSucess ? (
+                      <span>Price Impact Too High</span>
+                    ) : (
+                      <span>Swap</span>
+                    )}
+                  </button>
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Custom Allocation Input */}
-          <div className="space-y-3">
-            <label className="text-sm text-gray-400 font-medium">
-              Custom Allocation
-            </label>
-            <div className="flex space-x-2">
-              {allocationValues.map((value, index) => (
-                <input
-                  key={index}
-                  type="number"
-                  value={value}
-                  onChange={(e) =>
-                    handleAllocationValueChange(index, e.target.value)
-                  }
-                  className="w-full bg-[#212638] rounded-lg p-2 text-white focus:ring-2 focus:ring-[#4c82fb] focus:border-transparent"
-                  placeholder={
-                    allocationType === "ratio" ? "Ratio" : "Percentage"
-                  }
-                />
-              ))}
-            </div>
-            <div className="text-sm text-gray-400">
-              Current Allocation: {getAllocationString()}
-            </div>
-          </div>
-
-          {/* Share Button */}
-          <button
-            onClick={handleShareUrl}
-            className="w-full flex items-center justify-center space-x-2 bg-[#293249] hover:bg-[#374160] text-white py-3 rounded-lg transition-colors"
-          >
-            <Copy className="h-4 w-4" />
-            <span>Share Allocation</span>
-          </button>
-
-          {/* Percentage Bar for Token Allocations */}
-          {selectedOutputTokens.length > 0 &&
-            selectedOutputTokens[0] !== "" && (
-              <div className="mt-4">
-                <div className="text-sm text-gray-400">Token Allocations</div>
-                <div className="relative w-full h-4 bg-[#212638] rounded">
-                  {allocationPercentages.map((percentage, index) => {
-                    const leftPosition = allocationPercentages
-                      .slice(0, index)
-                      .reduce((a, b) => a + b, 0);
-
-                    return (
-                      <div
-                        key={index}
-                        className={`absolute h-full ${
-                          TOKEN_COLORS[index % TOKEN_COLORS.length]
-                        } rounded`}
-                        style={{
-                          width: `${percentage}%`,
-                          left: `${leftPosition}%`,
+            {/* Right column - Allocation Controls */}
+            <div className="space-y-3">
+              <div className="bg-[#212638]/80 backdrop-blur-xl rounded-xl p-4 border border-[#2d3648]/30">
+                {/* Split Options */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400 font-medium">Split Type</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          if (selectedOutputTokens.filter(t => t !== "").length < 2) {
+                            toast.error("Please select at least 2 tokens first");
+                            return;
+                          }
+                          setAllocationType("percentage");
+                          const count = selectedOutputTokens.filter(t => t !== "").length;
+                          const equalValue = (100 / count).toFixed(2);
+                          setAllocationValues(Array(count).fill(equalValue));
                         }}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="flex justify-between text-xs text-gray-400 mt-1">
-                  {allocationValues.map((value, index) => {
-                    const tokenSymbol =
-                      TOKENS[selectedOutputTokens[index]]?.symbol;
-                    return (
-                      <span key={index}>
-                        {`${value} (${allocationPercentages[index].toFixed(
-                          2
-                        )}%) ${tokenSymbol || "N/A"}`}
-                      </span>
-                    );
-                  })}
+                        className={`bg-[#293249]/80 hover:bg-[#374160] text-white py-3 px-4 rounded-xl transition-all duration-200 border ${
+                          allocationValues.every((v, i, arr) => v === arr[0])
+                            ? "border-[#4c82fb]"
+                            : "border-[#3d4860]/50"
+                        }`}
+                      >
+                        <div className="font-medium">Equal Split</div>
+                        <div className="text-xs text-gray-400">Split tokens equally</div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (selectedOutputTokens.filter(t => t !== "").length < 2) {
+                            toast.error("Please select at least 2 tokens first");
+                            return;
+                          }
+                          setAllocationType("percentage");
+                        }}
+                        className={`bg-[#293249]/80 hover:bg-[#374160] text-white py-3 px-4 rounded-xl transition-all duration-200 border ${
+                          !allocationValues.every((v, i, arr) => v === arr[0])
+                            ? "border-[#4c82fb]"
+                            : "border-[#3d4860]/50"
+                        }`}
+                      >
+                        <div className="font-medium">Custom Split</div>
+                        <div className="text-xs text-gray-400">Set custom weights</div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Custom Allocation */}
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400 font-medium">
+                      Token Allocation
+                    </label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {Array(4).fill(0).map((_, index) => {
+                        const hasToken = selectedOutputTokens[index] && selectedOutputTokens[index] !== "";
+                        return (
+                          <div
+                            key={index}
+                            className="relative group"
+                            onClick={() => {
+                              if (!hasToken) {
+                                toast.error("Please select a token first");
+                              }
+                            }}
+                          >
+                            <input
+                              type="number"
+                              value={hasToken ? allocationValues[index] || "" : ""}
+                              onChange={(e) => {
+                                if (hasToken) {
+                                  handleAllocationValueChange(index, e.target.value);
+                                }
+                              }}
+                              disabled={!hasToken}
+                              placeholder=""
+                              className={`w-full bg-[#212638]/80 backdrop-blur-sm rounded-xl p-2.5 text-white border ${
+                                hasToken ? "border-[#2d3648]/30" : "border-[#2d3648]/10"
+                              } focus:ring-2 focus:ring-[#4c82fb] focus:border-transparent ${
+                                !hasToken && "opacity-50 cursor-not-allowed"
+                              }`}
+                            />
+                            {!hasToken && (
+                              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                                <div className="absolute left-1/2 -translate-x-1/2 -top-8 bg-[#293249] text-white text-sm px-2 py-1 rounded whitespace-nowrap">
+                                  Select token to customize allocation
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="text-sm text-gray-400">
+                      Current Allocation: {getAllocationString()}
+                    </div>
+                  </div>
+
+                  {/* Token Allocations Bar */}
+                  {selectedOutputTokens.length > 0 && selectedOutputTokens[0] !== "" && (
+                    <div className="space-y-2">
+                      <div className="text-sm text-gray-400">Token Allocations</div>
+                      <div className="relative h-2.5 bg-[#212638]/80 rounded-full overflow-hidden border border-[#2d3648]/30">
+                        {allocationPercentages.map((percentage, index) => {
+                          const leftPosition = allocationPercentages
+                            .slice(0, index)
+                            .reduce((a, b) => a + b, 0);
+                          return (
+                            <div
+                              key={index}
+                              className={`absolute h-full ${TOKEN_COLORS[index % TOKEN_COLORS.length]}`}
+                              style={{
+                                width: `${percentage}%`,
+                                left: `${leftPosition}%`,
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs text-gray-400">
+                        {allocationValues.map((value, index) => {
+                          const tokenSymbol = TOKENS[selectedOutputTokens[index]]?.symbol;
+                          return tokenSymbol ? (
+                            <span key={index} className="bg-[#212638]/50 px-2 py-1 rounded-full">
+                              {`${value} (${allocationPercentages[index].toFixed(2)}%) ${tokenSymbol}`}
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Share Button */}
+                  <button
+                    onClick={handleShareUrl}
+                    className="w-full flex items-center justify-center space-x-2 bg-[#293249]/80 hover:bg-[#374160] text-white py-2.5 rounded-xl transition-all duration-200 border border-[#3d4860]/50"
+                  >
+                    <Copy className="h-4 w-4" />
+                    <span>Share Allocation</span>
+                  </button>
                 </div>
               </div>
-            )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1573,11 +1549,7 @@ function SwapInterfaceContent() {
         isOpen={isTokenPopupOpen}
         onClose={closeTokenPopup}
         onSelect={handleTokenSelect}
-        tokens={
-          activeTokenSelection?.type === "output"
-            ? (OUTPUT_TOKENS as Record<string, TokenConfig>)
-            : (TOKENS as Record<string, TokenConfig>)
-        }
+        tokens={activeTokenSelection?.type === "output" ? OUTPUT_TOKENS : TOKENS}
         balances={tokenBalances}
         disabledTokens={disabledTokens as string[]}
         tokenPriceData={tokenPriceData}
