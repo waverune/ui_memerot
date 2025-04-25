@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import TopNavBar from "./ui_Component/topNavBar";
 import FloatingElements from "./ui_Component/FloatingElements";
-import { ChevronDown, Plus, X } from "lucide-react";
+import { ChevronDown, Plus, X, Percent } from "lucide-react";
 import TokenSelectionPopup from "./ui_Component/tokenSelectionPopup";
 import { TOKENS } from "../config/tokens";
 import { TokenConfig, TokenSymbol, TokenSelectionType } from "../utils/Modal";
@@ -15,6 +15,12 @@ const HomeLogo: React.FC = () => {
   const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
   const [activeTokenSelection, setActiveTokenSelection] = useState<TokenSelectionType>(null);
   const [disabledTokens, setDisabledTokens] = useState<TokenSymbol[]>([]);
+  const [allocationType, setAllocationType] = useState<"ratio" | "percentage">("percentage");
+  const [selectedSplitType, setSelectedSplitType] = useState<"equal" | "custom">("equal");
+  const [customPercentages, setCustomPercentages] = useState<Record<number, number>>({});
+  const [activePercentageIndex, setActivePercentageIndex] = useState<number | null>(null);
+  const [tempPercentages, setTempPercentages] = useState<Record<number, number>>({});
+  const popoverRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
     useEffect(() => {
@@ -40,13 +46,30 @@ const HomeLogo: React.FC = () => {
   }, []);
 
   const handleGetStarted = () => {
-    navigate('/swap', { 
-      state: { 
-        selectedToken,
-        defaultMode: 'multi'
-                }
-            });
-        };
+    // Create URL parameters
+    const searchParams = new URLSearchParams();
+    if (selectedToken) {
+      searchParams.set('from', selectedToken);
+    }
+    if (selectedOutputTokens.length > 0) {
+      searchParams.set('to', selectedOutputTokens.filter(token => token !== null).join('-'));
+    }
+    if (selectedSplitType === 'custom') {
+      const percentages = selectedOutputTokens.map((_, index) => getTokenPercentage(index));
+      const commonDivisor = percentages.reduce((a, b) => {
+        const _gcd = (x: number, y: number): number => (!y ? x : _gcd(y, x % y));
+        return _gcd(a, b);
+      });
+      const ratios = percentages.map(p => p / commonDivisor);
+      searchParams.set('ratio', ratios.join('-'));
+    } else {
+      // For equal split, use 1:1:1... ratio
+      const ratio = Array(selectedOutputTokens.filter(token => token !== null).length).fill('1').join('-');
+      searchParams.set('ratio', ratio);
+    }
+
+    navigate(`/swap?${searchParams.toString()}`);
+  };
 
   const openTokenPopup = (type: "from" | "output", index?: number) => {
     setActiveTokenSelection({ type, index });
@@ -90,7 +113,68 @@ const HomeLogo: React.FC = () => {
   ) as Record<TokenSymbol, TokenConfig>;
 
   const handleAddToken = () => {
-    // Implementation of handleAddToken function
+    if (selectedOutputTokens.length < 4) {
+      setSelectedOutputTokens(prev => [...prev, null]);
+      updateDisabledTokens();
+    }
+  };
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setActivePercentageIndex(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Function to handle percentage change
+  const handlePercentageChange = (index: number, value: number) => {
+    const newPercentages = { ...customPercentages };
+    newPercentages[index] = Math.min(100, Math.max(0, value));
+    
+    // Calculate total of other percentages
+    const otherTotal = Object.entries(newPercentages)
+      .filter(([key]) => Number(key) !== index)
+      .reduce((sum, [_, val]) => sum + val, 0);
+
+    // If total exceeds 100%, adjust other values proportionally
+    if (newPercentages[index] + otherTotal > 100) {
+      const excess = newPercentages[index] + otherTotal - 100;
+      const otherIndices = Object.keys(newPercentages)
+        .map(Number)
+        .filter(key => key !== index);
+      
+      otherIndices.forEach(idx => {
+        const currentVal = newPercentages[idx];
+        const proportion = currentVal / otherTotal;
+        newPercentages[idx] = Math.max(0, currentVal - (excess * proportion));
+      });
+    }
+
+    setCustomPercentages(newPercentages);
+  };
+
+  // Initialize percentages when tokens change
+  useEffect(() => {
+    if (selectedSplitType === "custom") {
+      const newPercentages: Record<number, number> = {};
+      selectedOutputTokens.forEach((_, index) => {
+        newPercentages[index] = 100 / selectedOutputTokens.length;
+      });
+      setCustomPercentages(newPercentages);
+    }
+  }, [selectedOutputTokens.length, selectedSplitType]);
+
+  // Get percentage for a token
+  const getTokenPercentage = (index: number) => {
+    if (selectedSplitType === "equal") {
+      return 100 / (selectedOutputTokens.filter(t => t !== null).length || 1);
+    }
+    return customPercentages[index] || 0;
   };
 
   return (
@@ -152,23 +236,29 @@ const HomeLogo: React.FC = () => {
                 </div>
               </div>
 
-              {/* Quick Split Presets */}
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <button className="bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-colors text-center">
+              {/* Split Types */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setSelectedSplitType("equal")}
+                  className={`bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-all duration-200 border ${
+                    selectedSplitType === "equal" ? "border-[#4c82fb]" : "border-[#3d4860]/50"
+                  }`}
+                >
                   <div className="text-sm font-medium">Equal Split</div>
-                  <div className="text-xs text-gray-400 mt-1">50/50</div>
+                  <div className="text-xs text-gray-400 mt-1">Split tokens equally</div>
                 </button>
-                <button className="bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-colors text-center">
-                  <div className="text-sm font-medium">Weighted</div>
-                  <div className="text-xs text-gray-400 mt-1">70/30</div>
-                </button>
-                <button className="bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-colors text-center">
-                  <div className="text-sm font-medium">Custom</div>
-                  <div className="text-xs text-gray-400 mt-1">Your Split</div>
+                <button
+                  onClick={() => setSelectedSplitType("custom")}
+                  className={`bg-[#293249] hover:bg-[#374160] rounded-xl p-3 transition-all duration-200 border ${
+                    selectedSplitType === "custom" ? "border-[#4c82fb]" : "border-[#3d4860]/50"
+                  }`}
+                >
+                  <div className="text-sm font-medium">Custom Split</div>
+                  <div className="text-xs text-gray-400 mt-1">Set custom weights</div>
                 </button>
               </div>
 
-              {/* Token Outputs */}
+              {/* Token Outputs with Allocation */}
               <div className="space-y-3">
                 {selectedOutputTokens.map((token, index) => (
                   <div key={`output-${index}`} className="p-4 bg-[#212638] rounded-xl">
@@ -206,27 +296,98 @@ const HomeLogo: React.FC = () => {
                             </button>
                           )}
                         </div>
-                        <span className="text-lg font-medium ml-4">
-                          {selectedOutputTokens.length > 0 ? `${Math.floor(100 / selectedOutputTokens.length)}%` : '100%'}
-                        </span>
+                        {/* Percentage Display/Button */}
+                        <div className="relative">
+                          {selectedSplitType === "custom" ? (
+                            <button
+                              onClick={() => setActivePercentageIndex(activePercentageIndex === index ? null : index)}
+                              className="flex items-center space-x-2 px-3 py-1.5 bg-[#293249] hover:bg-[#374160] rounded-full transition-colors"
+                            >
+                              <span className="text-lg font-medium">{getTokenPercentage(index).toFixed(1)}%</span>
+                              <Percent className="h-4 w-4 text-gray-400" />
+                            </button>
+                          ) : (
+                            <span className="text-lg font-medium">{getTokenPercentage(index).toFixed(1)}%</span>
+                          )}
+                          
+                          {/* Percentage Selector Popover */}
+                          {selectedSplitType === "custom" && activePercentageIndex === index && (
+                            <div 
+                              ref={popoverRef}
+                              className="absolute right-0 top-full mt-2 p-4 bg-[#191c2a] rounded-xl border border-[#2d3648] shadow-lg z-50 min-w-[240px]"
+                            >
+                              <div className="space-y-4">
+                                {/* Direct Input */}
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="number"
+                                    value={customPercentages[index]?.toFixed(1) || "0"}
+                                    onChange={(e) => handlePercentageChange(index, parseFloat(e.target.value) || 0)}
+                                    className="w-20 px-2 py-1 bg-[#293249] rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-[#4c82fb]"
+                                    min="0"
+                                    max="100"
+                                    step="0.1"
+                                  />
+                                  <span className="text-gray-400">%</span>
+                                </div>
+                                
+                                {/* Slider */}
+                                <div className="space-y-2">
+                                  <input
+                                    type="range"
+                                    value={customPercentages[index] || 0}
+                                    onChange={(e) => handlePercentageChange(index, parseFloat(e.target.value))}
+                                    className="w-full appearance-none h-2 bg-[#293249] rounded-full outline-none cursor-pointer
+                                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 
+                                      [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full 
+                                      [&::-webkit-slider-thumb]:bg-[#4c82fb] [&::-webkit-slider-thumb]:cursor-pointer
+                                      [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 
+                                      [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#4c82fb] 
+                                      [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+                                    min="0"
+                                    max="100"
+                                    step="0.1"
+                                  />
+                                  <div className="flex justify-between text-xs text-gray-400">
+                                    <span>0%</span>
+                                    <span>50%</span>
+                                    <span>100%</span>
+                                  </div>
+                                </div>
+
+                                {/* Quick Select Buttons */}
+                                <div className="flex flex-wrap gap-2">
+                                  {[25, 50, 75, 100].map((value) => (
+                                    <button
+                                      key={value}
+                                      onClick={() => handlePercentageChange(index, value)}
+                                      className="px-2 py-1 bg-[#293249] hover:bg-[#374160] rounded-lg text-sm transition-colors"
+                                    >
+                                      {value}%
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
+                      {/* Allocation Bar */}
                       <div className="w-full bg-[#293249] rounded-full h-2">
                         <div 
-                          className="bg-[#4c82fb] h-2 rounded-full" 
-                          style={{ 
-                            width: selectedOutputTokens.length > 0 
-                              ? `${Math.floor(100 / selectedOutputTokens.length)}%` 
-                              : '100%' 
-                          }}
+                          className="bg-gradient-to-r from-[#4c82fb] to-[#7b3fe4] h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${getTokenPercentage(index)}%` }}
                         ></div>
                       </div>
                     </div>
                   </div>
                 ))}
+
+                {/* Add Token Button */}
                 {selectedOutputTokens.length < 4 && (
                   <button
                     onClick={handleAddToken}
-                    className="w-full mt-2 py-2 bg-[#293249] hover:bg-[#374160] rounded-lg flex items-center justify-center transition-colors"
+                    className="w-full mt-2 py-2.5 bg-[#293249] hover:bg-[#374160] rounded-xl flex items-center justify-center transition-colors border border-[#3d4860]/50"
                   >
                     <Plus className="h-4 w-4 mr-2 text-gray-400" />
                     <span className="text-white">Add another token</span>
@@ -237,21 +398,7 @@ const HomeLogo: React.FC = () => {
                 )}
               </div>
 
-              {/* Percentage Inputs */}
-              <div className="flex flex-wrap gap-2 mt-4">
-                {selectedOutputTokens.map((token, index) => (
-                  token && (
-                    <div key={`percentage-${index}`} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="0%"
-                        className="bg-transparent text-2xl font-medium focus:outline-none text-right w-[160px]"
-                      />
-                    </div>
-                  )
-                ))}
-              </div>
-
+              {/* Review Swap Button */}
               <button
                 onClick={handleGetStarted}
                 className="w-full bg-gradient-to-r from-[#4c82fb] to-[#7b3fe4] hover:from-[#3a6fd0] hover:to-[#6a36c7] text-white rounded-xl py-3 font-medium transition-colors"

@@ -176,7 +176,7 @@ function SwapInterfaceContent() {
   const hasInitialized = useRef(false);
   const location = useLocation();
   const [fromAmount, setFromAmount] = useState("");
-  const [selectedToken, setSelectedToken] = useState<TokenSymbol>("ETH");
+  const [selectedToken, setSelectedToken] = useState<TokenSymbol>("");
   const [selectedOutputTokens, setSelectedOutputTokens] = useState<
     TokenSymbol[]
   >([]);
@@ -1254,7 +1254,7 @@ function SwapInterfaceContent() {
                             <ChevronDown className="h-4 w-4 text-gray-400" />
                           </button>
                           <span className="text-xs text-gray-400 mt-1">
-                            Balance: {parseFloat(tokenBalances[selectedToken as string] || "0").toFixed(4)} {selectedToken}
+                            {selectedToken ? `Balance: ${parseFloat(tokenBalances[selectedToken] || "0").toFixed(4)} ${selectedToken}` : "Select a token to view balance"}
                           </span>
                         </div>
                       </div>
