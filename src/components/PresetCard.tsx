@@ -2,6 +2,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { TokenSymbol } from "../utils/Modal";
+import { useNavigate } from "react-router-dom";
 
 interface TokenAllocation {
   symbol: TokenSymbol;
@@ -19,7 +20,7 @@ interface PresetCardProps {
   };
   buyTokens: TokenAllocation[];
   userCount: number;
-  onApply: () => void;
+  onApply?: () => void;
 }
 
 export const PresetCard = ({
@@ -31,10 +32,43 @@ export const PresetCard = ({
   userCount,
   onApply,
 }: PresetCardProps) => {
+  const navigate = useNavigate();
   // Ensure we only display up to 4 tokens
   const displayTokens = buyTokens.slice(0, 4);
   // Calculate how many placeholder slots we need
   const placeholderCount = Math.max(0, 4 - displayTokens.length);
+
+  const handleApplyPreset = () => {
+    if (onApply) {
+      onApply();
+      return;
+    }
+
+    // Create the URL parameters
+    const fromToken = sellToken.symbol;
+    const toTokens = displayTokens.map(token => token.symbol).join('-');
+    
+    // Calculate ratios based on percentages
+    const percentages = displayTokens.map(token => token.percentage);
+    // Find the GCD of percentages using reduce
+    const gcdOfArray = (...arr: number[]) => {
+      const _gcd = (x: number, y: number): number => (!y ? x : _gcd(y, x % y));
+      return arr.reduce((a, b) => _gcd(a, b));
+    };
+    
+    const commonDivisor = gcdOfArray(...percentages);
+    const ratios = percentages.map(p => p / commonDivisor);
+    const ratioString = ratios.join('-');
+
+    // Construct the URL with all required parameters
+    const searchParams = new URLSearchParams();
+    searchParams.set('from', fromToken);
+    searchParams.set('to', toTokens);
+    searchParams.set('ratio', ratioString);
+
+    // Navigate to the swap page with the constructed URL
+    navigate(`/swap?${searchParams.toString()}`);
+  };
 
   return (
     <Card className="w-[380px] min-h-[460px] bg-[#0F1218] border-[#1F2937] hover:border-[#374151] transition-all duration-200 flex flex-col">
@@ -95,7 +129,6 @@ export const PresetCard = ({
                     <div className="w-6 h-6 rounded-full bg-gray-600" />
                     <span className="text-white"></span>
                   </div>
-                  {/* <span className="text-white text-sm">/span> */}
                 </div>
                 <div className="h-1 bg-[#2D3139] rounded-none opacity-30" />
               </div>
@@ -107,7 +140,7 @@ export const PresetCard = ({
       <CardFooter className="flex justify-between items-center border-t border-[#1F2937] px-6 py-4 mt-auto">
         <p className="text-sm text-gray-400">{userCount} users</p>
         <Button
-          onClick={onApply}
+          onClick={handleApplyPreset}
           className="bg-blue-600 hover:bg-blue-700 text-white px-6"
         >
           Apply Preset

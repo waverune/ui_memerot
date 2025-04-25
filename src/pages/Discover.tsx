@@ -150,10 +150,6 @@ const Discover: React.FC = () => {
                 sellToken={preset.sellToken}
                 buyTokens={preset.buyTokens}
                 userCount={preset.userCount}
-                onApply={() => {
-                  // Handle preset application
-                  console.log('Applying preset:', preset);
-                }}
               />
             ))}
           </div>

@@ -798,31 +798,36 @@ function SwapInterfaceContent() {
   useEffect(() => {
     const updateEffects = async () => {
       // Only proceed if still mounted and on swap page
-      // Check only the base path
-      if (!mounted.current) {
-        console.log("4a. Not mounted, returning");
-        return;
-      }
-
-      if (!location.pathname.startsWith("/swap")) {
-        console.log("4b. Not on swap page, returning");
-        return;
-      }
-      console.log("5. Proceeding with effects...");
+      if (!mounted.current) return;
 
       try {
-        // Effect 1: Fetch balances and update token balances
-        console.log("isConnected", isConnected);
-        console.log("address", address);
+        // Parse URL parameters
+        const params = new URLSearchParams(location.search);
+        const fromToken = params.get('from');
+        const toTokens = params.get('to')?.split('-') || [];
+        const ratio = params.get('ratio')?.split('-') || [];
+
+        // Initialize state with URL parameters if they exist
+        if (fromToken) {
+          setSelectedToken(fromToken as TokenSymbol);
+        }
+        if (toTokens.length > 0) {
+          setSelectedOutputTokens(toTokens as TokenSymbol[]);
+        }
+        if (ratio.length > 0) {
+          setAllocationValues(ratio);
+          setAllocationType('ratio');
+        }
+
+        // Fetch balances and update token balances
         if (isConnected && address) {
-          console.log("fetching balances");
           await fetchBalances();
           await refetchEthBalance();
         } else {
           setTokenBalances(MOCK_BALANCES);
         }
 
-        // Effect 2: Update ETH balance in token balances
+        // Update ETH balance in token balances
         if (ethBalanceData) {
           setTokenBalances((prev) => ({
             ...prev,
@@ -830,69 +835,14 @@ function SwapInterfaceContent() {
           }));
         }
 
-        // Effect 4: Simulate swap
-        if (fromAmount && selectedToken && selectedOutputTokens.length > 0) {
+        // Simulate swap if we have all required parameters
+        if (fromToken && toTokens.length > 0 && ratio.length > 0) {
           simulateAndLogSwap();
         }
 
-        // Effect 5: Check approval status
+        // Check approval status
         if (isConnected && address && selectedToken !== "ETH" && fromAmount) {
           await checkApproval();
-        }
-
-        // Effect 6: Update URL - Only if we're still on swap page
-        if (mounted.current && location.pathname === "/swap") {
-          const searchParams = new URLSearchParams();
-          if (fromAmount) searchParams.set("amount", fromAmount);
-          if (selectedToken) searchParams.set("from", selectedToken as string);
-          if (selectedOutputTokens.length > 0)
-            searchParams.set("to", selectedOutputTokens.join("-"));
-          if (allocationType === "ratio") {
-            searchParams.set("ratio", allocationValues.join("-"));
-          } else {
-            searchParams.set("percentage", allocationValues.join("-"));
-          }
-          navigate(`?${searchParams.toString()}`, { replace: true });
-        }
-
-        // Effect 7: Parse URL parameters (only on mount)
-        if (!hasInitialized.current && mounted.current) {
-          const params = new URLSearchParams(location.search);
-          const sellToken = params.get("sellToken");
-          const allocationTypeParam = params.get("allocationType");
-          const allocationValuesParam = params.get("allocationValues");
-          const selectedOutputTokensParam = params.get("selectedOutputTokens");
-          const fromAmountParam = params.get("fromAmount");
-
-          if (sellToken) {
-            setSelectedToken(sellToken as TokenSymbol);
-            updateDisabledTokens();
-          }
-          if (allocationTypeParam) {
-            setAllocationType(allocationTypeParam as "ratio" | "percentage");
-          }
-          if (allocationValuesParam) {
-            setAllocationValues(allocationValuesParam.split(","));
-          }
-          if (selectedOutputTokensParam) {
-            setSelectedOutputTokens(
-              selectedOutputTokensParam.split(",") as TokenSymbol[]
-            );
-          } else {
-            setSelectedOutputTokens([""]);
-          }
-          if (fromAmountParam) {
-            setFromAmount(fromAmountParam);
-          }
-          hasInitialized.current = true;
-        }
-
-        // Effect 8: Handle allocation updates after adding new token
-        if (selectedOutputTokens.length > 0) {
-          updateDisabledTokens();
-          if (fromAmount && selectedToken) {
-            simulateAndLogSwap();
-          }
         }
       } catch (error) {
         console.error("Error in updateEffects:", error);
@@ -900,18 +850,7 @@ function SwapInterfaceContent() {
     };
 
     updateEffects();
-  }, [
-    isConnected,
-    address,
-    ethBalanceData,
-    fromAmount,
-    selectedToken,
-    selectedOutputTokens,
-    formattedAllocationRatio,
-    checkApproval,
-    location.search,
-    selectedOutputTokens.length,
-  ]);
+  }, [location.search, isConnected, address, ethBalanceData, fromAmount, selectedToken]);
 
   // Add cleanup in a separate useEffect
   useEffect(() => {
