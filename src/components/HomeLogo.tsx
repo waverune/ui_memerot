@@ -266,29 +266,29 @@ const HomeLogo: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <button 
                       onClick={() => openTokenPopup("from")}
-                      className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors"
+                      className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors min-w-[140px] max-w-[180px] truncate"
                     >
                       {selectedToken ? (
                         <>
                           <img 
                             src={TOKENS[selectedToken].logo} 
                             alt={selectedToken} 
-                            className="w-6 h-6 rounded-full"
+                            className="w-6 h-6 rounded-full flex-shrink-0"
                           />
-                          <span>{selectedToken}</span>
+                          <span className="truncate">{selectedToken}</span>
                         </>
                       ) : (
                         <>
-                          <div className="w-6 h-6 rounded-full bg-gray-600"></div>
-                          <span>Select token</span>
+                          <div className="w-6 h-6 rounded-full bg-gray-600 flex-shrink-0"></div>
+                          <span className="truncate">Select token</span>
                         </>
                       )}
-                      <ChevronDown size={20} />
+                      <ChevronDown size={20} className="flex-shrink-0" />
                     </button>
                     <input
                       type="text"
                       placeholder="0"
-                      className="bg-transparent text-2xl font-medium focus:outline-none text-right w-[160px]"
+                      className="bg-transparent text-2xl font-medium focus:outline-none text-right w-[120px] sm:w-[160px]"
                     />
                   </div>
                 </div>
@@ -325,29 +325,29 @@ const HomeLogo: React.FC = () => {
                         <div className="flex items-center gap-2 flex-1">
                           <button 
                             onClick={() => openTokenPopup("output", index)}
-                            className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors flex-1"
+                            className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors min-w-[140px] max-w-[180px] truncate"
                           >
                             {token ? (
                               <>
                                 <img 
                                   src={TOKENS[token].logo} 
                                   alt={token} 
-                                  className="w-6 h-6 rounded-full"
+                                  className="w-6 h-6 rounded-full flex-shrink-0"
                                 />
-                                <span>{token}</span>
+                                <span className="truncate">{token}</span>
                               </>
                             ) : (
                               <>
-                                <div className="w-6 h-6 rounded-full bg-gray-600"></div>
-                                <span>Select token</span>
+                                <div className="w-6 h-6 rounded-full bg-gray-600 flex-shrink-0"></div>
+                                <span className="truncate">Select token</span>
                               </>
                             )}
-                            <ChevronDown size={20} />
+                            <ChevronDown size={20} className="flex-shrink-0" />
                           </button>
                           {selectedOutputTokens.length > 1 && (
                             <button
                               onClick={() => handleRemoveToken(index)}
-                              className="p-2 hover:bg-[#374160] rounded-full transition-colors"
+                              className="p-2 hover:bg-[#374160] rounded-full transition-colors flex-shrink-0"
                               aria-label="Remove token"
                             >
                               <X size={20} className="text-gray-400 hover:text-white" />
@@ -355,17 +355,17 @@ const HomeLogo: React.FC = () => {
                           )}
                         </div>
                         {/* Percentage Display/Button */}
-                        <div className="relative">
+                        <div className="relative flex-shrink-0">
                           {selectedSplitType === "custom" ? (
                             <button
                               onClick={() => setActivePercentageIndex(activePercentageIndex === index ? null : index)}
-                              className="flex items-center space-x-2 px-3 py-1.5 bg-[#293249] hover:bg-[#374160] rounded-full transition-colors"
+                              className="flex items-center space-x-2 px-3 py-1.5 bg-[#293249] hover:bg-[#374160] rounded-full transition-colors whitespace-nowrap"
                             >
-                              <span className="text-lg font-medium">{getTokenPercentage(index).toFixed(1)}%</span>
+                              <span className="text-base sm:text-lg font-medium">{getTokenPercentage(index).toFixed(1)}%</span>
                               <Percent className="h-4 w-4 text-gray-400" />
                             </button>
                           ) : (
-                            <span className="text-lg font-medium">{getTokenPercentage(index).toFixed(1)}%</span>
+                            <span className="text-base sm:text-lg font-medium whitespace-nowrap">{getTokenPercentage(index).toFixed(1)}%</span>
                           )}
                           
                           {/* Percentage Selector Popover */}

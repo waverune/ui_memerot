@@ -176,14 +176,9 @@ function SwapInterfaceContent() {
   const hasInitialized = useRef(false);
   const location = useLocation();
   const [fromAmount, setFromAmount] = useState("");
-  const [selectedToken, setSelectedToken] = useState<TokenSymbol>("");
-  const [selectedOutputTokens, setSelectedOutputTokens] = useState<
-    TokenSymbol[]
-  >([]);
-  const [toAmounts, setToAmounts] = useState<Record<TokenSymbol, string>>({
-    SPX6900: "0",
-    MOG: "0",
-  });
+  const [selectedToken, setSelectedToken] = useState<TokenSymbol | null>(null);
+  const [selectedOutputTokens, setSelectedOutputTokens] = useState<Array<TokenSymbol | null>>([null]);
+  const [toAmounts, setToAmounts] = useState<Record<TokenSymbol, string>>({});
   const [areFieldsValid, setAreFieldsValid] = useState(false);
   const [quoteResult, setQuoteResult] = useState<readonly bigint[]>([]);
   const [isTokenPopupOpen, setIsTokenPopupOpen] = useState(false);
@@ -404,7 +399,7 @@ function SwapInterfaceContent() {
   const updateDisabledTokens = useCallback(
     (tokens: TokenSymbol[] = selectedOutputTokens) => {
       const disabled = [selectedToken, ...tokens].filter(
-        (token) => token !== ""
+        (token) => token !== null
       );
       setDisabledTokens(disabled);
     },
@@ -413,10 +408,10 @@ function SwapInterfaceContent() {
 
   // Modify the removeOutputToken function to handle empty slots
   const removeOutputToken = useCallback(
-    (tokenToRemove: TokenSymbol | "", index: number) => {
+    (tokenToRemove: TokenSymbol | null, index: number) => {
       // If this is the only slot, just clear the selection instead of removing it
       if (selectedOutputTokens.length === 1) {
-        setSelectedOutputTokens([""]); // Keep one empty slot
+        setSelectedOutputTokens([null]); // Keep one empty slot
         setToAmounts({});
 
         // Keep allocation values as is for single slot
@@ -428,7 +423,7 @@ function SwapInterfaceContent() {
           setSelectedTemplate("1");
         }
 
-        updateDisabledTokens([""]);
+        updateDisabledTokens([null]);
         return;
       }
 
@@ -473,7 +468,7 @@ function SwapInterfaceContent() {
     if (isConnected && address && selectedToken !== "ETH" && selectedToken !== "WETH" && fromAmount) {
       try {
         const signer = await getSigner();
-        const tokenAddress = TOKENS[selectedToken].address;
+        const tokenAddress = TOKENS[selectedToken]?.address;
         const amount = fromAmount;
 
         const tokenContract = new ethers.Contract(
@@ -614,13 +609,13 @@ function SwapInterfaceContent() {
       setSelectedToken(tokens[0] as TokenSymbol);
     } else if (activeTokenSelection?.type === "output") {
       const currentTokens = selectedOutputTokens.filter(
-        (token) => token !== ""
+        (token) => token !== null
       );
       console.log(">>> current tokens:", currentTokens);
 
       // Filter out tokens that are already selected
       const newUniqueTokens = tokens.filter(
-        (token) => !currentTokens.includes(token)
+        (token) => !currentTokens.includes(token as TokenSymbol)
       );
       console.log(">>> new unique tokens:", newUniqueTokens);
 
@@ -637,7 +632,7 @@ function SwapInterfaceContent() {
       console.log(">>> final tokens array:", newTokens);
 
       // Update allocation values based on number of actual tokens
-      const actualTokenCount = newTokens.filter((token) => token !== "").length;
+      const actualTokenCount = newTokens.filter((token) => token !== null).length;
       const newAllocationValues =
         allocationType === "percentage"
           ? Array(actualTokenCount).fill((100 / actualTokenCount).toFixed(0))
@@ -717,7 +712,7 @@ function SwapInterfaceContent() {
   // Modify the handleAddToken function to automatically open the token selection popup when adding a new token slot
   const handleAddToken = useCallback(() => {
     const currentTokenCount = selectedOutputTokens.filter(
-      (token) => token !== ""
+      (token) => token !== null
     ).length;
 
     if (currentTokenCount >= 4) {
@@ -727,7 +722,7 @@ function SwapInterfaceContent() {
 
     // Find the next empty slot
     const nextEmptyIndex = selectedOutputTokens.findIndex(
-      (token) => token === ""
+      (token) => token === null
     );
 
     // Open token selection popup with the correct index
@@ -745,8 +740,8 @@ function SwapInterfaceContent() {
 
       // Preserve existing token selections up to the new template length
       const adjustedTokens = Array(newValues.length)
-        .fill("")
-        .map((_, index) => currentTokens[index] || "");
+        .fill(null)
+        .map((_, index) => currentTokens[index] || null);
 
       setSelectedTemplate(newTemplate);
       setAllocationValues(newValues);
@@ -755,7 +750,7 @@ function SwapInterfaceContent() {
       // Preserve amounts for existing tokens
       const newToAmounts = Object.fromEntries(
         Object.entries(toAmounts).filter(([token]) =>
-          adjustedTokens.includes(token)
+          adjustedTokens.includes(token as TokenSymbol)
         )
       );
       setToAmounts(newToAmounts);
@@ -816,7 +811,7 @@ function SwapInterfaceContent() {
           setSelectedToken(fromToken as TokenSymbol);
         }
         if (toTokens.length > 0) {
-          setSelectedOutputTokens(toTokens as TokenSymbol[]);
+          setSelectedOutputTokens(toTokens as Array<TokenSymbol | null>);
         }
         if (ratio.length > 0) {
           setAllocationValues(ratio);
@@ -870,7 +865,7 @@ function SwapInterfaceContent() {
 
   // Function to get the number of selected output tokens
   const getSelectedTokenCount = () => {
-    return selectedOutputTokens.filter((token) => token !== "").length;
+    return selectedOutputTokens.filter((token) => token !== null).length;
   };
 
   // Add this function to handle sharing the URL
@@ -983,9 +978,9 @@ function SwapInterfaceContent() {
     // Only reset output tokens if there are none selected
     if (
       selectedOutputTokens.length === 0 ||
-      (selectedOutputTokens.length === 1 && selectedOutputTokens[0] === "")
+      (selectedOutputTokens.length === 1 && selectedOutputTokens[0] === null)
     ) {
-      setSelectedOutputTokens([""]);
+      setSelectedOutputTokens([null]);
     }
   };
 
@@ -1184,7 +1179,7 @@ function SwapInterfaceContent() {
       fromAmount &&
       selectedToken &&
       selectedOutputTokens.length > 0 &&
-      selectedOutputTokens[0] !== ""
+      selectedOutputTokens[0] !== null
     ) {
       setAreFieldsValid(true);
       simulateQuote();
@@ -1269,62 +1264,67 @@ function SwapInterfaceContent() {
               {/* Left column - Swap Interface */}
               <div className="space-y-3">
                 {/* Input (Sell) section */}
-                <div className="bg-[#212638]/80 backdrop-blur-xl rounded-xl p-4 border border-[#2d3648]/30">
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-400">Sell</label>
-                      <div className="flex items-center justify-between">
-                        <div className="flex-grow">
-                          <input
-                            type="number"
-                            value={fromAmount}
-                            onChange={handleFromAmountChange}
-                            placeholder="0"
-                            className="bg-transparent border-none text-left w-full placeholder-gray-500 focus:outline-none focus:ring-0 text-white text-2xl"
-                          />
-                          <span className="text-sm text-gray-400">
-                            {getUsdValue(fromAmount || "0", selectedToken, tokenPriceData)}
-                          </span>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <button
-                            onClick={() => openTokenPopup("from")}
-                            className="flex items-center space-x-2 bg-[#293249]/80 hover:bg-[#374160] rounded-full px-4 py-2 transition-all duration-200 min-w-[140px] border border-[#3d4860]/50"
-                          >
+                <div className="bg-[#212638]/80 backdrop-blur-xl rounded-xl p-3 border border-[#2d3648]/30">
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400">Sell</label>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-grow">
+                        <input
+                          type="number"
+                          value={fromAmount}
+                          onChange={handleFromAmountChange}
+                          placeholder="0"
+                          className="bg-transparent border-none text-left w-full placeholder-gray-500 focus:outline-none focus:ring-0 text-white text-xl"
+                        />
+                        <span className="text-xs text-gray-400">
+                          {getUsdValue(fromAmount || "0", selectedToken, tokenPriceData)}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <button
+                          onClick={() => openTokenPopup("from")}
+                          className="flex items-center justify-between bg-[#293249]/80 hover:bg-[#374160] rounded-full px-3 py-1.5 transition-all duration-200 min-w-[140px] max-w-[180px] truncate border border-[#3d4860]/50"
+                        >
+                          <div className="flex items-center space-x-2">
                             {selectedToken ? (
                               <>
                                 <img
                                   src={TOKENS[selectedToken].logo}
                                   alt={`${selectedToken} logo`}
-                                  className="w-6 h-6 rounded-full"
+                                  className="w-5 h-5 rounded-full flex-shrink-0"
                                 />
-                                <span className="text-white">{selectedToken}</span>
+                                <span className="text-sm text-white truncate">{selectedToken}</span>
                               </>
                             ) : (
-                              <span className="text-white">Select a token</span>
+                              <>
+                                <div className="w-5 h-5 rounded-full bg-[#374160] flex items-center justify-center flex-shrink-0">
+                                  <ChevronDown className="h-3 w-3 text-gray-400" />
+                                </div>
+                                <span className="text-sm text-gray-400 truncate">Select token</span>
+                              </>
                             )}
-                            <ChevronDown className="h-4 w-4 text-gray-400" />
-                          </button>
-                          <span className="text-xs text-gray-400 mt-1">
-                            {selectedToken ? `Balance: ${parseFloat(tokenBalances[selectedToken] || "0").toFixed(4)} ${selectedToken}` : "Select a token to view balance"}
-                          </span>
-                        </div>
+                          </div>
+                          <ChevronDown className="h-3 w-3 text-gray-400 ml-1 flex-shrink-0" />
+                        </button>
+                        <span className="text-xs text-gray-400 mt-1">
+                          {selectedToken ? `Balance: ${parseFloat(tokenBalances[selectedToken] || "0").toFixed(4)} ${selectedToken}` : "Select a token to view balance"}
+                        </span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Swap arrow */}
-                <div className="flex justify-center">
+                <div className="flex justify-center -my-1">
                   <div className="bg-[#293249]/80 backdrop-blur-sm rounded-full p-2 border border-[#3d4860]/50">
-                    <ArrowDownUp className="h-5 w-5 text-gray-400" />
+                    <ArrowDownUp className="h-4 w-4 text-gray-400" />
                   </div>
                 </div>
 
                 {/* Output (Buy) section */}
                 <div className="space-y-2">
                   <label className="text-sm text-gray-400">Buy</label>
-                  {allocationValues.map((_, index) => (
+                  {(selectedOutputTokens.length > 0 ? selectedOutputTokens : [null]).map((token, index) => (
                     <div
                       key={index}
                       className="bg-[#212638]/80 backdrop-blur-sm rounded-xl p-3 border border-[#2d3648]/30"
@@ -1333,47 +1333,56 @@ function SwapInterfaceContent() {
                         <div className="flex-grow">
                           <input
                             type="number"
-                            value={selectedOutputTokens[index] ? simulatedOutputs[selectedOutputTokens[index]]?.amount || "0" : "0"}
+                            value={token ? simulatedOutputs[token]?.amount || "0" : "0"}
                             readOnly
-                            className="bg-transparent border-none text-left w-full focus:outline-none focus:ring-0 text-white text-2xl"
+                            className="bg-transparent border-none text-left w-full focus:outline-none focus:ring-0 text-white text-xl"
                           />
-                          <span className="text-sm text-gray-400">
-                            {selectedOutputTokens[index] && simulatedOutputs[selectedOutputTokens[index]]?.loading
+                          <span className="text-xs text-gray-400">
+                            {token && simulatedOutputs[token]?.loading
                               ? "Calculating..."
-                              : selectedOutputTokens[index] && simulatedOutputs[selectedOutputTokens[index]]?.error
-                              ? simulatedOutputs[selectedOutputTokens[index]]?.error
-                              : getUsdValue(
-                                  simulatedOutputs[selectedOutputTokens[index]]?.amount || "0",
-                                  selectedOutputTokens[index],
+                              : token && simulatedOutputs[token]?.error
+                              ? simulatedOutputs[token]?.error
+                              : token
+                              ? getUsdValue(
+                                  simulatedOutputs[token]?.amount || "0",
+                                  token,
                                   tokenPriceData
-                                )}
+                                )
+                              : "$0.00"}
                           </span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => openTokenPopup("output", index)}
-                            className="flex items-center space-x-2 bg-[#293249]/80 hover:bg-[#374160] rounded-full px-4 py-2 transition-all duration-200 min-w-[140px] border border-[#3d4860]/50"
+                            className="flex items-center justify-between bg-[#293249]/80 hover:bg-[#374160] rounded-full px-3 py-1.5 transition-all duration-200 min-w-[140px] max-w-[180px] truncate border border-[#3d4860]/50"
                           >
-                            {selectedOutputTokens[index] && selectedOutputTokens[index] !== "" ? (
-                              <>
-                                <img
-                                  src={TOKENS[selectedOutputTokens[index]].logo}
-                                  alt={`${selectedOutputTokens[index]} logo`}
-                                  className="w-6 h-6 rounded-full"
-                                />
-                                <span className="text-white">{selectedOutputTokens[index]}</span>
-                              </>
-                            ) : (
-                              <span className="text-white">Select a token</span>
-                            )}
-                            <ChevronDown className="h-4 w-4 text-gray-400" />
+                            <div className="flex items-center space-x-2">
+                              {token ? (
+                                <>
+                                  <img
+                                    src={TOKENS[token].logo}
+                                    alt={`${token} logo`}
+                                    className="w-5 h-5 rounded-full flex-shrink-0"
+                                  />
+                                  <span className="text-sm text-white truncate">{token}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="w-5 h-5 rounded-full bg-[#374160] flex items-center justify-center flex-shrink-0">
+                                    <ChevronDown className="h-3 w-3 text-gray-400" />
+                                  </div>
+                                  <span className="text-sm text-gray-400 truncate">Select token</span>
+                                </>
+                              )}
+                            </div>
+                            <ChevronDown className="h-3 w-3 text-gray-400 ml-1 flex-shrink-0" />
                           </button>
-                          {(selectedOutputTokens.length > 1 || selectedOutputTokens[index]) && (
+                          {selectedOutputTokens.length > 1 && (
                             <button
-                              onClick={() => removeOutputToken(selectedOutputTokens[index] as string, index)}
-                              className="bg-[#293249]/80 hover:bg-[#374160] rounded-full p-2 transition-all duration-200 border border-[#3d4860]/50"
+                              onClick={() => removeOutputToken(token || null, index)}
+                              className="bg-[#293249]/80 hover:bg-[#374160] rounded-full p-1.5 transition-all duration-200 border border-[#3d4860]/50 flex-shrink-0"
                             >
-                              <X className="h-4 w-4 text-gray-400" />
+                              <X className="h-3 w-3 text-gray-400" />
                             </button>
                           )}
                         </div>
@@ -1410,7 +1419,7 @@ function SwapInterfaceContent() {
                     >
                       Enter amount to sell
                     </button>
-                  ) : selectedOutputTokens.filter(token => token !== "").length === 0 ? (
+                  ) : selectedOutputTokens.filter(token => token !== null).length === 0 ? (
                     <button
                       disabled
                       className="w-full bg-[#293249]/50 text-gray-400 font-medium py-3 px-4 rounded-xl cursor-not-allowed"
@@ -1470,12 +1479,12 @@ function SwapInterfaceContent() {
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => {
-                            if (selectedOutputTokens.filter(t => t !== "").length < 2) {
+                            if (selectedOutputTokens.filter(t => t !== null).length < 2) {
                               toast.error("Please select at least 2 tokens first");
                               return;
                             }
                             setAllocationType("percentage");
-                            const count = selectedOutputTokens.filter(t => t !== "").length;
+                            const count = selectedOutputTokens.filter(t => t !== null).length;
                             const equalValue = (100 / count).toFixed(2);
                             setAllocationValues(Array(count).fill(equalValue));
                           }}
@@ -1490,7 +1499,7 @@ function SwapInterfaceContent() {
                         </button>
                         <button
                           onClick={() => {
-                            if (selectedOutputTokens.filter(t => t !== "").length < 2) {
+                            if (selectedOutputTokens.filter(t => t !== null).length < 2) {
                               toast.error("Please select at least 2 tokens first");
                               return;
                             }
@@ -1541,17 +1550,12 @@ function SwapInterfaceContent() {
                         Token Allocation ({allocationType === "percentage" ? "%" : "ratio"})
                       </label>
                       <div className="grid grid-cols-4 gap-2">
-                        {Array(4).fill(0).map((_, index) => {
-                          const hasToken = selectedOutputTokens[index] && selectedOutputTokens[index] !== "";
+                        {Array(4).fill(null).map((_, index) => {
+                          const hasToken = selectedOutputTokens[index] && selectedOutputTokens[index] !== null;
                           return (
                             <div
                               key={index}
-                              className="relative group"
-                              onClick={() => {
-                                if (!hasToken) {
-                                  toast.error("Please select a token first");
-                                }
-                              }}
+                              className="relative group w-full"
                             >
                               {allocationType === "percentage" ? (
                                 <button
@@ -1560,7 +1564,7 @@ function SwapInterfaceContent() {
                                     hasToken ? "border-[#2d3648]/30" : "border-[#2d3648]/10"
                                   } focus:ring-2 focus:ring-[#4c82fb] focus:border-transparent ${
                                     !hasToken && "opacity-50 cursor-not-allowed"
-                                  }`}
+                                  } truncate`}
                                 >
                                   {hasToken ? `${parseFloat(allocationValues[index] || "0").toFixed(1)}%` : ""}
                                 </button>
@@ -1579,7 +1583,7 @@ function SwapInterfaceContent() {
                                     hasToken ? "border-[#2d3648]/30" : "border-[#2d3648]/10"
                                   } focus:ring-2 focus:ring-[#4c82fb] focus:border-transparent ${
                                     !hasToken && "opacity-50 cursor-not-allowed"
-                                  }`}
+                                  } truncate`}
                                 />
                               )}
                               {!hasToken && (
@@ -1658,7 +1662,7 @@ function SwapInterfaceContent() {
                     </div>
 
                     {/* Token Allocations Bar */}
-                    {selectedOutputTokens.length > 0 && selectedOutputTokens[0] !== "" && (
+                    {selectedOutputTokens.length > 0 && selectedOutputTokens[0] !== null && (
                       <div className="space-y-2">
                         <div className="text-sm text-gray-400">Token Allocations</div>
                         <div className="relative h-2.5 bg-[#212638]/80 rounded-full overflow-hidden border border-[#2d3648]/30">
@@ -1680,7 +1684,7 @@ function SwapInterfaceContent() {
                         </div>
                         <div className="flex flex-wrap gap-2 text-xs text-gray-400">
                           {allocationValues.map((value, index) => {
-                            const tokenSymbol = TOKENS[selectedOutputTokens[index]]?.symbol;
+                            const tokenSymbol = TOKENS[selectedOutputTokens[index] as TokenSymbol]?.symbol;
                             return tokenSymbol ? (
                               <span key={index} className="bg-[#212638]/50 px-2 py-1 rounded-full">
                                 {`${value} (${allocationPercentages[index].toFixed(2)}%) ${tokenSymbol}`}
