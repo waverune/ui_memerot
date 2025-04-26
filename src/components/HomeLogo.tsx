@@ -33,7 +33,7 @@ const HomeLogo: React.FC = () => {
   });
 
   const getProvider = () => {
-    return new ethers.JsonRpcProvider("https://rpc.buildbear.io/devoted-goose-2543c510");
+    return new ethers.JsonRpcProvider("https://rpc.buildbear.io/early-captainmarvel-0939f826");
   };
 
   const fetchBalances = async () => {
@@ -319,10 +319,19 @@ const HomeLogo: React.FC = () => {
               {/* Token Outputs with Allocation */}
               <div className="space-y-3">
                 {selectedOutputTokens.map((token, index) => (
-                  <div key={`output-${index}`} className="p-4 bg-[#212638] rounded-xl">
+                  <div key={`output-${index}`} className="p-4 bg-[#212638] rounded-xl relative">
+                    {selectedOutputTokens.length > 1 && (
+                      <button
+                        onClick={() => handleRemoveToken(index)}
+                        className="absolute top-2 right-2 p-1.5 hover:bg-[#374160] rounded-full transition-colors flex-shrink-0"
+                        aria-label="Remove token"
+                      >
+                        <X size={16} className="text-gray-400 hover:text-white" />
+                      </button>
+                    )}
                     <div className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 flex-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <div className="flex-1">
                           <button 
                             onClick={() => openTokenPopup("output", index)}
                             className="flex items-center space-x-2 bg-[#293249] rounded-full px-4 py-2 hover:bg-[#374160] transition-colors min-w-[140px] max-w-[180px] truncate"
@@ -344,28 +353,19 @@ const HomeLogo: React.FC = () => {
                             )}
                             <ChevronDown size={20} className="flex-shrink-0" />
                           </button>
-                          {selectedOutputTokens.length > 1 && (
-                            <button
-                              onClick={() => handleRemoveToken(index)}
-                              className="p-2 hover:bg-[#374160] rounded-full transition-colors flex-shrink-0"
-                              aria-label="Remove token"
-                            >
-                              <X size={20} className="text-gray-400 hover:text-white" />
-                            </button>
-                          )}
                         </div>
                         {/* Percentage Display/Button */}
-                        <div className="relative flex-shrink-0">
+                        <div className="relative flex justify-center sm:justify-end">
                           {selectedSplitType === "custom" ? (
                             <button
                               onClick={() => setActivePercentageIndex(activePercentageIndex === index ? null : index)}
-                              className="flex items-center space-x-2 px-3 py-1.5 bg-[#293249] hover:bg-[#374160] rounded-full transition-colors whitespace-nowrap"
+                              className="flex items-center space-x-1 px-2.5 py-1 bg-[#293249] hover:bg-[#374160] rounded-full transition-colors whitespace-nowrap text-sm"
                             >
-                              <span className="text-base sm:text-lg font-medium">{getTokenPercentage(index).toFixed(1)}%</span>
-                              <Percent className="h-4 w-4 text-gray-400" />
+                              <span className="font-medium">{getTokenPercentage(index).toFixed(1)}%</span>
+                              <Percent className="h-3.5 w-3.5 text-gray-400" />
                             </button>
                           ) : (
-                            <span className="text-base sm:text-lg font-medium whitespace-nowrap">{getTokenPercentage(index).toFixed(1)}%</span>
+                            <span className="text-sm font-medium whitespace-nowrap">{getTokenPercentage(index).toFixed(1)}%</span>
                           )}
                           
                           {/* Percentage Selector Popover */}

@@ -302,7 +302,7 @@ function SwapInterfaceContent() {
     [tokenPriceData]
   );
 
-  const swapContractAddress = "0x71618D8BBa10c21ffd42bB409D2aBfEED8A8F997"; // Replace with your actual swap contract address
+  const swapContractAddress = "0x8413176534f9Bd6c85f143C30c8B66ae50904457"; // Replace with your actual swap contract address
 
   // Validate and format allocation ratio
   const formattedAllocationRatio = useMemo(() => {
