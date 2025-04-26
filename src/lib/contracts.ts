@@ -20,7 +20,7 @@ export const MULTICALL_ADDRESSES: Record<number, string> = {
   1: '0xcA11bde05977b3631167028862bE2a173976CA11', // Ethereum Mainnet
   56: '0xcA11bde05977b3631167028862bE2a173976CA11', // BSC
   137: '0xcA11bde05977b3631167028862bE2a173976CA11', // Polygon
-  25099: '0x71618D8BBa10c21ffd42bB409D2aBfEED8A8F997'
+  25925: '0xbe5442b465A6BF98ba30b449087Ee821eb1eE3cC'
   // Add other networks as needed
 };
 // Mock Swap Contract Interface
