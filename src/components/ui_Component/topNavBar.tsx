@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ChevronDown } from "lucide-react";
 
 const TopNavBar: React.FC = () => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isTestnetDropdownOpen, setIsTestnetDropdownOpen] = useState(false);
 
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -13,6 +14,10 @@ const TopNavBar: React.FC = () => {
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const toggleTestnetDropdown = () => {
+    setIsTestnetDropdownOpen(!isTestnetDropdownOpen);
   };
 
   return (
@@ -50,6 +55,41 @@ const TopNavBar: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-6">
+          {/* Testnet Badge with Dropdown */}
+          <div className="relative hidden md:block">
+            <button
+              onClick={toggleTestnetDropdown}
+              className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
+            >
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium">Testnet</span>
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <ChevronDown className="w-4 h-4" />
+              </div>
+            </button>
+            
+            {isTestnetDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-[#191c2a] rounded-lg shadow-lg border border-gray-800 py-2">
+                <a
+                  href="https://faucet.buildbear.io/early-captainmarvel-0939f826"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block px-4 py-2 text-sm text-gray-300 hover:bg-[#293249] hover:text-white transition-colors"
+                >
+                  Get Testnet Tokens
+                </a>
+                <a
+                  href="https://www.notion.so/Testnet-Doc-for-users-1afc41fdf8db80a5b9c0c46416545b45"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block px-4 py-2 text-sm text-gray-300 hover:bg-[#293249] hover:text-white transition-colors"
+                >
+                  Testnet Guide for Users
+                </a>
+              </div>
+            )}
+          </div>
+
           <Link
             to="/about"
             className="hidden md:flex items-center text-gray-300 hover:text-white transition-colors"
@@ -104,6 +144,15 @@ const TopNavBar: React.FC = () => {
             >
               About Us
             </Link>
+            <a
+              href="https://faucet.buildbear.io/early-captainmarvel-0939f826"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={toggleMobileMenu}
+              className="px-4 py-3 rounded-lg text-sm font-medium text-gray-300 hover:bg-[#293249] hover:text-white transition-colors"
+            >
+              Get Testnet Tokens
+            </a>
 
             {/* Social Links */}
             <div className="border-t border-gray-800 mt-2 pt-4">
