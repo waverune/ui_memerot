@@ -1,6 +1,6 @@
 import { TokenConfig } from "../utils/Modal";
 
-export type TokenKey = "ETH" | "WETH" | "USDC" | "SPX6900" | "MOG" | "HPOS" | "WOJAK" | "PEIPEI" | "SHIBA";
+export type TokenKey = "ETH" | "WETH" | "USDC" | "USDT" | "SPX6900" | "MOG" | "HPOS" | "WOJAK" | "PEIPEI" | "SHIBA";
 
 export const TOKENS: Record<TokenKey, TokenConfig> = {
     ETH: {
@@ -23,6 +23,13 @@ export const TOKENS: Record<TokenKey, TokenConfig> = {
         symbol: "USDC",
         logo: "/logos/USDC.png",
         coingeckoId: "usd-coin"
+    },
+    USDT: {
+        address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        decimals: 6,
+        symbol: "USDT",
+        logo: "/logos/USDT.png",
+        coingeckoId: "tether"
     },
     SPX6900: {
         address: "0xe0f63a424a4439cbe457d80e4f4b51ad25b2c56c",
