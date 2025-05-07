@@ -94,9 +94,9 @@ const TokenSelectionPopup: React.FC<TokenSelectionPopupProps> = memo(({
       config.name?.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (allowMultiSelect) {
-      return matchesSearch && !disabledTokens.includes(symbol);
+      return matchesSearch && !currentOutputTokens.includes(symbol);
     } else {
-      return matchesSearch && !selectedOutputTokens.includes(symbol);
+      return matchesSearch && symbol !== selectedToken;
     }
   });
 

@@ -33,7 +33,7 @@ const HomeLogo: React.FC = () => {
   });
 
   const getProvider = () => {
-    return new ethers.JsonRpcProvider("https://rpc.buildbear.io/early-captainmarvel-0939f826");
+    return new ethers.JsonRpcProvider("https://rpc.buildbear.io/memerot");
   };
 
   const fetchBalances = async () => {
@@ -148,21 +148,32 @@ const HomeLogo: React.FC = () => {
     updateDisabledTokens();
   };
 
-  const updateDisabledTokens = (tokens: (TokenSymbol | null)[] = selectedOutputTokens) => {
-    const disabled = [selectedToken, ...tokens].filter((token): token is TokenSymbol => token !== null) as TokenSymbol[];
-    setDisabledTokens(disabled);
-  };
-
   const handleTokenSelect = (tokens: string[]) => {
     if (activeTokenSelection?.type === "from") {
       setSelectedToken(tokens[0] as TokenSymbol);
       updateDisabledTokens();
     } else if (activeTokenSelection?.type === "output") {
-      const newTokens = tokens.slice(0, 4) as TokenSymbol[]; // Allow up to 4 tokens
-      setSelectedOutputTokens(newTokens.map(token => token as TokenSymbol | null));
-      updateDisabledTokens(newTokens);
+      if (activeTokenSelection.index !== undefined) {
+        // Update the specific token slot
+        setSelectedOutputTokens(prev => {
+          const newTokens = [...prev];
+          newTokens[activeTokenSelection.index!] = tokens[0] as TokenSymbol;
+          return newTokens;
+        });
+      } else {
+        // Add new tokens
+        const newTokens = tokens.slice(0, 4) as TokenSymbol[];
+        setSelectedOutputTokens(newTokens.map(token => token as TokenSymbol | null));
+      }
+      updateDisabledTokens();
     }
     closeTokenPopup();
+  };
+
+  const updateDisabledTokens = (tokens: (TokenSymbol | null)[] = selectedOutputTokens) => {
+    // Only disable tokens that are currently selected in output slots
+    const disabled = tokens.filter((token): token is TokenSymbol => token !== null) as TokenSymbol[];
+    setDisabledTokens(disabled);
   };
 
   // Filter tokens for output selection (excluding ETH/WETH)

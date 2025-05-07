@@ -302,7 +302,7 @@ function SwapInterfaceContent() {
     [tokenPriceData]
   );
 
-  const swapContractAddress = "0x8413176534f9Bd6c85f143C30c8B66ae50904457"; // Replace with your actual swap contract address
+  const swapContractAddress = "0x63e26bDEED5990c75B9230a8d09D7A72dF955Bd5"; // Replace with your actual swap contract address
 
   // Validate and format allocation ratio
   const formattedAllocationRatio = useMemo(() => {
@@ -598,34 +598,53 @@ function SwapInterfaceContent() {
     if (activeTokenSelection?.type === "from") {
       setSelectedToken(tokens[0] as TokenSymbol);
     } else if (activeTokenSelection?.type === "output") {
-      // Get the current tokens array
+      // Get the current tokens array and filter out null values
       const currentTokens = [...selectedOutputTokens];
+      const existingTokens = currentTokens.filter(token => token !== null) as TokenSymbol[];
       
       // If we have an index, update that specific slot
       if (activeTokenSelection.index !== undefined) {
-        // If multiple tokens are selected, add them to new slots
+        // If multiple tokens are selected
         if (tokens.length > 1) {
-          // First, update the current slot with the first token
-          currentTokens[activeTokenSelection.index] = tokens[0] as TokenSymbol;
+          // First, update the current slot with the first token if it's not already selected
+          const firstToken = tokens[0] as TokenSymbol;
+          if (!existingTokens.includes(firstToken)) {
+            currentTokens[activeTokenSelection.index] = firstToken;
+          }
           
-          // Then add remaining tokens to new slots
+          // Then add remaining tokens to new slots if they're not already selected
           for (let i = 1; i < tokens.length; i++) {
-            if (currentTokens.length < 4) {
-              currentTokens.push(tokens[i] as TokenSymbol);
+            const token = tokens[i] as TokenSymbol;
+            if (!existingTokens.includes(token) && currentTokens.length < 4) {
+              const emptySlotIndex = currentTokens.findIndex(t => t === null);
+              if (emptySlotIndex !== -1) {
+                currentTokens[emptySlotIndex] = token;
+              } else {
+                currentTokens.push(token);
+              }
             }
           }
         } else {
-          // Single token selection
-          currentTokens[activeTokenSelection.index] = tokens[0] as TokenSymbol;
+          // Single token selection - only allow if token is not already selected
+          const token = tokens[0] as TokenSymbol;
+          if (!existingTokens.includes(token)) {
+            currentTokens[activeTokenSelection.index] = token;
+          } else {
+            toast.warning("Token already selected");
+            return;
+          }
         }
       } else {
         // If no index specified, add tokens to empty slots or create new ones
         tokens.forEach(token => {
-          const emptySlotIndex = currentTokens.findIndex(t => t === null);
-          if (emptySlotIndex !== -1) {
-            currentTokens[emptySlotIndex] = token as TokenSymbol;
-          } else if (currentTokens.length < 4) {
-            currentTokens.push(token as TokenSymbol);
+          const tokenSymbol = token as TokenSymbol;
+          if (!existingTokens.includes(tokenSymbol)) {
+            const emptySlotIndex = currentTokens.findIndex(t => t === null);
+            if (emptySlotIndex !== -1) {
+              currentTokens[emptySlotIndex] = tokenSymbol;
+            } else if (currentTokens.length < 4) {
+              currentTokens.push(tokenSymbol);
+            }
           }
         });
       }
@@ -639,8 +658,6 @@ function SwapInterfaceContent() {
 
       setSelectedOutputTokens(currentTokens);
       setAllocationValues(newAllocationValues);
-      setSelectedTemplate(newAllocationValues.join(":"));
-      updateDisabledTokens(currentTokens.filter(token => token !== null) as TokenSymbol[]);
     }
     closeTokenPopup();
   };
@@ -1354,6 +1371,11 @@ function SwapInterfaceContent() {
                                 )
                               : "$0.00"}
                           </span>
+                          {token && (
+                            <span className="text-xs text-gray-400 block mt-1">
+                              Doge Ratio: {calculateDogeRatio(token, tokenPriceData, dogeMarketCap)}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center space-x-2">
                           <button
