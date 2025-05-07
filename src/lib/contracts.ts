@@ -17,10 +17,10 @@ export const ERC20_ABI = [
 ] as const;
 
 export const MULTICALL_ADDRESSES: Record<number, string> = {
-  1: '0xcA11bde05977b3631167028862bE2a173976CA11', // Ethereum Mainnet
+  1: '0xb9AB8510490a85CEDDd1EbED81AF306AE6d79c20', // Ethereum Mainnet
   56: '0xcA11bde05977b3631167028862bE2a173976CA11', // BSC
   137: '0xcA11bde05977b3631167028862bE2a173976CA11', // Polygon
-  25925: '0xbe5442b465A6BF98ba30b449087Ee821eb1eE3cC'
+  // 1: '0xbe5442b465A6BF98ba30b449087Ee821eb1eE3cC'
   // Add other networks as needed
 };
 // Mock Swap Contract Interface

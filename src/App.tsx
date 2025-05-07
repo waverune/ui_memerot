@@ -19,7 +19,7 @@ import { WagmiProvider } from "wagmi";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 
 export const BuildBearChain = {
-  id: 25925,
+  id: 1,
   name: "Forked Testnet",
   nativeCurrency: {
     name: "Ethereum",
@@ -28,13 +28,13 @@ export const BuildBearChain = {
   },
   rpcUrls: {
     default: {
-      http: ["https://rpc.buildbear.io/early-captainmarvel-0939f826"],
+      http: ["https://rpc.buildbear.io/memerot"],
     },
   },
   blockExplorers: {
     default: {
       name: "BuildBear Explorer",
-      url: "https://explorer.buildbear.io/early-captainmarvel-0939f826",
+      url: "https://explorer.buildbear.io/memerot",
     },
   },
   iconUrl: "https://example.com/avax-icon.png",

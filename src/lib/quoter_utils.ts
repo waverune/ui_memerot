@@ -25,7 +25,7 @@ import { MULTISWAP_QUOTER_ABI } from '../lib/contracts'
 // Define your custom chain
 // const bb_chain = ;
 export const BuildBearChain = {
-    id: 25925,
+    id: 1,
     name: "Forked Testnet",
     nativeCurrency: {
         name: "Ethereum Virtual",
@@ -34,13 +34,13 @@ export const BuildBearChain = {
     },
     rpcUrls: {
         default: {
-            http: ["https://rpc.buildbear.io/early-captainmarvel-0939f826"],
+            http: ["https://rpc.buildbear.io/memerot"],
         },
     },
     blockExplorers: {
         default: {
             name: "BuildBear Explorer",
-            url: "https://explorer.buildbear.io/early-captainmarvel-0939f826",
+            url: "https://explorer.buildbear.io/memerot",
         },
     },
 } as const satisfies Chain;
@@ -50,7 +50,7 @@ const publicClient = createPublicClient({
     chain: defineChain(BuildBearChain),
     transport: http()
 })
-const quoterAddress = '0x791c5908921AA9b08a101be02D095d4e8F545e2A' // Replace with your actual quoter address
+const quoterAddress = '0xD7Ba4738a4F8ef97ccCE2917081f7c638006A31a' // Replace with your actual quoter address
 
 // Quoters returns array of token amounts in their respective decimals
 // for human readable amounts, divide by 10^decimals eg decimals: 18 for ETH, divide by 10^18, usdc: 6, divide by 10^6, spx&hpos: 8, divide by 10^8

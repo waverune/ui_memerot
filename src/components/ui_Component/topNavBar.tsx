@@ -71,7 +71,7 @@ const TopNavBar: React.FC = () => {
             {isTestnetDropdownOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-[#191c2a] rounded-lg shadow-lg border border-gray-800 py-2">
                 <a
-                  href="https://faucet.buildbear.io/early-captainmarvel-0939f826"
+                  href="https://faucet.buildbear.io/memerot"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block px-4 py-2 text-sm text-gray-300 hover:bg-[#293249] hover:text-white transition-colors"
@@ -145,7 +145,7 @@ const TopNavBar: React.FC = () => {
               About Us
             </Link>
             <a
-              href="https://faucet.buildbear.io/early-captainmarvel-0939f826"
+              href="https://faucet.buildbear.io/memerot"
               target="_blank"
               rel="noopener noreferrer"
               onClick={toggleMobileMenu}
